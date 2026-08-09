@@ -21,6 +21,14 @@ npm run build        # check + prisma generate + next build
 npm start            # serve the production build
 ```
 
+## Deployment
+
+Live at <https://sysdesign-atlas.vercel.app> — Vercel (Next.js) with Neon Postgres.
+Every push to `main` auto-deploys to production; branches get preview URLs.
+
+Full walkthrough, including the Fly.io + SQLite alternative, in
+[`app-next/DEPLOY.md`](app-next/DEPLOY.md).
+
 ## The curriculum
 
 Topics live in `app-next/content/<NN-section>/<NN-slug>.md` and are grouped into four tiers.
