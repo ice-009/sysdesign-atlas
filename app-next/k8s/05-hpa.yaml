@@ -1,0 +1,55 @@
+# Horizontal Pod Autoscaler — this is what actually handles load.
+# Requires metrics-server in the cluster:
+#   kubectl apply -f https://github.com/kubernetes-sigs/metrics-server/releases/latest/download/components.yaml
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: atlas-app
+  namespace: atlas
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: atlas-app
+
+  minReplicas: 3
+  maxReplicas: 20
+
+  metrics:
+    # 65% rather than 90%: headroom absorbs traffic spikes and node loss.
+    # Scaling reacts in tens of seconds, so targeting near-saturation means
+    # you're already overloaded by the time new pods are Ready.
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 65
+    - type: Resource
+      resource:
+        name: memory
+        target:
+          type: Utilization
+          averageUtilization: 75
+
+  behavior:
+    scaleUp:
+      # React fast to load, but cap the rate so a metrics blip can't
+      # summon 50 pods at once.
+      stabilizationWindowSeconds: 30
+      policies:
+        - type: Percent
+          value: 100 # at most double
+          periodSeconds: 30
+        - type: Pods
+          value: 4 # ...and at most 4 new pods
+          periodSeconds: 30
+      selectPolicy: Min
+    scaleDown:
+      # Slow and conservative. Scaling down during a lull only to scale
+      # back up moments later ("flapping") costs more than the idle pods.
+      stabilizationWindowSeconds: 300
+      policies:
+        - type: Percent
+          value: 25
+          periodSeconds: 60

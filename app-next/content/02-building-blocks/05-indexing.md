@@ -1,0 +1,160 @@
+---
+title: Database Indexing
+summary: How B-tree indexes actually work, composite index ordering, covering indexes, and why the wrong index is often worse than none at all.
+difficulty: Medium
+tags: [index, database, query, b-tree]
+prereqs: [sql-vs-nosql, hardware-numbers]
+---
+
+## The core idea
+
+Without an index, finding rows matching a predicate means reading every row — a **full table scan**, O(n). With an index, the database consults a sorted structure and jumps straight to the matching rows — O(log n).
+
+At 100 million rows that's the difference between reading 100 million entries and reading about 27. This is why "add an index" is frequently a 1000× improvement for a few minutes of work, and why it's the *first* thing to try before any architectural change.
+
+The cost, always worth stating: **indexes make reads faster and writes slower.** Every insert, update, or delete must maintain every index on the table. They also consume disk and — more importantly — RAM, since an index that doesn't fit in memory loses much of its advantage.
+
+## B+ trees: the default
+
+Nearly every relational index is a B+ tree. The properties that matter:
+
+```diagram
+                    [ 50 | 100 ]              ← internal nodes:
+                   /      |     \                keys only, for routing
+          [10|30]     [60|80]    [120|150]
+          /  |  \      /  |  \     /  |  \
+       leaves: sorted key → row-pointer, linked left-to-right
+       [..]→[..]→[..]→[..]→[..]→[..]→[..]→[..]
+```
+
+- **All values live in leaves**; internal nodes only route. This keeps internal nodes small so more of them fit in memory.
+- **Leaves are linked**, which makes range scans fast: find the start, then walk sideways. This is why B+ trees serve `WHERE created_at BETWEEN ...` and `ORDER BY` so well.
+- **High fan-out.** With ~100–500 keys per node, a tree of depth 4 addresses billions of rows. That's ~4 disk reads worst case, and the top levels are almost always cached.
+- **Self-balancing** — depth stays uniform as data changes, so performance is predictable.
+
+**Consequence to remember:** because B-trees are sorted, they support equality, ranges, prefix matching, and ordering. Hash indexes support equality only — faster for exact lookups, useless for anything else, which is why they're rarely the default.
+
+## Clustered vs secondary
+
+**Clustered index** — the table *is* the index; rows are physically stored in the index's order. There can be only one. In InnoDB this is the primary key; in Postgres, the heap is separate and there's no true clustered index.
+
+**Secondary index** — a separate structure mapping the indexed column to a row locator.
+
+The performance consequence in InnoDB-style engines:
+
+```diagram
+   SELECT * FROM users WHERE email = 'x@y.com'
+
+   1. Search secondary index on email     → finds primary key 4711
+   2. Search clustered index for PK 4711  → finds the actual row
+      ("bookmark lookup" / double lookup)
+```
+
+Two tree traversals, not one. This makes **covering indexes** (below) valuable, and it explains why a random UUID primary key hurts in InnoDB: rows are physically stored in PK order, so random keys cause page splits and fragmentation on every insert. Sequential-ish keys (auto-increment, [Snowflake IDs](unique-id-generation.html), UUIDv7) keep inserts appending to the end. That detail is a great one to raise when a design uses UUIDs.
+
+## Composite indexes and the leftmost rule
+
+An index on `(a, b, c)` sorts by `a`, then `b` within equal `a`, then `c`. This has a sharp consequence:
+
+```diagram
+   INDEX (country, city, age)
+
+   ✓ WHERE country='IN'                          uses index
+   ✓ WHERE country='IN' AND city='Pune'          uses index
+   ✓ WHERE country='IN' AND city='Pune' AND age=30   fully
+   ✓ WHERE country='IN' AND age=30               uses country only,
+                                                 then filters age
+   ✗ WHERE city='Pune'                           CANNOT use it
+   ✗ WHERE age=30                                CANNOT use it
+```
+
+You can only use a **prefix** of the index. Think of a phone book sorted by (last name, first name): finding everyone named "Priya" requires reading the whole book.
+
+**Ordering rule of thumb:**
+1. Equality predicates first.
+2. Then the range predicate.
+3. Then columns needed only for sorting or output.
+
+A range predicate stops the index from being used for anything after it, so `WHERE a = 1 AND b > 5 AND c = 3` uses `(a, b)` of an `(a, b, c)` index and filters `c` by scanning.
+
+:::goat A high-value observation
+"One composite index on `(user_id, created_at)` serves both `WHERE user_id = ?` and `WHERE user_id = ? ORDER BY created_at DESC LIMIT 20` — the second is the feed query, and because the index is already sorted, there's no sort step at all. That's why I'd put the timeline read on this index rather than adding two single-column indexes." Explaining *why* one index beats two is where the actual understanding lives.
+:::
+
+## Covering indexes
+
+If an index contains **every column the query needs**, the database answers entirely from the index and never touches the table — an *index-only scan*. This eliminates the bookmark lookup and is often a 2–10× win.
+
+```diagram
+   SELECT user_id, created_at FROM posts
+   WHERE user_id = 42 ORDER BY created_at DESC LIMIT 20;
+
+   INDEX (user_id, created_at)   → covering. Never reads the table.
+
+   SELECT user_id, created_at, body FROM posts ...
+   INDEX (user_id, created_at) INCLUDE (body)  → still covering
+```
+
+Postgres's `INCLUDE` (and SQL Server's equivalent) stores extra columns in the leaves without making them part of the sort key — you get coverage without bloating the tree's search path.
+
+## When indexes don't help
+
+Volunteering these is a good signal because it shows you understand the planner, not just the syntax:
+
+- **Low selectivity.** An index on a boolean where 50% of rows match is worse than a scan — the database would do a random read per row, and random I/O is far slower than sequential. Planners know this and will correctly ignore your index.
+- **Functions on the column.** `WHERE LOWER(email) = 'x'` can't use an index on `email`. Fix with an *expression index* on `LOWER(email)`.
+- **Leading wildcards.** `LIKE '%foo'` can't use a B-tree (nothing to seek to). Needs a trigram index or a [search engine](search.html).
+- **Type mismatches** that force implicit casts.
+- **`OR` across different columns** — often can't use one index; sometimes resolved by a bitmap-or of two indexes, sometimes better rewritten as a `UNION`.
+- **Small tables.** A scan of 500 rows already in memory beats index overhead.
+
+## The write cost, quantified
+
+Each index roughly adds:
+
+- **Insert:** one B-tree insert (a few page reads/writes, possible split).
+- **Update:** only if the indexed column changed — but changing an indexed column means delete + insert in that index.
+- **Delete:** removal from every index.
+
+A table with 8 indexes can be **5–10× slower to write** than the same table with one. On a write-heavy table this can be the actual bottleneck, and "we should drop the indexes nobody's queries use" is a genuinely common fix.
+
+:::trap "Add an index to every column"
+This is the most common indexing mistake in real systems. Indexes have to *earn* their place: each must serve a query that runs often enough to justify the write cost and memory footprint. Unused indexes are pure overhead — most databases expose usage statistics precisely so you can find and drop them.
+:::
+
+## Other index types worth naming
+
+- **Hash** — O(1) equality, no ranges, no ordering.
+- **Bitmap** — one bitmap per distinct value; excellent for low-cardinality columns combined with AND/OR in analytical workloads. Poor for high-write OLTP.
+- **GIN / inverted** — maps each token/element to the rows containing it. Powers full-text search, JSONB containment, and array membership.
+- **GiST / R-tree / [geospatial](geospatial.html)** — multi-dimensional; the basis of "points within this bounding box."
+- **Partial index** — indexes only rows matching a predicate: `WHERE status = 'pending'`. If 99% of orders are complete and you only ever query pending ones, the index is 1% of the size and stays in RAM. Underused and very effective.
+- **LSM-tree** — not a B-tree at all; see [Storage Engines](../04-data/storage-engines.html) for why write-heavy systems use it instead.
+
+## Reading a query plan
+
+The practical skill behind all of this. `EXPLAIN ANALYZE` and look for:
+
+- **Seq Scan** on a large table with a selective predicate → missing or unusable index.
+- **Index Scan** vs **Index Only Scan** → the latter means covering; the former means bookmark lookups.
+- **Rows estimated vs actual** wildly different → stale statistics, so the planner is choosing badly. Often the real bug.
+- **Sort** steps that an index ordering could have avoided.
+- **Nested Loop** with a large outer relation → usually a missing index on the join key.
+
+Check the plan before adding anything: a large discrepancy between estimated and actual rows usually means stale statistics, and no index fixes that.
+
+:::exercise Design the indexes
+A table of 200M orders: `(order_id, customer_id, status, created_at, total, region)`.
+
+1. Queries: "recent orders for a customer", "all pending orders in a region", "daily revenue by region". Design the minimum set of indexes.
+2. For each index, state its size relative to the table and its cost on write.
+3. Why is a composite index on `(customer_id, created_at)` different from two separate indexes? Which query shapes does each serve?
+4. A covering index would avoid a heap lookup. Compute when that is worth the extra width.
+5. One query is `WHERE lower(email) = ?` and is doing a sequential scan despite an index on `email`. Explain, and give two fixes.
+:::
+
+:::paper How indexes actually work
+Bayer and McCreight's 1972 paper introduced the B-tree; Comer's *The Ubiquitous B-Tree* (Computing Surveys, 1979) is the readable survey. Goetz Graefe's *Modern B-Tree Techniques* (2011) covers everything that happened since.
+
+*How Good Are Query Optimizers, Really?* (Leis et al., VLDB 2015) shows how index choice interacts with cardinality estimation — the reason a perfect index sometimes goes unused.
+:::

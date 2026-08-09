@@ -1,0 +1,44 @@
+# Fly.io deployment. SQLite on a persistent volume, so exactly ONE machine —
+# SQLite is a single-writer file and a second machine would corrupt it.
+#
+# Change `app` to a name you own, then: fly launch --no-deploy && fly deploy
+app = "sysdesign-atlas-armaan"
+primary_region = "bom"   # Mumbai. Others: fly platform regions
+
+[build]
+  dockerfile = "Dockerfile"
+
+[env]
+  PORT = "3000"
+  DATABASE_URL = "file:/data/prod.db"
+  AUTH_TRUST_HOST = "true"
+
+[mounts]
+  source = "sysdesign_data"
+  destination = "/data"
+  initial_size = "1gb"
+
+[http_service]
+  internal_port = 3000
+  force_https = true
+  # Suspend when idle and wake on the next request — a couple of seconds, and
+  # nothing is billed while suspended. Keep min/max at 1: see the note above.
+  auto_stop_machines = "suspend"
+  auto_start_machines = true
+  min_machines_running = 0
+
+  [http_service.concurrency]
+    type = "requests"
+    soft_limit = 200
+    hard_limit = 250
+
+[[http_service.checks]]
+  interval = "30s"
+  timeout = "5s"
+  grace_period = "20s"
+  method = "GET"
+  path = "/api/health"
+
+[[vm]]
+  size = "shared-cpu-1x"
+  memory = "512mb"

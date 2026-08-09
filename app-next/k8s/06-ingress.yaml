@@ -1,0 +1,29 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: atlas
+  namespace: atlas
+  annotations:
+    nginx.ingress.kubernetes.io/proxy-body-size: '8m'
+    # Rate limiting at the edge — cheapest place to shed abusive traffic,
+    # before it costs the app anything.
+    nginx.ingress.kubernetes.io/limit-rps: '30'
+    nginx.ingress.kubernetes.io/limit-burst-multiplier: '3'
+    # Uncomment once cert-manager is installed:
+    # cert-manager.io/cluster-issuer: letsencrypt-prod
+spec:
+  ingressClassName: nginx
+  # tls:
+  #   - hosts: [atlas.example.com]
+  #     secretName: atlas-tls
+  rules:
+    - host: atlas.local
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: atlas-app
+                port:
+                  number: 80

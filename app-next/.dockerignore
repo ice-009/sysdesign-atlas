@@ -1,0 +1,9 @@
+node_modules
+.next
+.git
+*.db
+*.db-journal
+.env
+.env.local
+README.md
+k8s

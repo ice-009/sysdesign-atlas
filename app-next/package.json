@@ -1,0 +1,42 @@
+{
+  "name": "sysdesign-atlas",
+  "version": "2.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev -p 4321",
+    "build": "node scripts/check-content.mjs && prisma generate && next build",
+    "check": "node scripts/check-content.mjs",
+    "start": "next start -p 4321",
+    "db:push": "prisma db push",
+    "db:studio": "prisma studio",
+    "seed": "node prisma/seed.mjs",
+    "db:deploy": "prisma db push && node prisma/seed.mjs",
+    "build:next": "BUILD_STANDALONE=1 next build"
+  },
+  "dependencies": {
+    "@auth/prisma-adapter": "^2.11.3",
+    "@prisma/adapter-better-sqlite3": "^7.9.1",
+    "@prisma/adapter-pg": "^7.9.1",
+    "@prisma/client": "^7.9.1",
+    "bcryptjs": "^3.0.3",
+    "motion": "^13.0.0",
+    "next": "^15.5.23",
+    "next-auth": "^5.0.0-beta.32",
+    "pg": "^8.22.0",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8",
+    "shiki": "^4.4.2"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4.3.3",
+    "@types/bcryptjs": "^2.4.6",
+    "@types/node": "^26.1.2",
+    "@types/react": "^19.2.18",
+    "@types/react-dom": "^19.2.4",
+    "dotenv": "^17.4.2",
+    "postcss": "^8.5.26",
+    "prisma": "^7.9.1",
+    "tailwindcss": "^4.3.3",
+    "typescript": "5.7"
+  }
+}

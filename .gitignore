@@ -1,0 +1,39 @@
+# dependencies
+node_modules/
+.pnp
+.pnp.js
+
+# builds
+.next/
+out/
+dist/
+build/
+*.tsbuildinfo
+next-env.d.ts
+
+# secrets — the Neon connection string and AUTH_SECRET live here
+.env
+.env.*
+!.env.example
+
+# local database
+*.db
+*.db-journal
+*.sqlite
+*.sqlite3
+
+# deployment tooling state
+.vercel/
+.fly/
+
+# logs and caches
+*.log
+npm-debug.log*
+.npm/
+.eslintcache
+
+# editor / OS
+.DS_Store
+.idea/
+.vscode/
+*.swp

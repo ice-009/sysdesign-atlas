@@ -1,0 +1,825 @@
+@import 'tailwindcss';
+
+@theme {
+  --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-mono: ui-monospace, 'SF Mono', 'JetBrains Mono', Menlo, Consolas, monospace;
+}
+
+:root {
+  --bg: #ffffff;
+  --bg-soft: #f7f8fa;
+  --bg-inset: #eef0f4;
+  --panel: #ffffff;
+  --border: #e4e7ec;
+  --border-strong: #cfd4dc;
+  --text: #0d1117;
+  --text-soft: #4a5462;
+  --text-dim: #78828f;
+  --accent: #2563eb;
+  --accent-text: #1d4ed8;
+  --grid: rgba(37, 99, 235, 0.055);
+  --glow: rgba(37, 99, 235, 0.14);
+  --code-bg: #f6f7f9;
+  --shadow-lg: 0 12px 40px rgba(15, 23, 42, 0.1);
+}
+
+:root.dark {
+  --bg: #07090e;
+  --bg-soft: #0c1017;
+  --bg-inset: #131924;
+  --panel: #0d1219;
+  --border: #1e2633;
+  --border-strong: #2d3949;
+  --text: #e8eef7;
+  --text-soft: #a3b0c2;
+  --text-dim: #6e7d91;
+  --accent: #38bdf8;
+  --accent-text: #7dd3fc;
+  --grid: rgba(56, 189, 248, 0.05);
+  --glow: rgba(56, 189, 248, 0.16);
+  --code-bg: #0b1017;
+  --shadow-lg: 0 12px 48px rgba(0, 0, 0, 0.6);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+  scroll-padding-top: 92px;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-sans);
+  line-height: 1.7;
+  -webkit-font-smoothing: antialiased;
+  overflow-x: hidden;
+}
+
+::selection {
+  background: var(--glow);
+  color: var(--text);
+}
+
+/* ---------- ambient background ---------- */
+
+.grid-bg {
+  position: fixed;
+  inset: 0;
+  z-index: -2;
+  background-image:
+    linear-gradient(var(--grid) 1px, transparent 1px),
+    linear-gradient(90deg, var(--grid) 1px, transparent 1px);
+  background-size: 56px 56px;
+  mask-image: radial-gradient(ellipse 90% 60% at 50% 0%, #000 40%, transparent 100%);
+}
+
+.aurora {
+  position: fixed;
+  inset: -20% -10% auto;
+  height: 60vh;
+  z-index: -1;
+  pointer-events: none;
+  filter: blur(90px);
+  opacity: 0.5;
+  background:
+    radial-gradient(40% 60% at 20% 30%, var(--glow), transparent 70%),
+    radial-gradient(35% 55% at 75% 25%, rgba(167, 139, 250, 0.14), transparent 70%);
+  animation: drift 22s ease-in-out infinite alternate;
+}
+
+@keyframes drift {
+  from { transform: translate3d(-3%, 0, 0) scale(1); }
+  to   { transform: translate3d(4%, 3%, 0) scale(1.12); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .aurora { animation: none; }
+  *, *::before, *::after {
+    animation-duration: 0.001ms !important;
+    transition-duration: 0.001ms !important;
+  }
+}
+
+/* ---------- scrollbars ---------- */
+
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb {
+  background: var(--border-strong);
+  border-radius: 6px;
+  border: 2px solid var(--bg);
+}
+::-webkit-scrollbar-thumb:hover { background: var(--text-dim); }
+
+/* ---------- prose ---------- */
+
+.prose {
+  font-size: 16.5px;
+  color: var(--text-soft);
+  min-width: 0;
+}
+
+/* Nothing in the prose may widen the reading column. Wide monospace blocks
+   scroll inside their own frame instead of pushing the page sideways. */
+.prose > * { max-width: 100%; min-width: 0; }
+.prose :where(pre, figure, table, .callout) { max-width: 100%; }
+
+/* Slim scrollbars inside content blocks — a full-width bar under a diagram
+   reads as a layout bug rather than an affordance. */
+.diagram pre::-webkit-scrollbar,
+.codeblock pre::-webkit-scrollbar,
+.table-wrap::-webkit-scrollbar { height: 7px; }
+.diagram pre::-webkit-scrollbar-thumb,
+.codeblock pre::-webkit-scrollbar-thumb,
+.table-wrap::-webkit-scrollbar-thumb {
+  background: var(--border-strong);
+  border-radius: 4px;
+  border: 0;
+}
+
+.prose h1, .prose h2, .prose h3, .prose h4 {
+  color: var(--text);
+  letter-spacing: -0.022em;
+  scroll-margin-top: 100px;
+  position: relative;
+}
+
+.prose h2 {
+  font-size: 1.7rem;
+  font-weight: 700;
+  margin: 3.2rem 0 1rem;
+  padding-top: 1.6rem;
+  border-top: 1px solid var(--border);
+}
+
+.prose h3 { font-size: 1.28rem; font-weight: 660; margin: 2.2rem 0 0.7rem; }
+.prose h4 { font-size: 1.05rem; font-weight: 660; margin: 1.7rem 0 0.5rem; color: var(--text-soft); }
+
+.prose p { margin: 0 0 1.1rem; }
+.prose ul, .prose ol { margin: 0 0 1.1rem; padding-left: 1.5rem; }
+.prose li { margin-bottom: 0.45rem; }
+.prose li::marker { color: var(--accent); }
+.prose li > ul, .prose li > ol { margin: 0.45rem 0 0; }
+.prose strong { color: var(--text); font-weight: 640; }
+.prose hr { border: 0; border-top: 1px solid var(--border); margin: 2.2rem 0; }
+
+.prose a {
+  color: var(--accent-text);
+  text-decoration: none;
+  border-bottom: 1px solid color-mix(in srgb, var(--accent) 35%, transparent);
+  transition: border-color 0.15s, color 0.15s;
+}
+.prose a:hover { border-bottom-color: var(--accent); }
+
+.anchor {
+  position: absolute;
+  left: -1.1em;
+  color: var(--border-strong);
+  opacity: 0;
+  border: 0 !important;
+  font-weight: 400;
+  transition: opacity 0.15s;
+}
+.prose h2:hover .anchor, .prose h3:hover .anchor { opacity: 1; }
+
+.inline-code {
+  font-family: var(--font-mono);
+  font-size: 0.86em;
+  background: var(--code-bg);
+  border: 1px solid var(--border);
+  padding: 0.12em 0.4em;
+  border-radius: 5px;
+  color: var(--text);
+  white-space: nowrap;
+}
+
+/* ---------- code blocks ---------- */
+
+.codeblock {
+  position: relative;
+  margin: 0 0 1.3rem;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  overflow: hidden;
+  background: var(--code-bg);
+}
+.code-lang {
+  position: absolute;
+  top: 0.55rem;
+  right: 0.8rem;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+  z-index: 1;
+}
+.codeblock pre {
+  margin: 0;
+  padding: 1.1rem 1.2rem;
+  overflow-x: auto;
+  font-size: 13px;
+  line-height: 1.65;
+  background: transparent !important;
+}
+.codeblock code { font-family: var(--font-mono); }
+
+/* Shiki dual-theme switching */
+:root.dark .shiki, :root.dark .shiki span {
+  color: var(--shiki-dark) !important;
+  background-color: transparent !important;
+}
+:root:not(.dark) .shiki, :root:not(.dark) .shiki span {
+  color: var(--shiki-light) !important;
+  background-color: transparent !important;
+}
+
+/* ---------- svg diagrams (```viz) ---------- */
+
+.viz {
+  margin: 0 0 1.5rem;
+  padding: 1.4rem 1rem 1rem;
+  border-radius: 14px;
+  border: 1px solid var(--border);
+  background:
+    radial-gradient(120% 100% at 50% 0%, color-mix(in srgb, var(--accent) 6%, transparent), transparent 62%),
+    var(--bg-soft);
+  overflow: hidden;
+}
+.viz svg { display: block; width: 100%; height: auto; max-height: 420px; margin-inline: auto; }
+.viz figcaption {
+  margin-top: .85rem;
+  text-align: center;
+  font-size: 12.5px;
+  color: var(--text-dim);
+}
+
+/* nodes fade+rise in sequence */
+.viz-node { animation: viz-in .5s both cubic-bezier(.2,0,0,1); animation-delay: var(--d, 0s); }
+.viz-node rect {
+  fill: color-mix(in srgb, var(--a, #38bdf8) 12%, transparent);
+  stroke: color-mix(in srgb, var(--a, #38bdf8) 55%, transparent);
+  stroke-width: 1.1;
+}
+.viz-label {
+  fill: var(--text);
+  font-family: var(--font-sans);
+  font-size: 12.5px;
+  font-weight: 650;
+}
+.viz-label.sm { font-size: 11px; }
+.viz-sub {
+  fill: var(--text-dim);
+  font-family: var(--font-mono);
+  font-size: 10px;
+}
+
+/* edges draw themselves, then a packet travels along them */
+.viz-edge {
+  fill: none;
+  stroke: url(#ve);
+  stroke-width: 1.4;
+  color: var(--accent);
+  stroke-dasharray: 620;
+  animation: viz-draw 1.1s both ease-out;
+}
+.viz-edge.is-dashed { stroke-dasharray: 5 6; animation: none; opacity: .7; }
+.viz-edge-label {
+  fill: var(--text-dim);
+  font-family: var(--font-mono);
+  font-size: 9.5px;
+}
+.viz-dot { fill: var(--accent); filter: drop-shadow(0 0 4px var(--accent)); }
+
+/* axes */
+.viz-axis { animation: viz-in .55s both cubic-bezier(.2,0,0,1); animation-delay: var(--d, 0s); }
+.viz-axis line {
+  stroke: var(--a, #38bdf8);
+  stroke-width: 2;
+  color: var(--a, #38bdf8);
+  stroke-linecap: round;
+  stroke-dasharray: 300;
+  animation: viz-draw 1s both ease-out;
+  animation-delay: var(--d, 0s);
+}
+.viz-origin { fill: var(--text-dim); }
+
+/* ring */
+.viz-ring {
+  fill: none;
+  stroke: var(--border-strong);
+  stroke-width: 1.2;
+  stroke-dasharray: 4 7;
+  transform-origin: center;
+  animation: viz-spin 60s linear infinite;
+}
+.viz-ringnode { animation: viz-pop .45s both cubic-bezier(.2,0,0,1); animation-delay: var(--d, 0s); }
+.viz-ringnode circle {
+  fill: color-mix(in srgb, var(--a, #38bdf8) 16%, var(--panel));
+  stroke: var(--a, #38bdf8);
+  stroke-width: 1.4;
+}
+.viz-key { animation: viz-pop .4s both; animation-delay: var(--d, 0s); }
+.viz-key circle { fill: var(--text-dim); }
+
+@keyframes viz-in   { from { opacity: 0; transform: translateY(7px); } to { opacity: 1; transform: none; } }
+@keyframes viz-pop  { from { opacity: 0; transform: scale(.7); } to { opacity: 1; transform: none; } }
+@keyframes viz-draw { from { stroke-dashoffset: 620; } to { stroke-dashoffset: 0; } }
+@keyframes viz-spin { to { transform: rotate(360deg); } }
+
+@media (prefers-reduced-motion: reduce) {
+  .viz-node, .viz-axis, .viz-ringnode, .viz-key, .viz-edge, .viz-axis line { animation: none !important; opacity: 1; }
+  .viz-edge { stroke-dasharray: none; }
+  .viz-ring { animation: none; }
+  .viz-dot { display: none; }
+}
+
+/* ---------- steps (numbered sequences) ---------- */
+
+.viz-steps { padding: 1.5rem 1.4rem 1.1rem; }
+
+.vs-list {
+  position: relative;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+/* the spine, drawn behind the badges */
+.vs-list::before {
+  content: '';
+  position: absolute;
+  left: 15px;
+  top: 14px;
+  bottom: 14px;
+  width: 2px;
+  border-radius: 2px;
+  background: linear-gradient(180deg,
+    color-mix(in srgb, var(--accent) 55%, transparent),
+    color-mix(in srgb, #a78bfa 45%, transparent),
+    transparent);
+  transform-origin: top;
+  animation: vs-spine .8s both cubic-bezier(.2, 0, 0, 1);
+}
+
+.vs-list li {
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+  gap: 0.9rem;
+  margin: 0 0 1.05rem;
+  padding: 0;
+  animation: vs-in .45s both cubic-bezier(.2, 0, 0, 1);
+  animation-delay: var(--d, 0s);
+}
+.vs-list li:last-child { margin-bottom: 0; }
+.vs-list li::marker { content: none; }
+
+.vs-n {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  font-family: var(--font-mono);
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--a, #38bdf8);
+  background: color-mix(in srgb, var(--a, #38bdf8) 14%, var(--bg-soft));
+  border: 1.5px solid color-mix(in srgb, var(--a, #38bdf8) 55%, transparent);
+  box-shadow: 0 0 0 4px var(--bg-soft);
+}
+
+.vs-body { display: block; padding-top: 0.28rem; min-width: 0; }
+.vs-label {
+  display: block;
+  font-size: 13.5px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: var(--text);
+}
+.vs-sub {
+  display: block;
+  margin-top: 0.22rem;
+  font-size: 13.5px;
+  line-height: 1.6;
+  color: var(--text-soft);
+  text-transform: none;
+  letter-spacing: 0;
+  font-weight: 400;
+}
+
+.vs-note {
+  margin: 1rem 0 0;
+  padding-top: 0.85rem;
+  border-top: 1px solid var(--border);
+  font-size: 12.5px;
+  color: var(--text-dim);
+}
+
+@keyframes vs-in    { from { opacity: 0; transform: translateX(-8px); } to { opacity: 1; transform: none; } }
+@keyframes vs-spine { from { transform: scaleY(0); } to { transform: scaleY(1); } }
+
+@media (prefers-reduced-motion: reduce) {
+  .vs-list li, .vs-list::before { animation: none; opacity: 1; transform: none; }
+}
+
+/* ---------- ascii diagrams ---------- */
+
+/* The frame stays put and the CODE scrolls inside it. Scrolling the figure
+   itself loses the right padding at the end of the scroll and drags the
+   gradient border out of alignment, which is what made wide ASCII art look
+   broken rather than scrollable. */
+.diagram {
+  position: relative;
+  margin: 0 0 1.4rem;
+  border-radius: 12px;
+  overflow: hidden;
+  max-width: 100%;
+  background:
+    linear-gradient(var(--bg-soft), var(--bg-soft)) padding-box,
+    linear-gradient(135deg,
+      color-mix(in srgb, var(--accent) 45%, transparent),
+      color-mix(in srgb, #a78bfa 35%, transparent)) border-box;
+  border: 1px solid transparent;
+}
+.diagram::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(60% 100% at 50% 0%, var(--glow), transparent 70%);
+  pointer-events: none;
+  opacity: 0.55;
+  z-index: 0;
+}
+.diagram pre {
+  margin: 0;
+  position: relative;
+  z-index: 1;
+  padding: 1.3rem 1.4rem;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+}
+.diagram code {
+  font-family: var(--font-mono);
+  font-size: 12.5px;
+  line-height: 1.45;
+  white-space: pre;
+  color: var(--text-soft);
+}
+
+/* Glyph-level hierarchy: connectors recede, flow direction pops,
+   labels read as labels. Turns box-drawing art into a real figure. */
+.diagram .d-line { color: color-mix(in srgb, var(--text-dim) 62%, transparent); }
+.diagram .d-arrow {
+  color: var(--accent);
+  text-shadow: 0 0 8px color-mix(in srgb, var(--accent) 45%, transparent);
+}
+.diagram .d-key {
+  color: var(--text);
+  font-weight: 600;
+  letter-spacing: .01em;
+}
+
+/* ---------- tables ---------- */
+
+.table-wrap {
+  overflow-x: auto;
+  margin: 0 0 1.5rem;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--panel);
+  /* Shadows appear at whichever edge still has content off-screen, so a
+     scrollable table announces itself instead of silently clipping. */
+  background-image:
+    linear-gradient(to right, var(--panel), transparent),
+    linear-gradient(to left, var(--panel), transparent),
+    linear-gradient(to right, color-mix(in srgb, var(--text) 12%, transparent), transparent),
+    linear-gradient(to left, color-mix(in srgb, var(--text) 12%, transparent), transparent);
+  background-position: left center, right center, left center, right center;
+  background-size: 32px 100%, 32px 100%, 12px 100%, 12px 100%;
+  background-repeat: no-repeat;
+  background-attachment: local, local, scroll, scroll;
+}
+
+.prose table {
+  border-collapse: collapse;
+  width: 100%;
+  /* Only scrolls when genuinely too narrow; above this it wraps instead. */
+  min-width: 420px;
+  font-size: 13.5px;
+  line-height: 1.55;
+}
+
+.prose th,
+.prose td {
+  padding: 0.7rem 1rem;
+  border-bottom: 1px solid var(--border);
+  vertical-align: top;
+  text-align: left;
+  /* The fix: headers used to be nowrap, which forced the whole table wide. */
+  white-space: normal;
+  overflow-wrap: break-word;
+  hyphens: auto;
+}
+
+.prose thead th {
+  background: var(--bg-soft);
+  color: var(--text-soft);
+  font-size: 10.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  line-height: 1.4;
+  padding-block: 0.62rem;
+  border-bottom: 1px solid var(--border-strong);
+}
+
+/* First column is almost always the label being described — give it weight
+   and stop it collapsing to one word per line. */
+.prose tbody td:first-child {
+  color: var(--text);
+  font-weight: 600;
+  min-width: 8.5rem;
+}
+
+/* Keep short numeric/verdict columns from stealing width. */
+.prose td:only-child { font-weight: 400; }
+
+.prose tbody tr:last-child td { border-bottom: 0; }
+.prose tbody tr { transition: background 0.12s; }
+.prose tbody tr:hover { background: color-mix(in srgb, var(--accent) 4%, transparent); }
+
+/* Inline code inside a cell must be allowed to wrap, or one long identifier
+   blows out the column. */
+.prose td .inline-code,
+.prose th .inline-code {
+  white-space: normal;
+  word-break: break-word;
+}
+
+@media (max-width: 640px) {
+  .prose table { font-size: 12.5px; }
+  .prose th, .prose td { padding: 0.55rem 0.7rem; }
+  .prose tbody td:first-child { min-width: 6.5rem; }
+}
+
+/* ---------- callouts ---------- */
+
+.callout {
+  --c: var(--accent);
+  position: relative;
+  margin: 0 0 1.4rem;
+  border-radius: 12px;
+  border: 1px solid color-mix(in srgb, var(--c) 32%, transparent);
+  background: color-mix(in srgb, var(--c) 6%, var(--panel));
+  overflow: hidden;
+}
+.callout::before {
+  content: '';
+  position: absolute;
+  left: 0; top: 0; bottom: 0;
+  width: 3px;
+  background: linear-gradient(180deg, var(--c), transparent);
+}
+.callout-head {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.6rem 1rem 0.1rem 1.1rem;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  color: var(--c);
+}
+.callout-head::before {
+  content: '';
+  width: 6px; height: 6px;
+  border-radius: 50%;
+  background: var(--c);
+  box-shadow: 0 0 10px var(--c);
+}
+.callout-body { padding: 0.35rem 1.1rem 0.1rem; font-size: 15.5px; }
+.callout-body > :last-child { margin-bottom: 0.9rem; }
+
+.callout-tip      { --c: #10b981; }
+.callout-warn,
+.callout-trap     { --c: #f43f5e; }
+.callout-interview{ --c: #38bdf8; }
+.callout-math,
+.callout-derive   { --c: #f59e0b; }
+.callout-goat     { --c: #a78bfa; }
+.callout-paper    { --c: #818cf8; }
+.callout-exercise { --c: #2dd4bf; }
+.callout-note     { --c: #64748b; }
+
+/* A code block inside a callout still has to be able to scroll — the callout
+   clips, so without this the last characters of a wide line simply vanish. */
+.callout-body { min-width: 0; }
+.callout .codeblock,
+.callout .diagram,
+.callout .table-wrap { max-width: 100%; }
+.callout .codeblock { margin-bottom: 0.9rem; }
+
+/* Derivations are arithmetic; monospace keeps the columns aligned. */
+.callout-derive .callout-body { font-family: var(--font-mono); font-size: 14px; }
+.callout-derive .callout-body p,
+.callout-derive .callout-body li { font-family: inherit; }
+
+/* A primary source is a pointer, not prose — tighten it. */
+.callout-paper .callout-body { font-size: 14.5px; }
+.callout-paper .callout-body a { text-decoration-thickness: 1px; }
+
+.prose blockquote {
+  margin: 0 0 1.2rem;
+  padding: 0.15rem 0 0.15rem 1.1rem;
+  border-left: 3px solid var(--border-strong);
+  color: var(--text-dim);
+  font-style: italic;
+}
+.prose blockquote p:last-child { margin-bottom: 0; }
+
+/* ---------- utility ---------- */
+
+.glass {
+  background: color-mix(in srgb, var(--bg) 72%, transparent);
+  backdrop-filter: saturate(180%) blur(14px);
+}
+
+.card-glow {
+  position: relative;
+  transition: transform 0.18s cubic-bezier(0.2, 0, 0, 1), border-color 0.18s;
+}
+.card-glow::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  opacity: 0;
+  transition: opacity 0.25s;
+  background: radial-gradient(
+    340px circle at var(--mx, 50%) var(--my, 50%),
+    color-mix(in srgb, var(--card-accent, var(--accent)) 16%, transparent),
+    transparent 65%
+  );
+  pointer-events: none;
+}
+.card-glow:hover::after { opacity: 1; }
+.card-glow:hover { transform: translateY(-2px); }
+
+@keyframes shimmer {
+  0% { background-position: -700px 0; }
+  100% { background-position: 700px 0; }
+}
+.shimmer {
+  background: linear-gradient(90deg, transparent, var(--glow), transparent);
+  background-size: 700px 100%;
+  animation: shimmer 2.2s infinite linear;
+}
+
+@keyframes pulse-dot {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.45; transform: scale(0.82); }
+}
+.pulse-dot { animation: pulse-dot 2s ease-in-out infinite; }
+
+/* ---------- reading width ---------- */
+
+/* Prose wants ~75 characters per line, so the column can't just fill a 4K
+   monitor. Instead it steps up at large breakpoints, and wide content
+   (tables, diagrams, code) bleeds past the text column where there's room. */
+/* Focus variants are always WIDER than default — hiding the sidebar and TOC
+   frees ~550px, so the column should open up, not shrink. */
+:root {
+  --reading-max: 820px;   --reading-focus: 900px;
+  --bleed: 0px;           --bleed-focus: 60px;
+}
+@media (min-width: 1600px) {
+  :root { --reading-max: 900px;  --reading-focus: 1000px; --bleed: 40px; --bleed-focus: 90px; }
+}
+@media (min-width: 1920px) {
+  :root { --reading-max: 980px;  --reading-focus: 1080px; --bleed: 70px; --bleed-focus: 120px; }
+}
+@media (min-width: 2400px) {
+  :root { --reading-max: 1060px; --reading-focus: 1160px; --bleed: 96px; --bleed-focus: 150px; }
+}
+
+[data-reading] {
+  width: 100%;
+  max-width: var(--reading-max);
+}
+
+/* Diagrams and code bleed past the text column — they're figures, and the
+   extra room helps. Tables deliberately DON'T: a table of prose that starts
+   at a different left edge than the paragraph above it just reads as
+   misaligned, however much room it gains. */
+.prose .diagram,
+.prose .codeblock {
+  width: calc(100% + var(--bleed) * 2);
+  margin-left: calc(var(--bleed) * -1);
+  max-width: none;
+}
+
+/* Type scales a little with the column so line length stays comfortable. */
+@media (min-width: 1920px) {
+  .prose { font-size: 17px; }
+}
+@media (min-width: 2400px) {
+  .prose { font-size: 17.5px; }
+}
+
+/* ---------- focus mode ---------- */
+
+/* Chrome fades out rather than vanishing, so the layout doesn't jump. */
+body.focus-mode [data-chrome] {
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity .25s ease;
+}
+body.focus-mode [data-chrome='sidebar'],
+body.focus-mode [data-chrome='toc'] {
+  width: 0;
+  min-width: 0;
+  overflow: hidden;
+  padding-inline: 0;
+  border: 0;
+}
+body.focus-mode [data-chrome='topbar'] {
+  transform: translateY(-100%);
+  transition: transform .25s ease, opacity .25s ease;
+}
+body:not(.focus-mode) [data-chrome] {
+  transition: opacity .25s ease;
+}
+
+/* Wider, calmer reading column with the chrome gone. */
+body.focus-mode [data-reading] {
+  max-width: var(--reading-focus);
+  margin-inline: auto;
+  padding-top: 3.5rem;
+}
+body.focus-mode .prose {
+  font-size: 17.5px;
+  line-height: 1.82;
+}
+
+/* Figures get more room too, since nothing sits beside them now.
+   Tables stay aligned with the text here as well. */
+body.focus-mode .prose .diagram,
+body.focus-mode .prose .codeblock {
+  width: calc(100% + var(--bleed-focus) * 2);
+  margin-left: calc(var(--bleed-focus) * -1);
+}
+
+/* The flex gap is reserved for the collapsed sidebar/TOC — reclaim it. */
+body.focus-mode [data-reading] ~ *,
+body.focus-mode [data-shell] {
+  gap: 0;
+}
+
+/* Anything that isn't the text itself steps back. */
+body.focus-mode [data-noise] {
+  opacity: .32;
+  transition: opacity .2s ease;
+}
+body.focus-mode [data-noise]:hover,
+body.focus-mode [data-noise]:focus-within {
+  opacity: 1;
+}
+
+/* ---------- spotlight ---------- */
+
+body.dim-mode .prose > * {
+  opacity: .28;
+  filter: saturate(.6);
+  transition: opacity .28s ease, filter .28s ease;
+}
+body.dim-mode .prose > .is-active {
+  opacity: 1;
+  filter: none;
+}
+/* Keep the block right after the active one legible — you're reading toward it. */
+body.dim-mode .prose > .is-active + * {
+  opacity: .55;
+}
+
+/* The guide overlay dims the page itself, so don't double-dim the text. */
+body.guide-mode.dim-mode .prose > * {
+  opacity: .5;
+}
+
+@keyframes dash {
+  to { stroke-dashoffset: -1000; }
+}
+.flow-line {
+  stroke-dasharray: 6 8;
+  animation: dash 18s linear infinite;
+}

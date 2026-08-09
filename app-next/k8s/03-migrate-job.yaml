@@ -1,0 +1,42 @@
+# Runs schema sync + admin seed once, before the app rolls out.
+# The Deployment's initContainer waits on this so pods never start against
+# an empty database.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: atlas-migrate
+  namespace: atlas
+spec:
+  backoffLimit: 5
+  ttlSecondsAfterFinished: 600
+  template:
+    metadata:
+      labels:
+        app: atlas-migrate
+    spec:
+      restartPolicy: OnFailure
+      containers:
+        - name: migrate
+          image: sysdesign-atlas:latest
+          imagePullPolicy: IfNotPresent
+          command:
+            - sh
+            - -c
+            - |
+              set -e
+              echo "waiting for postgres..."
+              until node -e "
+                const {Client}=require('pg');
+                const c=new Client({connectionString:process.env.DATABASE_URL});
+                c.connect().then(()=>c.end()).catch(()=>process.exit(1));
+              "; do sleep 2; done
+              echo "applying schema..."
+              npx prisma db push --skip-generate
+              echo "seeding admin..."
+              node prisma/seed.mjs
+          envFrom:
+            - configMapRef: { name: atlas-config }
+            - secretRef: { name: atlas-secrets }
+          resources:
+            requests: { cpu: 50m, memory: 128Mi }
+            limits: { cpu: 500m, memory: 512Mi }
