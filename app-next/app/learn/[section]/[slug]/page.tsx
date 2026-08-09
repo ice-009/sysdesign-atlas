@@ -10,6 +10,7 @@ import {
 } from '@/lib/content';
 import PrereqBanner from '@/components/PrereqBanner';
 import TopicToolbar from '@/components/TopicToolbar';
+import TopicTimer from '@/components/TopicTimer';
 import NotePanel from '@/components/NotePanel';
 import TableOfContents from '@/components/TableOfContents';
 import ReadingBar from '@/components/ReadingBar';
@@ -160,6 +161,15 @@ export default async function TopicPage({
 
         <TableOfContents headings={topic.headings} />
       </div>
+
+      {/* keyed so moving to the next topic starts a genuinely fresh stopwatch
+          rather than inheriting the previous one's refs */}
+      <TopicTimer
+        key={`${section}/${topic.slug}`}
+        slug={topic.slug}
+        section={section}
+        estimateMin={topic.minutes}
+      />
     </>
   );
 }

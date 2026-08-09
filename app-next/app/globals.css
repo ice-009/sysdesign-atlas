@@ -122,6 +122,13 @@ body {
   font-size: 16.5px;
   color: var(--text-soft);
   min-width: 0;
+
+  /* Every framed block — code, ASCII diagram, table, callout, viz figure —
+     insets its contents by exactly this much, so the first character of each
+     one lands on the same vertical line as the next. They used to range from
+     1rem to 1.4rem, which is small enough to look accidental and large enough
+     to see. */
+  --figure-pad: 1.15rem;
 }
 
 /* Nothing in the prose may widen the reading column. Wide monospace blocks
@@ -211,7 +218,7 @@ body {
 .code-lang {
   position: absolute;
   top: 0.55rem;
-  right: 0.8rem;
+  right: var(--figure-pad);
   font-family: var(--font-mono);
   font-size: 10px;
   letter-spacing: 0.09em;
@@ -221,7 +228,7 @@ body {
 }
 .codeblock pre {
   margin: 0;
-  padding: 1.1rem 1.2rem;
+  padding: 1.1rem var(--figure-pad);
   overflow-x: auto;
   font-size: 13px;
   line-height: 1.65;
@@ -243,7 +250,7 @@ body {
 
 .viz {
   margin: 0 0 1.5rem;
-  padding: 1.4rem 1rem 1rem;
+  padding: 1.4rem var(--figure-pad) 1rem;
   border-radius: 14px;
   border: 1px solid var(--border);
   background:
@@ -341,7 +348,7 @@ body {
 
 /* ---------- steps (numbered sequences) ---------- */
 
-.viz-steps { padding: 1.5rem 1.4rem 1.1rem; }
+.viz-steps { padding: 1.5rem var(--figure-pad) 1.1rem; }
 
 .vs-list {
   position: relative;
@@ -464,7 +471,7 @@ body {
   margin: 0;
   position: relative;
   z-index: 1;
-  padding: 1.3rem 1.4rem;
+  padding: 1.3rem var(--figure-pad);
   overflow-x: auto;
   overscroll-behavior-x: contain;
 }
@@ -521,7 +528,7 @@ body {
 
 .prose th,
 .prose td {
-  padding: 0.7rem 1rem;
+  padding: 0.7rem var(--figure-pad);
   border-bottom: 1px solid var(--border);
   vertical-align: top;
   text-align: left;
@@ -567,8 +574,11 @@ body {
 }
 
 @media (max-width: 640px) {
+  /* Tighten the shared inset rather than the table's alone — on a phone every
+     frame needs the room back, and they need to keep agreeing with each other. */
+  .prose { --figure-pad: 0.8rem; }
   .prose table { font-size: 12.5px; }
-  .prose th, .prose td { padding: 0.55rem 0.7rem; }
+  .prose th, .prose td { padding-block: 0.55rem; }
   .prose tbody td:first-child { min-width: 6.5rem; }
 }
 
@@ -594,7 +604,7 @@ body {
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  padding: 0.6rem 1rem 0.1rem 1.1rem;
+  padding: 0.6rem var(--figure-pad) 0.1rem;
   font-size: 13px;
   font-weight: 700;
   letter-spacing: 0.01em;
@@ -607,7 +617,7 @@ body {
   background: var(--c);
   box-shadow: 0 0 10px var(--c);
 }
-.callout-body { padding: 0.35rem 1.1rem 0.1rem; font-size: 15.5px; }
+.callout-body { padding: 0.35rem var(--figure-pad) 0.1rem; font-size: 15.5px; }
 .callout-body > :last-child { margin-bottom: 0.9rem; }
 
 .callout-tip      { --c: #10b981; }
@@ -694,22 +704,21 @@ body {
 /* ---------- reading width ---------- */
 
 /* Prose wants ~75 characters per line, so the column can't just fill a 4K
-   monitor. Instead it steps up at large breakpoints, and wide content
-   (tables, diagrams, code) bleeds past the text column where there's room. */
+   monitor. Instead it steps up at large breakpoints — and everything in the
+   article shares that column's edges. */
 /* Focus variants are always WIDER than default — hiding the sidebar and TOC
    frees ~550px, so the column should open up, not shrink. */
 :root {
   --reading-max: 820px;   --reading-focus: 900px;
-  --bleed: 0px;           --bleed-focus: 60px;
 }
 @media (min-width: 1600px) {
-  :root { --reading-max: 900px;  --reading-focus: 1000px; --bleed: 40px; --bleed-focus: 90px; }
+  :root { --reading-max: 900px;  --reading-focus: 1000px; }
 }
 @media (min-width: 1920px) {
-  :root { --reading-max: 980px;  --reading-focus: 1080px; --bleed: 70px; --bleed-focus: 120px; }
+  :root { --reading-max: 980px;  --reading-focus: 1080px; }
 }
 @media (min-width: 2400px) {
-  :root { --reading-max: 1060px; --reading-focus: 1160px; --bleed: 96px; --bleed-focus: 150px; }
+  :root { --reading-max: 1060px; --reading-focus: 1160px; }
 }
 
 [data-reading] {
@@ -717,15 +726,18 @@ body {
   max-width: var(--reading-max);
 }
 
-/* Diagrams and code bleed past the text column — they're figures, and the
-   extra room helps. Tables deliberately DON'T: a table of prose that starts
-   at a different left edge than the paragraph above it just reads as
-   misaligned, however much room it gains. */
+/* One left edge and one right edge for the whole article.
+   Diagrams and code blocks used to bleed outward while tables, viz figures and
+   callouts stayed put, so a page that mixed them looked ragged down both sides
+   — the wider figures read as broken layout, not as emphasis. Every block now
+   starts and ends where the paragraphs do. */
 .prose .diagram,
-.prose .codeblock {
-  width: calc(100% + var(--bleed) * 2);
-  margin-left: calc(var(--bleed) * -1);
-  max-width: none;
+.prose .codeblock,
+.prose .table-wrap,
+.prose .viz {
+  width: auto;
+  margin-inline: 0;
+  max-width: 100%;
 }
 
 /* Type scales a little with the column so line length stays comfortable. */
@@ -771,13 +783,8 @@ body.focus-mode .prose {
   line-height: 1.82;
 }
 
-/* Figures get more room too, since nothing sits beside them now.
-   Tables stay aligned with the text here as well. */
-body.focus-mode .prose .diagram,
-body.focus-mode .prose .codeblock {
-  width: calc(100% + var(--bleed-focus) * 2);
-  margin-left: calc(var(--bleed-focus) * -1);
-}
+/* Focus mode widens the column itself; figures follow it rather than breaking
+   out of it, so the article keeps a single edge here too. */
 
 /* The flex gap is reserved for the collapsed sidebar/TOC — reclaim it. */
 body.focus-mode [data-reading] ~ *,
