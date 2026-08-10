@@ -290,6 +290,7 @@ export function getSearchIndex() {
     acc: t.section.accent,
     d: t.difficulty,
     g: t.tags.join(' '),
+    m: t.minutes,
   }));
 }
 

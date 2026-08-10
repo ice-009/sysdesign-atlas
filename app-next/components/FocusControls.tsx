@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useId, useState } from 'react';
 import { usePathname } from 'next/navigation';
 import { AnimatePresence, motion } from 'motion/react';
 import { useFocus } from './FocusProvider';
@@ -10,7 +10,8 @@ import { IconX, IconSpark } from './Icons';
 /* Floating study controls. Only appears on topic pages — there's nothing to
    focus on elsewhere. */
 export default function FocusControls() {
-  const { focus, guide, dim, timer, toggle, exitAll } = useFocus();
+  const { focus, guide, dim, timer, size, leading, width, serif, toggle, set, exitAll } =
+    useFocus();
   const [open, setOpen] = useState(false);
   const pathname = usePathname();
 
@@ -63,6 +64,7 @@ export default function FocusControls() {
         onClick={() => setOpen((o) => !o)}
         whileHover={{ scale: 1.04 }}
         whileTap={{ scale: 0.97 }}
+        data-focus-fab
         className="fixed bottom-5 right-5 z-[60] flex h-11 items-center gap-2 rounded-full border px-4 shadow-lg"
         style={{
           borderColor: activeCount
@@ -94,7 +96,7 @@ export default function FocusControls() {
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 8, scale: 0.98 }}
             transition={{ type: 'spring', stiffness: 400, damping: 30 }}
-            className="fixed bottom-20 right-5 z-[60] w-[286px] overflow-hidden rounded-2xl border"
+            className="fixed bottom-20 right-5 z-[60] max-h-[min(78vh,640px)] w-[322px] overflow-y-auto rounded-2xl border"
             style={{
               borderColor: 'var(--border-strong)',
               background: 'var(--panel)',
@@ -122,6 +124,60 @@ export default function FocusControls() {
             </div>
 
             <div className="h-px" style={{ background: 'var(--border)' }} />
+
+            {/* Reading comfort first — it applies everywhere, whereas the modes
+                below are things you switch on for a single session. */}
+            <div className="px-3.5 pb-1 pt-3">
+              <div
+                className="mb-2 text-[10px] font-bold uppercase tracking-wider"
+                style={{ color: 'var(--text-dim)' }}
+              >
+                Reading
+              </div>
+
+              <Seg
+                label="Text size"
+                value={size}
+                onChange={(v) => set('size', v)}
+                options={[
+                  { v: 's' as const, label: 'S' },
+                  { v: 'm' as const, label: 'M' },
+                  { v: 'l' as const, label: 'L' },
+                  { v: 'xl' as const, label: 'XL' },
+                ]}
+              />
+              <Seg
+                label="Line spacing"
+                value={leading}
+                onChange={(v) => set('leading', v)}
+                options={[
+                  { v: 'tight' as const, label: 'Tight' },
+                  { v: 'normal' as const, label: 'Normal' },
+                  { v: 'loose' as const, label: 'Loose' },
+                ]}
+              />
+              <Seg
+                label="Column width"
+                value={width}
+                onChange={(v) => set('width', v)}
+                options={[
+                  { v: 'narrow' as const, label: 'Narrow' },
+                  { v: 'normal' as const, label: 'Normal' },
+                  { v: 'wide' as const, label: 'Wide' },
+                ]}
+              />
+              <Seg
+                label="Typeface"
+                value={serif ? 'serif' : 'sans'}
+                onChange={(v) => set('serif', v === 'serif')}
+                options={[
+                  { v: 'sans' as const, label: 'Sans' },
+                  { v: 'serif' as const, label: 'Serif' },
+                ]}
+              />
+            </div>
+
+            <div className="mx-3.5 h-px" style={{ background: 'var(--border)' }} />
 
             <div className="grid gap-0.5 p-2">
               {modes.map((m) => (
@@ -222,5 +278,57 @@ export default function FocusControls() {
         )}
       </AnimatePresence>
     </>
+  );
+}
+
+/* A labelled segmented control. The selected pill slides between options with a
+   shared layoutId rather than fading, so the change reads as one thing moving. */
+function Seg<T extends string>({
+  label,
+  value,
+  options,
+  onChange,
+}: {
+  label: string;
+  value: T;
+  options: { v: T; label: string }[];
+  onChange: (v: T) => void;
+}) {
+  const id = useId();
+  return (
+    <div className="mb-2.5 flex items-center justify-between gap-2">
+      <span className="shrink-0 text-[11.5px]" style={{ color: 'var(--text-soft)' }}>
+        {label}
+      </span>
+      <div
+        role="group"
+        aria-label={label}
+        className="flex shrink-0 gap-0.5 rounded-lg p-0.5"
+        style={{ background: 'var(--bg-inset)' }}
+      >
+        {options.map((o) => {
+          const on = o.v === value;
+          return (
+            <button
+              key={o.v}
+              onClick={() => onChange(o.v)}
+              aria-pressed={on}
+              className="relative rounded-md px-2 py-1 text-[11.5px] font-semibold transition-colors"
+              style={{ color: on ? 'var(--accent-text)' : 'var(--text-dim)' }}
+            >
+              {on && (
+                <motion.span
+                  layoutId={`seg-${id}`}
+                  transition={{ type: 'spring', stiffness: 480, damping: 34 }}
+                  className="absolute inset-0 rounded-md"
+                  style={{ background: 'color-mix(in srgb, var(--accent) 16%, transparent)' }}
+                />
+              )}
+              <span className="relative">{o.label}</span>
+            </button>
+          );
+        })}
+      </div>
+    </div>
   );
 }

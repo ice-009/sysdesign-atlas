@@ -14,6 +14,7 @@ import TopicTimer from '@/components/TopicTimer';
 import NotePanel from '@/components/NotePanel';
 import TableOfContents from '@/components/TableOfContents';
 import ReadingBar from '@/components/ReadingBar';
+import ResumeReading from '@/components/ResumeReading';
 import { IconArrow } from '@/components/Icons';
 
 export function generateStaticParams() {
@@ -52,7 +53,7 @@ export default async function TopicPage({
 
   return (
     <>
-      <ReadingBar />
+      <ReadingBar minutes={topic.minutes} />
       <div className="flex justify-center gap-8 px-5 xl:px-8">
         <article data-reading className="min-w-0 flex-1 py-10 pb-28">
           <nav
@@ -114,6 +115,8 @@ export default async function TopicPage({
           <PrereqBanner prereqs={resolvePrereqs(topic.prereqs)} unlocks={topic.unlocks} />
 
           <TopicToolbar slug={topic.slug} section={section} title={topic.title} />
+
+          <ResumeReading key={`${section}/${topic.slug}`} slug={topic.slug} />
 
           <div className="prose mt-8" dangerouslySetInnerHTML={{ __html: topic.html }} />
 

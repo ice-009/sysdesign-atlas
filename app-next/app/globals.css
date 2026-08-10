@@ -3,6 +3,9 @@
 @theme {
   --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   --font-mono: ui-monospace, 'SF Mono', 'JetBrains Mono', Menlo, Consolas, monospace;
+  /* System faces only — no webfont is loaded, so switching costs nothing and
+     causes no layout shift. */
+  --font-serif: 'Iowan Old Style', Charter, Georgia, 'Times New Roman', serif;
 }
 
 :root {
@@ -119,7 +122,9 @@ body {
 /* ---------- prose ---------- */
 
 .prose {
-  font-size: 16.5px;
+  font-size: calc(var(--prose-size) * var(--prose-scale));
+  line-height: var(--prose-leading);
+  font-family: var(--prose-face);
   color: var(--text-soft);
   min-width: 0;
 
@@ -710,6 +715,15 @@ body {
    frees ~550px, so the column should open up, not shrink. */
 :root {
   --reading-max: 820px;   --reading-focus: 900px;
+
+  /* Typography baseline. The breakpoints below and focus mode move the base
+     values; the reader's own preferences apply as multipliers on top, so the
+     two compose instead of fighting. */
+  --prose-size: 16.5px;
+  --prose-scale: 1;
+  --prose-leading: 1.7;
+  --prose-face: var(--font-sans);
+  --width-scale: 1;
 }
 @media (min-width: 1600px) {
   :root { --reading-max: 900px;  --reading-focus: 1000px; }
@@ -723,7 +737,7 @@ body {
 
 [data-reading] {
   width: 100%;
-  max-width: var(--reading-max);
+  max-width: calc(var(--reading-max) * var(--width-scale));
 }
 
 /* One left edge and one right edge for the whole article.
@@ -742,10 +756,10 @@ body {
 
 /* Type scales a little with the column so line length stays comfortable. */
 @media (min-width: 1920px) {
-  .prose { font-size: 17px; }
+  :root { --prose-size: 17px; }
 }
 @media (min-width: 2400px) {
-  .prose { font-size: 17.5px; }
+  :root { --prose-size: 17.5px; }
 }
 
 /* ---------- focus mode ---------- */
@@ -774,13 +788,13 @@ body:not(.focus-mode) [data-chrome] {
 
 /* Wider, calmer reading column with the chrome gone. */
 body.focus-mode [data-reading] {
-  max-width: var(--reading-focus);
+  max-width: calc(var(--reading-focus) * var(--width-scale));
   margin-inline: auto;
   padding-top: 3.5rem;
 }
-body.focus-mode .prose {
-  font-size: 17.5px;
-  line-height: 1.82;
+body.focus-mode {
+  --prose-size: 17.5px;
+  --prose-leading: 1.82;
 }
 
 /* Focus mode widens the column itself; figures follow it rather than breaking
@@ -799,6 +813,31 @@ body.focus-mode [data-noise] {
 }
 body.focus-mode [data-noise]:hover,
 body.focus-mode [data-noise]:focus-within {
+  opacity: 1;
+}
+
+/* The ambient background is decoration, and decoration that MOVES behind text
+   is the worst kind. The aurora drifts on a 22s loop forever; in focus mode it
+   stops and recedes, and the grid goes entirely. */
+body.focus-mode .aurora {
+  animation: none;
+  opacity: .14;
+  transition: opacity .4s ease;
+}
+body.focus-mode .grid-bg {
+  opacity: 0;
+  transition: opacity .4s ease;
+}
+.aurora, .grid-bg { transition: opacity .4s ease; }
+
+/* The controls button is the one piece of chrome that must stay reachable —
+   so it fades rather than hides, and comes back on approach. */
+body.focus-mode [data-focus-fab] {
+  opacity: .28;
+  transition: opacity .2s ease;
+}
+body.focus-mode [data-focus-fab]:hover,
+body.focus-mode [data-focus-fab]:focus-visible {
   opacity: 1;
 }
 
@@ -830,3 +869,31 @@ body.guide-mode.dim-mode .prose > * {
   stroke-dasharray: 6 8;
   animation: dash 18s linear infinite;
 }
+
+/* ---------- reading preferences ---------- */
+
+/* Deliberately last in the file. These are the reader's explicit choices, and
+   they have the same specificity as the `body.focus-mode` baseline above, so
+   source order is what makes them win. A preference left at its default sets
+   nothing at all, which lets the focus-mode and breakpoint values through. */
+
+body[data-size='s']  { --prose-scale: .92; }
+body[data-size='l']  { --prose-scale: 1.12; }
+body[data-size='xl'] { --prose-scale: 1.26; }
+
+body[data-leading='tight'] { --prose-leading: 1.5; }
+body[data-leading='loose'] { --prose-leading: 1.95; }
+
+body[data-width='narrow'] { --width-scale: .84; }
+body[data-width='wide']   { --width-scale: 1.2; }
+
+/* Serif is applied through an inherited custom property rather than a
+   font-family rule, so every block that explicitly asks for monospace — code,
+   ASCII diagrams, derivation callouts, inline code — keeps it without needing
+   an exception list. */
+body[data-serif] { --prose-face: var(--font-serif); }
+body[data-serif] .prose { letter-spacing: -0.003em; }
+body[data-serif] .prose h1,
+body[data-serif] .prose h2,
+body[data-serif] .prose h3,
+body[data-serif] .prose h4 { letter-spacing: -0.015em; }

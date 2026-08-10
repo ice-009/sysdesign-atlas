@@ -6,8 +6,10 @@ import TopBar from '@/components/TopBar';
 import SearchPalette from '@/components/SearchPalette';
 import { ProgressProvider } from '@/components/ProgressProvider';
 import { FocusProvider } from '@/components/FocusProvider';
+import { TopicIndexProvider } from '@/components/TopicIndexProvider';
 import FocusControls from '@/components/FocusControls';
 import ReadingGuide from '@/components/ReadingGuide';
+import LinkPreview from '@/components/LinkPreview';
 
 export const metadata: Metadata = {
   title: 'SysDesign Atlas — Master system design for MAANG interviews',
@@ -42,13 +44,16 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <div className="aurora" />
         <SessionProvider>
           <ProgressProvider total={totalTopics}>
-            <FocusProvider>
-              <TopBar />
-              {children}
-              <SearchPalette index={index} />
-              <ReadingGuide />
-              <FocusControls />
-            </FocusProvider>
+            <TopicIndexProvider index={index}>
+              <FocusProvider>
+                <TopBar />
+                {children}
+                <SearchPalette />
+                <ReadingGuide />
+                <LinkPreview />
+                <FocusControls />
+              </FocusProvider>
+            </TopicIndexProvider>
           </ProgressProvider>
         </SessionProvider>
       </body>

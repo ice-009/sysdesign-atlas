@@ -4,16 +4,9 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { AnimatePresence, motion } from 'motion/react';
 import { IconSearch } from './Icons';
+import { useTopicIndex, type IndexRow } from './TopicIndexProvider';
 
-export type IndexRow = {
-  t: string;
-  s: string;
-  u: string;
-  sec: string;
-  acc: string;
-  d: string;
-  g: string;
-};
+export type { IndexRow };
 
 function score(row: IndexRow, q: string): number {
   const t = row.t.toLowerCase();
@@ -31,7 +24,8 @@ function score(row: IndexRow, q: string): number {
   return total;
 }
 
-export default function SearchPalette({ index }: { index: IndexRow[] }) {
+export default function SearchPalette() {
+  const index = useTopicIndex();
   const [open, setOpen] = useState(false);
   const [q, setQ] = useState('');
   const [sel, setSel] = useState(0);
