@@ -131,6 +131,15 @@ export const SECTIONS: Section[] = [
     icon: 'rocket',
   },
   {
+    dir: '11-lld',
+    slug: 'lld',
+    title: 'Low-Level Design',
+    desc: 'Objects, interfaces, and concurrency inside a single service — the SDE-2 revision track, with a compressed HLD refresher alongside it.',
+    group: 'Applied Design',
+    accent: '#f97316',
+    icon: 'target',
+  },
+  {
     dir: '10-appendix',
     slug: 'appendix',
     title: 'Appendix: Interviews',

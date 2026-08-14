@@ -33,6 +33,7 @@ const DIR_TO_SLUG = {
   '08-case-studies': 'case-studies',
   '09-builds': 'builds',
   '10-appendix': 'appendix',
+  '11-lld': 'lld',
   // Legacy directory names still referenced from older prose.
   '00-start': 'orientation',
   '01-fundamentals': 'fundamentals',

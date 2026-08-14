@@ -4,7 +4,7 @@ A systems curriculum that goes from the physics upward — hardware, queueing, d
 correctness, storage internals — and then applies the same reasoning to AI infrastructure:
 GPUs, distributed training, inference serving, retrieval, and agents.
 
-**130 topics · ~215,000 words · 11 tracks in 4 groups · nothing locked.**
+**145 topics · ~238,000 words · 12 tracks in 4 groups · nothing locked.**
 
 Built to be learned rather than skimmed. Every topic declares its prerequisites, so the
 material arrives in an order where nothing appears out of nowhere. Interview-specific
@@ -34,7 +34,7 @@ npx prisma db push
 
 | Concern | Choice | Why |
 |---|---|---|
-| Framework | Next.js 15 (App Router) | Server components; the 66 topic pages prerender as static HTML |
+| Framework | Next.js 15 (App Router) | Server components; the 145 topic pages prerender as static HTML |
 | Auth | Auth.js v5, JWT sessions | Email+password works with zero setup; OAuth is env-gated |
 | Database | Prisma 7 + SQLite / Postgres | Adapter chosen from DATABASE_URL scheme |
 | Styling | Tailwind v4 + CSS variables | Theme switching without a class explosion |
@@ -264,7 +264,7 @@ prisma/seed.mjs                     admin + settings seed
 scripts/check-content.mjs           content integrity check (runs in build)
 k8s/                                Kubernetes manifests
 Dockerfile, docker-compose.yml      container build + local stack
-content/                            130 markdown files across 11 sections
+content/                            145 markdown files across 12 sections
 ```
 
 ## A note on the content and visuals
