@@ -37,6 +37,12 @@ type Ctx = FocusSettings & {
   toggle: (k: ModeKey) => void;
   set: <K extends keyof FocusSettings>(k: K, v: FocusSettings[K]) => void;
   exitAll: () => void;
+
+  /* Whether the controls panel is showing. Session state rather than a
+     preference, so it is deliberately not persisted — and it lives here rather
+     than in FocusControls because the timer pill needs to know too. */
+  panelOpen: boolean;
+  setPanelOpen: (v: boolean) => void;
 };
 
 const FocusCtx = createContext<Ctx | null>(null);
@@ -58,6 +64,7 @@ const DEFAULTS: FocusSettings = {
    'normal'. No flash of differently-sized text. */
 export function FocusProvider({ children }: { children: React.ReactNode }) {
   const [s, setS] = useState<FocusSettings>(DEFAULTS);
+  const [panelOpen, setPanelOpen] = useState(false);
 
   useEffect(() => {
     try {
@@ -121,7 +128,10 @@ export function FocusProvider({ children }: { children: React.ReactNode }) {
     return () => window.removeEventListener('keydown', onKey);
   }, [toggle]);
 
-  const value = useMemo<Ctx>(() => ({ ...s, toggle, set, exitAll }), [s, toggle, set, exitAll]);
+  const value = useMemo<Ctx>(
+    () => ({ ...s, toggle, set, exitAll, panelOpen, setPanelOpen }),
+    [s, toggle, set, exitAll, panelOpen]
+  );
   return <FocusCtx.Provider value={value}>{children}</FocusCtx.Provider>;
 }
 

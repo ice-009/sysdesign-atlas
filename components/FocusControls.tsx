@@ -1,18 +1,32 @@
 'use client';
 
-import { useEffect, useId, useState } from 'react';
+import { useEffect, useId } from 'react';
 import { usePathname } from 'next/navigation';
 import { AnimatePresence, motion } from 'motion/react';
 import { useFocus } from './FocusProvider';
+import { useStudyTimer } from './StudyTimerProvider';
 import StudyTimer from './StudyTimer';
 import { IconX, IconSpark } from './Icons';
 
 /* Floating study controls. Only appears on topic pages — there's nothing to
    focus on elsewhere. */
 export default function FocusControls() {
-  const { focus, guide, dim, timer, size, leading, width, serif, toggle, set, exitAll } =
-    useFocus();
-  const [open, setOpen] = useState(false);
+  const {
+    focus,
+    guide,
+    dim,
+    timer,
+    size,
+    leading,
+    width,
+    serif,
+    toggle,
+    set,
+    exitAll,
+    panelOpen: open,
+    setPanelOpen: setOpen,
+  } = useFocus();
+  const { active: timerActive, stop: stopTimer } = useStudyTimer();
   const pathname = usePathname();
 
   const onTopic = /^\/learn\/[^/]+\/[^/]+$/.test(pathname);
@@ -20,9 +34,16 @@ export default function FocusControls() {
   // Collapse the panel when navigating away from a topic.
   useEffect(() => {
     if (!onTopic) setOpen(false);
-  }, [onTopic, pathname]);
+  }, [onTopic, pathname, setOpen]);
 
   if (!onTopic) return null;
+
+  /* Switching the timer off is a request to be rid of it, so bank the minutes
+     and end the session rather than leaving one running out of sight. */
+  const toggleTimer = () => {
+    if (timer && timerActive) stopTimer();
+    toggle('timer');
+  };
 
   const modes = [
     {
@@ -61,7 +82,7 @@ export default function FocusControls() {
     <>
       {/* trigger */}
       <motion.button
-        onClick={() => setOpen((o) => !o)}
+        onClick={() => setOpen(!open)}
         whileHover={{ scale: 1.04 }}
         whileTap={{ scale: 0.97 }}
         data-focus-fab
@@ -183,7 +204,7 @@ export default function FocusControls() {
               {modes.map((m) => (
                 <button
                   key={m.key}
-                  onClick={() => toggle(m.key)}
+                  onClick={() => (m.key === 'timer' ? toggleTimer() : toggle(m.key))}
                   className="flex items-start gap-3 rounded-xl px-2.5 py-2.5 text-left transition-colors hover:bg-[var(--bg-inset)]"
                 >
                   <span

@@ -152,6 +152,18 @@ export const IconLogout = ({ size = 20, className }: P) => (
   </svg>
 );
 
+export const IconPause = ({ size = 20, className }: P) => (
+  <svg {...base(size, className, 2)}>
+    <path d="M9 5v14M15 5v14" />
+  </svg>
+);
+
+export const IconPlay = ({ size = 20, className }: P) => (
+  <svg {...base(size, className, 2)}>
+    <path d="M7 4.5v15l12-7.5z" fill="currentColor" />
+  </svg>
+);
+
 export const IconSpark = ({ size = 20, className }: P) => (
   <svg {...base(size, className)}>
     <path d="M12 3v4M12 17v4M3 12h4M17 12h4M5.6 5.6l2.8 2.8M15.6 15.6l2.8 2.8M5.6 18.4l2.8-2.8M15.6 8.4l2.8-2.8" />

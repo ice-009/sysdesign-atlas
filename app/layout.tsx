@@ -7,7 +7,9 @@ import SearchPalette from '@/components/SearchPalette';
 import { ProgressProvider } from '@/components/ProgressProvider';
 import { FocusProvider } from '@/components/FocusProvider';
 import { TopicIndexProvider } from '@/components/TopicIndexProvider';
+import { StudyTimerProvider } from '@/components/StudyTimerProvider';
 import FocusControls from '@/components/FocusControls';
+import StudyTimerPill from '@/components/StudyTimerPill';
 import ReadingGuide from '@/components/ReadingGuide';
 import LinkPreview from '@/components/LinkPreview';
 
@@ -46,12 +48,16 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <ProgressProvider total={totalTopics}>
             <TopicIndexProvider index={index}>
               <FocusProvider>
-                <TopBar />
-                {children}
-                <SearchPalette />
-                <ReadingGuide />
-                <LinkPreview />
-                <FocusControls />
+                {/* Outside FocusControls so a session survives the panel closing. */}
+                <StudyTimerProvider>
+                  <TopBar />
+                  {children}
+                  <SearchPalette />
+                  <ReadingGuide />
+                  <LinkPreview />
+                  <FocusControls />
+                  <StudyTimerPill />
+                </StudyTimerProvider>
               </FocusProvider>
             </TopicIndexProvider>
           </ProgressProvider>
