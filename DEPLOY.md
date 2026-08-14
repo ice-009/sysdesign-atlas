@@ -35,7 +35,7 @@ Browser opens, pick your account, done. No card at any point.
 ## Then run one command
 
 ```bash
-cd "/Users/ice-009/Desktop/System Design/app-next"
+cd "/Users/ice-009/Desktop/System Design"
 export DATABASE_URL='<paste the pooled Neon string>'
 export ADMIN_PASSWORD='<your-password>'
 ./deploy-vercel.sh
@@ -78,7 +78,6 @@ native binary. To use it you would flip the schema provider back.
 ## Updating after a content change
 
 ```bash
-cd app-next
 npm run check                 # catch broken links/prereqs first
 npx vercel deploy --prod --yes
 ```

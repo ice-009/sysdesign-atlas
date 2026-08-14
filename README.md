@@ -7,7 +7,6 @@ It is built to be *learned*, not skimmed before an interview. Every topic declar
 ## Run it
 
 ```bash
-cd app-next
 npm install
 npm run db:deploy    # creates dev.db and seeds it
 npm run dev          # http://localhost:4321
@@ -27,11 +26,12 @@ Live at <https://sysdesign-atlas.vercel.app> — Vercel (Next.js) with Neon Post
 Every push to `main` auto-deploys to production; branches get preview URLs.
 
 Full walkthrough, including the Fly.io + SQLite alternative, in
-[`app-next/DEPLOY.md`](app-next/DEPLOY.md).
+[`DEPLOY.md`](DEPLOY.md). Running the app — stack, accounts, the admin console,
+Docker and Kubernetes — is documented in [`DEVELOPMENT.md`](DEVELOPMENT.md).
 
 ## The curriculum
 
-Topics live in `app-next/content/<NN-section>/<NN-slug>.md` and are grouped into four tiers.
+Topics live in `content/<NN-section>/<NN-slug>.md` and are grouped into four tiers.
 
 | Group | Track | Covers |
 |---|---|---|
@@ -45,6 +45,7 @@ Topics live in `app-next/content/<NN-section>/<NN-slug>.md` and are grouped into
 | | Applied AI Systems | Vector search & databases, retrieval architecture, context engineering, agent architecture & infrastructure, structured output, evaluation, guardrails, ML platform, ranking, realtime AI |
 | **Applied Design** | Case Studies | Finished end-to-end designs |
 | | Guided Builds | The same systems constructed phase by phase, each transition triggered by a concrete number |
+| | Low-Level Design | Objects, SOLID, patterns, concurrency, and worked LLD problems — an SDE-2 revision track with a compressed HLD refresher |
 | **Appendix** | Interviews | Optional: the framework, rubrics, mock transcript, question bank |
 
 ## Authoring content
@@ -65,30 +66,29 @@ unlocks: What you can do after this.
 
 `prereqs` are topic slugs (the filename minus its number prefix). They are advisory: the reader sees a readiness banner, never a lock. `npm run check` fails the build if a prereq points at a topic that doesn't exist or introduces a cycle.
 
-Section order comes from the directory number prefix; topic order from the file number prefix. Both are stripped from the URL, so renumbering never breaks a link or a saved progress row. Sections themselves — title, URL slug, group, accent colour, icon — are declared in `app-next/lib/content.ts`.
+Section order comes from the directory number prefix; topic order from the file number prefix. Both are stripped from the URL, so renumbering never breaks a link or a saved progress row. Sections themselves — title, URL slug, group, accent colour, icon — are declared in `lib/content.ts`.
 
 Beyond standard Markdown the renderer supports:
 
 - ` ```diagram ` — ASCII architecture diagrams with glyph-level syntax colouring
-- ` ```viz ` — a JSON spec rendered to animated SVG (`flow`, `stack`, `axes`, `ring`, `fanout`, `compare`, `steps`); see `app-next/lib/viz.ts`
+- ` ```viz ` — a JSON spec rendered to animated SVG (`flow`, `stack`, `axes`, `ring`, `fanout`, `compare`, `steps`); see `lib/viz.ts`
 - `:::kind … :::` callouts — `note`, `tip`, `warn`, `trap`, `math`, `goat`, `interview`, plus `derive` (show the arithmetic), `paper` (cite the primary source), and `exercise` (make the reader do something)
 - Cross-links written as `../<section-dir>/<slug>.html`, rewritten to real routes at render time
 
 ## Layout
 
 ```
-app-next/
-  app/          Next.js routes (learn, path, practice, dashboard, auth, billing, admin)
-  components/   UI
-  content/      the curriculum — markdown, one file per topic
-  lib/
-    content.ts    sections, topic loading, prereq resolution
-    markdown.ts   renderer: callouts, diagrams, link rewriting
-    viz.ts        JSON → SVG figures
-  prisma/       schema + seed (progress, notes, bookmarks, accounts)
-  scripts/
-    check-content.mjs
-  k8s/          deployment manifests
+app/          Next.js routes (learn, path, practice, dashboard, auth, billing, admin)
+components/   UI
+content/      the curriculum — markdown, one file per topic
+lib/
+  content.ts    sections, topic loading, prereq resolution
+  markdown.ts   renderer: callouts, diagrams, link rewriting
+  viz.ts        JSON → SVG figures
+prisma/       schema + seed (progress, notes, bookmarks, accounts)
+scripts/
+  check-content.mjs
+k8s/          deployment manifests
 ```
 
 ## A note on the content
