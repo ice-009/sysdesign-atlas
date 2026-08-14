@@ -816,6 +816,19 @@ body.focus-mode [data-noise]:focus-within {
   opacity: 1;
 }
 
+/* The topic timer is the one piece of chrome pinned OVER the prose, so fading
+   the element itself would let the paragraph underneath read through it. It
+   recedes by dimming its own controls while the panel stays opaque, and comes
+   back to full strength on hover like everything else. */
+body.focus-mode [data-timer-bar] > * {
+  opacity: .45;
+  transition: opacity .2s ease;
+}
+body.focus-mode [data-timer-bar]:hover > *,
+body.focus-mode [data-timer-bar]:focus-within > * {
+  opacity: 1;
+}
+
 /* The ambient background is decoration, and decoration that MOVES behind text
    is the worst kind. The aurora drifts on a 22s loop forever; in focus mode it
    stops and recedes, and the grid goes entirely. */

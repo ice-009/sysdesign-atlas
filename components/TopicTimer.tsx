@@ -233,7 +233,10 @@ export default function TopicTimer({
   return (
     <div
       className="fixed bottom-20 left-3 right-3 z-[58] sm:bottom-5 sm:left-1/2 sm:right-auto sm:w-[min(560px,calc(100vw-11rem))] sm:-translate-x-1/2"
-      data-noise
+      /* Deliberately not [data-noise]: that fades the whole element in focus
+         mode, and this one floats over prose, so fading it means the text
+         underneath reads straight through the bar. It recedes by dimming its
+         own controls instead — see body.focus-mode [data-timer-bar]. */
     >
       <AnimatePresence>
         {open && (
@@ -245,8 +248,7 @@ export default function TopicTimer({
             className="mb-2 overflow-hidden rounded-2xl border px-4 py-3"
             style={{
               borderColor: 'var(--border-strong)',
-              background: 'color-mix(in srgb, var(--panel) 94%, transparent)',
-              backdropFilter: 'blur(14px)',
+              background: 'var(--panel)',
               boxShadow: 'var(--shadow-lg)',
             }}
           >
@@ -284,11 +286,13 @@ export default function TopicTimer({
       </AnimatePresence>
 
       <div
+        data-timer-bar
         className="flex items-center gap-3 rounded-2xl border px-3 py-2.5"
         style={{
           borderColor: running ? `color-mix(in srgb, ${tone} 45%, transparent)` : 'var(--border-strong)',
-          background: 'color-mix(in srgb, var(--panel) 92%, transparent)',
-          backdropFilter: 'blur(14px)',
+          /* Fully opaque, not a blurred pane: it sits over prose and code, and
+             letting either read through it made the bar look like noise. */
+          background: 'var(--panel)',
           boxShadow: 'var(--shadow-lg)',
         }}
       >
