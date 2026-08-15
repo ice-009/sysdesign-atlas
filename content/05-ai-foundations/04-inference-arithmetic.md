@@ -10,13 +10,15 @@ unlocks: Predicting throughput, latency, and cost from a model spec and a GPU sp
 
 ## The two numbers a GPU has
 
-Every performance question about inference reduces to a comparison between two hardware capabilities:
+Every performance question about inference reduces to a comparison between two hardware capabilities: how fast the chip can calculate, and how fast it can fetch the numbers to calculate with.
+
+A **FLOP** is one floating-point operation — a single multiply or add. Chips are rated in TFLOP/s, trillions of them per second.
 
 ```diagram
    A representative modern datacenter GPU:
 
-     Compute:    ~1,000 TFLOP/s  (BF16, with tensor cores)
-     Bandwidth:  ~3 TB/s          (HBM to compute units)
+     Compute:    ~1,000 TFLOP/s  (trillion operations per second)
+     Bandwidth:  ~3 TB/s          (memory → compute units)
 
    Ratio:  1,000e12 FLOP/s ÷ 3e12 byte/s  ≈  330 FLOP per byte
 
@@ -31,7 +33,7 @@ That ratio — often called the machine balance — is the whole story. **A work
 
 ## Arithmetic intensity
 
-For any operation, arithmetic intensity is FLOPs performed per byte moved. Compare it to the machine balance and you know immediately which resource limits you.
+**Arithmetic intensity** is how much calculating an operation does per byte it reads — operations divided by bytes moved. Compare that single number against the machine's 330 and you immediately know which resource is your limit: below it you're waiting on memory, above it you're waiting on the maths.
 
 ```viz
 {
@@ -126,7 +128,8 @@ TTFT is a different calculation, because prefill is compute-bound.
    TTFT ≈ queue_wait + (2 × P × prompt_tokens) / effective_FLOPS
 
    70B model, 2,000-token prompt, 4 GPUs at ~600 TFLOP/s
-   effective each (MFU ~60% of peak):
+   effective each (real chips hit ~60% of their
+   advertised peak — that fraction is called MFU):
 
      FLOPs = 2 × 70e9 × 2,000  =  2.8e14
      Time  = 2.8e14 / (4 × 600e12)  =  117 ms

@@ -10,7 +10,9 @@ unlocks: The highest-leverage single knob in inference deployment.
 
 ## Why precision is an infrastructure decision
 
-From [inference arithmetic](inference-arithmetic.html): decode time is bytes-of-weights divided by memory bandwidth. So halving the bytes halves the time.
+**Quantization** means storing each of the model's numbers in fewer bits — 8 instead of 16, or even 4 — accepting a little imprecision in exchange for a much smaller model. The names below are just bit widths: FP32 is 32 bits per number, BF16 is 16, INT4 is 4.
+
+Why that's an infrastructure decision rather than a research one comes straight from [inference arithmetic](inference-arithmetic.html): the time to produce a token is the bytes of weights you must read divided by memory bandwidth. Halve the bytes, halve the time.
 
 ```diagram
    70B model, 3 TB/s memory bandwidth, single GPU:

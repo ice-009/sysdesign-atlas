@@ -51,7 +51,7 @@ That arithmetic is why long-context pricing is superlinear, why providers meter 
 
 ## How the model knows where a token is
 
-Attention is permutation-invariant on its own: shuffle the tokens and the raw mechanism computes the same thing. Position must be injected explicitly, and how it's injected determines whether the model can handle sequences longer than it saw in training.
+Here's a fact that surprises people: attention has no inherent sense of order. Shuffle the words of a sentence and the raw mechanism computes exactly the same thing — "dog bites man" and "man bites dog" are identical to it. Position has to be added deliberately, and *how* it's added determines whether the model copes with sequences longer than anything it saw during training.
 
 | Scheme | Mechanism | Extrapolates? |
 |---|---|---|
