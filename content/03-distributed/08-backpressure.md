@@ -11,7 +11,7 @@ prereqs: [queueing-theory, message-queues]
 
 The instinct under overload is to accept every request and try your best. That instinct destroys systems.
 
-A system running past its knee doesn't serve everyone slowly — it serves *no one*. Queues grow, latency exceeds client timeouts, clients retry, offered load increases, and throughput goes to zero while every resource is fully consumed. See the saturation curve in [Latency & Throughput](../01-fundamentals/latency-throughput.html).
+A system pushed past the point where it can keep up doesn't serve everyone slowly — it serves *no one*. Queues grow, responses take longer than clients are willing to wait, those clients give up and retry, the load goes up again, and useful throughput falls to zero while every machine sits at 100% busy. Work is being done; none of it reaches anybody. See the saturation curve in [Latency & Throughput](../01-fundamentals/latency-throughput.html).
 
 **The correct behaviour under overload is to do less work, deliberately.** Rejecting 20% of requests quickly so the other 80% succeed at normal latency is strictly better than accepting 100% and completing none of them within their deadline.
 
@@ -39,8 +39,8 @@ The one-line version — "under overload, shed rather than queue" — compresses
 
 - **Bounded buffers** that block or reject on full.
 - **TCP flow control** — the original backpressure; the receive window naturally throttles the sender. If you're not reading from a socket, the sender stalls. Free, and often overlooked.
-- **Reactive streams / request-N protocols** — the consumer explicitly requests *N* items; the producer never sends more than requested. This is pull-based rather than push, which makes backpressure structural.
-- **Credit-based flow control** — the consumer grants credits; producing consumes them. Same idea, common in messaging systems.
+- **Pull instead of push** — the consumer asks for *N* items and the producer never sends more than were asked for. Flipping the direction of the request makes backpressure structural rather than something you bolt on.
+- **Credit-based flow control** — the consumer hands out a budget of "you may send me 50 more"; each message spends one. Same idea as pull, common in messaging systems.
 - **Blocking calls** — sometimes the simplest correct answer. A blocked thread *is* backpressure, propagating naturally up the call chain.
 
 **Where backpressure fails:** at the boundary with the outside world. You cannot make users slow down. At the edge, backpressure becomes **load shedding** — the only remaining option is to say no.
@@ -103,7 +103,7 @@ Protect *yourself* from a failing dependency. Without one, calls to a dead servi
 Retries interact badly with overload and deserve explicit attention, because they are the most common way a small problem becomes an outage.
 
 - **Exponential backoff with full jitter.** Without jitter, clients that failed together retry together, producing synchronized load waves against an already-struggling service.
-- **Retry budgets.** Cap retries as a *fraction of total traffic* (e.g. ≤10%). Under widespread failure, retries stop entirely rather than amplifying. Far more robust than per-request limits, which still allow fleet-wide amplification.
+- **Retry budgets.** Cap retries as a *share of total traffic* — say, no more than 10% of the requests you send may be retries. When everything is failing, that budget is exhausted immediately and retries simply stop, instead of doubling the load on a service that's already drowning. Far more robust than per-request limits, which still allow fleet-wide amplification.
 - **Retry at one layer only.** Client 3× → gateway 3× → service 3× = **27 database queries per user action**.
 - **Never retry on 4xx.** A bad request stays bad. Retry only on timeouts, 5xx, and connection failures.
 - **Don't retry when the circuit is open.** The breaker already knows.

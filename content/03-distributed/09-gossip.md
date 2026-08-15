@@ -56,7 +56,7 @@ That's the whole appeal: **per-node cost is constant regardless of cluster size*
 
 **Push-pull** — exchange both ways. Fastest convergence in practice, and what most implementations use.
 
-**Anti-entropy vs rumor-mongering.** Anti-entropy gossips *all* state continuously — slower, guarantees eventual convergence. Rumor-mongering gossips only *new* facts and stops after they seem widely known — much less bandwidth, small chance a node misses out. Production systems combine them: rumor-mongering for speed, periodic anti-entropy as a correctness backstop.
+**Two gossip styles, and production uses both.** *Anti-entropy* means constantly comparing your entire picture of the world with a peer's and fixing any differences — thorough, slower, and guaranteed to catch up eventually. *Rumour-mongering* means only passing on things you just learned, and going quiet about them once they seem widely known — far cheaper, with a small chance a node misses a fact entirely. Production systems combine them: rumor-mongering for speed, periodic anti-entropy as a correctness backstop.
 
 To keep messages small, nodes exchange **digests** (version numbers per node) first, then transfer only the entries that differ — the same principle as the [Merkle tree](quorums.html) comparison used for data repair.
 
@@ -72,7 +72,7 @@ The problem is that one threshold can't be right for all conditions. Under load,
 
 ### Phi accrual failure detection
 
-Instead of a boolean, output a **suspicion level** based on the observed distribution of heartbeat arrival times.
+Instead of answering "alive or dead?", answer "how surprised am I that I haven't heard from you?" — a **suspicion level** that rises as the silence grows, judged against how regularly that particular peer normally checks in. A node that always replies in 10 ms becomes suspicious after 100 ms; one that's usually erratic gets more rope.
 
 ```diagram
    Track the recent inter-arrival intervals for each peer.
@@ -93,7 +93,7 @@ Used by Cassandra and Akka. Naming it is a strong signal, because it shows you u
 
 ### SWIM
 
-The protocol most modern systems use (HashiCorp Serf/Consul, and similar designs elsewhere). It separates **failure detection** from **dissemination**, and adds indirect probing:
+The protocol most modern systems use (HashiCorp Serf and Consul, among others). Its key idea: before declaring a node dead, **ask other nodes to check too** — because the silence might be about the path between you two, not about that node at all.
 
 ```diagram
    1. Node A picks random node B, sends a direct ping.

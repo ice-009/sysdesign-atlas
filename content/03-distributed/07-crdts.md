@@ -13,7 +13,7 @@ Two replicas accept writes concurrently. When they sync, which wins?
 
 The usual answers are all bad. **Last-write-wins** silently discards data and depends on clocks you can't trust. **Surface both versions** pushes the problem onto the user. **Manual merge** requires application logic for every data type and every conflict shape.
 
-CRDTs offer a fourth answer: design the data structure so that **concurrent updates cannot conflict** — merging is always defined, always automatic, and always produces the same result regardless of the order updates arrive in.
+A **CRDT** — conflict-free replicated data type — offers a fourth answer: design the data structure so that **concurrent updates cannot conflict in the first place**. Merging is always possible, always automatic, and always lands on the same result no matter what order the updates arrive in.
 
 That last clause is the magic. Replicas that receive the same set of updates in *any* order end in the *same* state, with no coordination at all.
 
@@ -32,15 +32,17 @@ Convergence follows from three algebraic properties of the merge function:
                   → duplicate delivery doesn't matter
 ```
 
-Together these make the state a **join-semilattice**, and merge the least-upper-bound operation. State only ever moves "upward" in the lattice, so replicas monotonically converge.
+Those three properties are exactly what "order doesn't matter, grouping doesn't matter, repeats don't matter" means formally. (The mathematical name for a structure with them is a *join-semilattice*, and merging is its *least upper bound* — but the three lines above are the whole content.)
+
+The consequence: merging only ever moves a replica forwards, never backwards, so given the same updates every replica arrives at the same place.
 
 The practical payoff: because merge is idempotent and commutative, you can use an **unreliable, unordered, at-least-once** transport. Duplicates are harmless, reordering is harmless, retries are harmless. This is exactly what [idempotency](idempotency.html) buys you, generalized to a whole data structure.
 
 ## Two flavours
 
-**State-based (CvRDT)** — replicas exchange their entire state and merge it. Simple and extremely robust to network problems (any subset of messages, in any order, converges). Costly if the state is large; mitigated by *delta-CRDTs* that ship only what changed.
+**State-based** — each replica periodically sends its *whole current state*, and the receiver merges it in. Simple and extremely tolerant of a bad network: any subset of those messages, in any order, still converges. The cost is bandwidth when the state is large, which *delta* variants fix by sending only what recently changed.
 
-**Operation-based (CmRDT)** — replicas broadcast operations. Much less bandwidth, but requires exactly-once, causally-ordered delivery, which is a real infrastructure burden.
+**Operation-based** — replicas broadcast the individual *operations* ("x was added"). Far less data on the wire, but now the network must deliver every operation exactly once and in causal order, which is real infrastructure work.
 
 Most production systems use state-based or delta-based, because the transport requirements are so much weaker.
 
@@ -78,7 +80,7 @@ Each element carries a timestamp for its add and remove. The later one wins. Sim
 
 The one that actually behaves intuitively, and worth knowing by name.
 
-Each *add* attaches a unique tag. A *remove* deletes only the tags it has actually observed.
+Each *add* stamps the element with a unique tag, so "x added by A" and "x added by B" are distinguishable events rather than the same fact. A *remove* deletes only the tags it has actually seen — so it can't accidentally erase an add it never knew about.
 
 ```diagram
    A: add("x") → {x:[t1]}          B: add("x") → {x:[t2]}
