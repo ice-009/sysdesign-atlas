@@ -113,7 +113,7 @@ Explaining *why* approximate LRU exists (lock contention on the hot path) rather
 
 ## 6. Deep dive — the hot key problem
 
-**The single most important limitation to raise**, because consistent hashing gives no protection against it.
+A **hot key** is one entry that a huge share of traffic wants at the same moment — a celebrity's profile, a flash-sale product, the config every request reads. It's **the single most important limitation to raise**, because consistent hashing gives no protection against it whatsoever.
 
 ```diagram
    Consistent hashing distributes KEYS evenly.

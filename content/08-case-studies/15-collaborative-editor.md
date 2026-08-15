@@ -75,9 +75,9 @@ Positions are only meaningful relative to a specific document state. Once concur
 
 ## 4. Operational Transformation
 
-The approach used by most established products.
+Usually shortened to **OT**, and it's the approach behind most established products.
 
-**The idea:** when an operation arrives that was generated against an older document state, **transform** it against the operations it didn't know about.
+**The idea:** an edit like "insert X at position 3" was written against the document as its author saw it. By the time it reaches you, you may have applied edits they hadn't seen, so position 3 no longer means the same place. OT adjusts — *transforms* — the incoming edit to account for the changes it didn't know about, so it lands where its author meant.
 
 ```diagram
    Alice's op:  insert("X", pos 1)
@@ -105,9 +105,9 @@ The transformation function `T(op_a, op_b)` produces adjusted operations such th
 
 ## 5. CRDTs
 
-The alternative: design the data structure so operations **commute by construction**, and no transformation is ever needed.
+The alternative: make the edits impossible to conflict in the first place, so nothing ever needs transforming. "Commute" is the mathematical word — apply them in either order and you get the same document.
 
-For text, this means giving every character a **globally unique, densely-orderable identifier** rather than a positional index.
+The trick for text is to stop using positions at all. Give every character its own permanent identifier, ordered so that you can always mint a new one *between* any two existing ones. An insert then says "put X between these two specific characters", which stays true no matter what else happened.
 
 ```diagram
    Instead of "insert X at position 1", say:

@@ -83,11 +83,11 @@ It's a distributed producer-consumer system where the interesting constraints ar
                            └──────────► back to the FRONTIER
 ```
 
-It's a cycle, and the frontier is where all the intelligence lives.
+It's a cycle, and the **frontier** — the crawler's to-do list of URLs it knows about but hasn't fetched yet — is where all the intelligence lives.
 
 ## 4. Deep dive — the frontier and politeness
 
-This is the heart of the question.
+This is the heart of the question. **Politeness** is the crawler's obligation not to overwhelm any single site: your ten thousand workers must feel, from one web server's point of view, like one well-behaved visitor.
 
 **The constraint:** you may hit `example.com` at most once every *N* seconds (respecting its crawl-delay), regardless of how many URLs from that domain you have queued. Meanwhile you want to keep thousands of workers busy.
 

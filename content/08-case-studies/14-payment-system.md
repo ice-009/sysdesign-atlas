@@ -54,7 +54,9 @@ Saying "this isn't a scale problem" early is the right diagnosis and immediately
 
 **Never store money as a mutable balance column.** `UPDATE accounts SET balance = balance - 50` destroys history, races under concurrency, and makes it impossible to answer "why is this number what it is?"
 
-Use **double-entry bookkeeping**: every transaction is a set of entries that sum to zero.
+Use **double-entry bookkeeping** — the accounting technique from fifteenth-century Venice that every financial system still runs on. The rule: money is never created or destroyed, only moved, so every transaction is recorded as a set of entries that add up to zero. One account loses what another gains.
+
+The payoff is that the sum of everything must always be zero. If it isn't, you have a bug, and you can find it — which is not true of a balance column that someone decremented.
 
 ```diagram
    Customer pays $50 for an order:
@@ -168,7 +170,7 @@ Payment spans systems you don't control: your ledger, the provider, the order se
 
 ## 7. Deep dive — reconciliation
 
-**The safety net that catches everything the design missed.** Every real payment system has one, and its absence is usually discovered during the first reconciliation dispute.
+**Reconciliation** means routinely comparing your own record of what happened against the payment provider's, and investigating every line that doesn't match. It's the safety net that catches everything the design missed — and every real payment system has one, usually built in a hurry after the first dispute nobody could resolve.
 
 ```diagram
    Daily (and continuously):
