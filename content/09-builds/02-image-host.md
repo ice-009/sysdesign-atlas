@@ -59,7 +59,7 @@ Never write the metadata row just because the client said "done." A client can c
 
 ## Phase 2 — Derivatives, asynchronously
 
-A page needs a thumbnail, not a 3 MB original. You need multiple sizes.
+A page needs a thumbnail, not a 3 MB original. So every upload has to become several files — a thumbnail, a medium version, maybe a WebP variant. Those generated copies are called **derivatives**, and deciding *when* to make them is the whole of this phase.
 
 **Do not generate them on upload synchronously** — that makes the user wait several seconds for work they don't need finished. And do not generate them on read — that makes the first viewer of every image wait.
 
@@ -70,7 +70,7 @@ A page needs a thumbnail, not a 3 MB original. You need multiple sizes.
    ┌─────────┐    ┌──────────────────┐
    │  Queue  │───►│  Worker fleet    │
    └─────────┘    │  · validate      │
-                  │  · strip EXIF    │  ← privacy: EXIF carries GPS
+                  │  · strip metadata│  ← EXIF holds GPS coordinates
                   │  · resize (4)    │
                   │  · re-encode     │
                   │  · scan          │

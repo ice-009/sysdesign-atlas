@@ -123,7 +123,7 @@ This works because follower counts follow a power law: the overwhelming majority
 
 ## Phase 5 — Hydration and counts
 
-The feed cache holds only IDs. Rendering needs the photo URL, author name and avatar, like and comment counts, and whether *you* liked it.
+The feed cache stores only a list of post IDs — cheap to build and cheap to store. But a screen needs the photo URL, the author's name and avatar, the like and comment counts, and whether *you* liked it. Turning that list of IDs into fully-formed posts is called **hydration**, and it happens on every feed load.
 
 ```diagram
    20 post IDs → batched multi-get across:

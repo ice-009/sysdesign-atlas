@@ -92,7 +92,7 @@ CREATE INDEX ON pastes (expires_at) WHERE expires_at IS NOT NULL;
 
 **The trigger:** a paste goes viral. One `short_code` receives 50,000 requests/second while your database happily serves 5,000.
 
-The content is **immutable** — a paste never changes after creation. That's the single most important property of this system, and it makes caching trivially correct.
+The content is **immutable** — once a paste is created it never changes. That's the single most important property of this system, because it removes the hard part of caching entirely: a cached copy can never be out of date, so there's nothing to invalidate and no staleness to reason about.
 
 ```viz
 {
@@ -152,7 +152,7 @@ The content is **immutable** — a paste never changes after creation. That's th
 
 ## Phase 3 — Storage outgrows the database
 
-**The trigger:** average paste size climbs and you're storing 500 GB of `TEXT` columns. Backups take hours. The buffer pool is full of paste bodies, evicting the index pages that actually needed to be in memory.
+**The trigger:** average paste size climbs and you're storing 500 GB of text inside database columns. Backups take hours. The memory the database reserves for hot data is now full of paste bodies, pushing out the index pages that actually needed to be there — so unrelated queries get slower too.
 
 **The fix: separate metadata from content.**
 
@@ -176,7 +176,7 @@ Three fixes, in increasing sophistication:
 
 1. **Batch the delete.** `DELETE ... LIMIT 10000` in a loop with a pause. Simple, effective, and enough for most systems.
 2. **Lazy expiry.** Check `expires_at` on read and treat expired pastes as absent. Physical cleanup becomes a background concern rather than a correctness one.
-3. **Partition by expiry month.** Dropping a partition is a metadata operation — instant, no row-by-row deletion, no lock. This is the right answer at large scale.
+3. **Partition by expiry month.** Store each month's pastes in its own physical table (a *partition*) behind one logical table. Deleting a month is then just dropping that table — the database updates one piece of bookkeeping instead of visiting 40 million rows. Instant, and nothing gets locked. This is the right answer at large scale.
 
 Combine 2 and 3: lazy expiry makes correctness immediate, partition drops make cleanup free.
 
