@@ -55,7 +55,7 @@ Limits: one direction only; older HTTP/1.1 connection limits per domain (largely
 
 ### WebSockets
 
-A single TCP connection upgraded from HTTP, then **full-duplex** — either side can send at any time, with low per-message framing overhead.
+The connection starts as an ordinary HTTP request and then asks to be *upgraded*: the same open socket stops speaking HTTP and starts carrying raw messages. From then on it's **full-duplex** — both sides can send whenever they like, without waiting to be asked, and each message carries only a few bytes of overhead.
 
 ```diagram
    GET /ws
@@ -129,13 +129,13 @@ Most large systems use pub/sub for rooms and a registry for direct messages.
 
 Persist-then-push, plus client-driven replay on reconnect, is the pattern. Treat the socket as a *fast path*, never as the system of record.
 
-**Backpressure.** A slow client can't keep up; the server's send buffer grows and consumes memory. Bound the per-connection queue and decide what happens on overflow — drop intermediate updates (fine for presence or a live counter, where only the latest matters) or disconnect the client and let it re-sync. An unbounded send buffer is a memory leak with a user attached.
+**Backpressure** — what you do when you're producing faster than the other end can consume. A slow client can't keep up, so the server's queue of unsent messages grows and eats memory. Bound the per-connection queue and decide what happens on overflow — drop intermediate updates (fine for presence or a live counter, where only the latest matters) or disconnect the client and let it re-sync. An unbounded send buffer is a memory leak with a user attached.
 
 **Deploys.** Restarting a gateway drops every connection on it. Drain gradually — stop accepting new connections, then close existing ones in batches with jitter, letting clients reconnect elsewhere. A naive rolling deploy of a connection tier is an outage.
 
 ## Presence
 
-"Who's online" looks simple and is a classic scaling trap. Naive design: every client heartbeats every 5 s and every friend list query reads all friends' states.
+**Presence** is the "who's online" dot next to someone's name. It looks simple and is a classic scaling trap. The naive design: every client sends a **heartbeat** — a tiny "still here" message — every 5 seconds, and opening a friend list reads the state of every friend.
 
 The cost is quadratic-ish: 10M users heartbeating every 5 s is 2M writes/s, and each presence *change* must notify every friend. For a user with 5,000 friends, one status flip is 5,000 notifications.
 

@@ -13,7 +13,9 @@ prereqs: [indexing]
 SELECT * FROM posts WHERE body LIKE '%distributed systems%';
 ```
 
-This is a full table scan — no index can help a leading wildcard. At 100M rows it's unusable. And even if it were fast, it would be *wrong* for search: no ranking, no stemming ("running" won't match "run"), no typo tolerance, no multi-word relevance, no phrase handling.
+This reads every row in the table. No index can help, because the pattern starts with a wildcard — there's no prefix to look up. At 100M rows it's unusable.
+
+And even if it were fast, it would be *wrong* for search. No ranking, so you can't put the best result first. No **stemming** — reducing words to their root — so "running" won't match "run". No typo tolerance, no sense of which of several words matters most, no phrase handling.
 
 Search is a genuinely different problem requiring a different data structure.
 
@@ -79,7 +81,7 @@ Matching gives you a candidate set; ranking decides the order, and ranking is th
 
 **Beyond text relevance**, production search blends in signals that matter more to users than lexical matching: recency, popularity/engagement, personalization, geographic distance, and business rules. A typical architecture retrieves a few hundred candidates cheaply with BM25, then re-ranks them with an expensive model — **retrieve then rerank**, which is worth naming.
 
-**Vector / semantic search** embeds text into vectors and retrieves by nearest neighbor (HNSW is the standard index), matching meaning rather than words — "how do I fix a flat tire" matches a document about "repairing a puncture." Modern systems combine both: **hybrid search** runs BM25 and vector retrieval in parallel and fuses the rankings, because lexical search still wins on exact identifiers, names, and rare terms.
+**Vector / semantic search** turns text into a list of numbers positioned so that similar meanings land near each other, then finds the closest ones — matching meaning rather than words — "how do I fix a flat tire" matches a document about "repairing a puncture." Modern systems combine both: **hybrid search** runs BM25 and vector retrieval in parallel and fuses the rankings, because lexical search still wins on exact identifiers, names, and rare terms.
 
 ## Architecture
 
@@ -100,7 +102,7 @@ Two consequences worth stating:
 - Search is inherently **scatter-gather**, so latency is the slowest shard's — [tail amplification](../01-fundamentals/latency-throughput.html) applies, and shard count is a latency/throughput tradeoff, not just a capacity one.
 - Deep pagination is brutal: page 100 at 10/page means every shard must return 1,000 results for merging. Prefer `search_after`/cursor pagination over offsets, and cap how deep users can page.
 
-Documents are written to immutable **segments** that are periodically merged. Immutability makes reads lock-free and caching easy; the cost is that updates are "delete + reinsert" (the old version is tombstoned and reclaimed at merge time), and deletes don't free space until a merge runs.
+Documents are written into **segments** — self-contained chunks of index that, once written, are never modified, only merged together later. Because nothing changes in place, readers never need locks and caching is trivial. The cost is that an update is really "mark the old one deleted, insert a new one", and the space isn't reclaimed until a merge runs.
 
 **Near-real-time, not real-time:** newly indexed documents become visible only after a *refresh* (typically ~1 s in Elasticsearch). Knowing that search is eventually consistent by design — and that forcing per-write refreshes destroys throughput — is a good depth signal.
 

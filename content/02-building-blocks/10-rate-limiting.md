@@ -9,14 +9,14 @@ prereqs: [caching, queueing-theory]
 
 ## Why it exists
 
-Rate limiting protects a system from consuming more of itself than it has. Four distinct motivations, and naming which one applies changes the design:
+**Rate limiting** is capping how many requests one caller may make in a given period — 100 a minute per user, say — and rejecting the rest. It protects a system from being asked for more than it has. Four distinct motivations, and naming which one applies changes the design:
 
-1. **Abuse prevention** — credential stuffing, scraping, spam.
-2. **Fairness** — one tenant can't starve the others (noisy neighbor).
+1. **Abuse prevention** — automated password guessing, scraping, spam.
+2. **Fairness** — one customer can't starve the others. (The **noisy neighbour** problem: shared capacity, one tenant taking it all.)
 3. **Cost control** — every request to an expensive downstream (an LLM, a payment provider, an SMS gateway) costs money.
 4. **Stability** — shedding excess load is what keeps you from [cascading failure](../01-fundamentals/failure-modes.html).
 
-The response is normally `429 Too Many Requests` with a `Retry-After` header, plus `X-RateLimit-Limit`, `-Remaining`, and `-Reset` so well-behaved clients can self-regulate.
+The response is normally `429 Too Many Requests` — the HTTP status that means "not now" rather than "never" — with a `Retry-After` header saying when to come back, plus headers telling the caller their limit, how much they have left, and when the count resets, so a well-written client can slow itself down before being blocked.
 
 ## The five algorithms
 
@@ -69,7 +69,7 @@ The practical compromise. Keep counters for the current and previous fixed windo
 
 ### 4. Token bucket
 
-A bucket holds up to *B* tokens, refilled at *R* tokens/sec. Each request consumes one; empty bucket means reject.
+Picture a bucket that holds up to *B* tokens and is topped up at *R* tokens per second. Every request takes one token; if the bucket is empty, the request is rejected. Because tokens accumulate while you're idle, a caller who has been quiet can spend a burst all at once — which is usually the behaviour you want.
 
 ```diagram
    ┌─────────────┐  refill R tokens/sec, cap B
@@ -133,7 +133,7 @@ All servers read/write counters in a shared Redis:
    return n
 ```
 
-**Correct and simple.** Must be atomic — a separate `GET` then `SET` races under concurrency. Redis is single-threaded per shard, so `INCR` is naturally atomic; anything more complex goes in a Lua script.
+**Correct and simple.** It has to happen as one indivisible step — reading the count and then writing it back as two separate commands lets two servers both read "99" and both allow the request. Redis runs one command at a time per shard, so a single increment is safe on its own; anything involving more than one command goes into a small script (Lua) that Redis runs start to finish without interruption.
 
 **Costs:** ~0.5 ms added to every request, and Redis becomes a dependency on your hot path. **Decide the failure mode explicitly:** if Redis is down, do you *fail open* (allow everything — availability over protection) or *fail closed* (reject — protection over availability)? For abuse prevention, fail open is usually right; for cost control against an expensive downstream, fail closed. Being asked "what if Redis is down?" and having a considered answer is a real differentiator.
 
