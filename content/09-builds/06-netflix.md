@@ -112,13 +112,13 @@ Why this design is so effective:
 
 **Pre-positioning is the move a curated catalogue enables.** You know a major release drops Friday at 00:00 and you know roughly where the audience is. Push it to edges on Thursday. No cold-miss stampede at launch — the single largest traffic event of the week is served entirely from cache.
 
-**Origin shield:** a mid-tier cache between edges and origin. Without it, 200 PoPs missing simultaneously means 200 identical origin fetches. With it, one.
+**Origin shield:** one extra cache sitting between all the edge locations and your origin servers. Without it, 200 edges missing the same file at the same moment means 200 identical requests to origin. With it, the first edge's miss fetches the file, the shield keeps it, and the other 199 are served from there.
 
-**ISP-embedded caches** are how this actually works at the top end: appliances placed *inside* ISP networks, so popular content never crosses the public internet. Mentioning this shows you understand delivery at real scale.
+**ISP-embedded caches** are how this actually works at the top end: your own cache appliances installed *inside* internet providers' own networks, so a popular episode travels from a box in the subscriber's own city rather than across the public internet. Mentioning this shows you understand delivery at real scale.
 
 ## Phase 4 — The control plane
 
-Everything that isn't bytes. Note how *small* it is relative to the data plane:
+Two terms worth separating, because this build turns on the split. The **data plane** is the part that moves the actual video — enormous traffic, almost no logic. The **control plane** is everything that decides things: what's in the catalogue, whether you're allowed to watch, where you got to. Note how *small* it is by comparison:
 
 ```diagram
    Catalogue metadata   ~20K titles → fits in memory, cache everything

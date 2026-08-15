@@ -99,7 +99,7 @@ This requires message IDs to be **monotonically ordered per conversation** — [
 
 ## Phase 4 — Groups without write amplification
 
-A 500-member group message, delivered naively, is 500 writes.
+**Write amplification** is when one action from a user turns into many writes inside your system. Here it's stark: one person sends one message to a 500-member group, and the naive design performs 500 writes — a copy dropped into each recipient's inbox.
 
 ```diagram
    NAIVE   write 500 copies, one per recipient inbox
@@ -141,7 +141,7 @@ This is where connection-oriented systems actually break.
 
 ## If end-to-end encryption is required
 
-It constrains the design significantly, and saying *how* is a strong signal: the server stores and routes **ciphertext only**, so no server-side search, previews, or spam filtering. Group messaging uses a sender key so a message is encrypted once rather than per recipient. Multi-device means per-device sessions. And backups become a genuine product problem — encrypted backups need a key the user holds, and losing it means losing history.
+End-to-end encryption means only the sender's and recipient's own devices hold the keys — your servers carry the messages but cannot read them. That constrains the design significantly, and saying *how* is a strong signal: the server stores and routes scrambled bytes only, so there is no server-side search, no link previews, and no spam filtering on content. Group messaging uses a sender key so a message is encrypted once rather than per recipient. Multi-device means per-device sessions. And backups become a genuine product problem — encrypted backups need a key the user holds, and losing it means losing history.
 
 ## Explaining the design
 

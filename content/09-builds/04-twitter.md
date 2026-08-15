@@ -104,7 +104,7 @@ Genuinely a different system: a streaming aggregation, not a feed.
         top-K per region → Redis → served from cache
 ```
 
-**Why a [count-min sketch](../building-blocks/bloom-filters.html) rather than exact counts:** tracking exact counts for millions of distinct terms costs a counter per term. The sketch does heavy-hitter detection in kilobytes with a bounded over-estimate — and "which hashtags are trending" tolerates approximation completely.
+**Why a [count-min sketch](../building-blocks/bloom-filters.html) rather than exact counts:** exact counting needs one counter per term, and there are millions of terms. A sketch is a fixed-size table that answers "roughly how often has this appeared?" in kilobytes rather than gigabytes — it may over-count slightly but never under-counts, which is fine here, because you only care which terms are near the top.
 
 **Trending is about *velocity*, not volume.** A term that's always popular isn't trending. Compare the current window's rate against a baseline — a term spiking 10× above its own trailing average is trending even at modest absolute volume. This catches breaking news, which is the entire point of the feature.
 
