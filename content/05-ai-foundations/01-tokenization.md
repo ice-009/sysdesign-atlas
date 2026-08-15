@@ -60,7 +60,9 @@ Both obvious options fail, in opposite directions.
 
 ## How BPE builds the vocabulary
 
-Byte-Pair Encoding is the dominant algorithm. It is trained on a corpus, once, before the model is trained, and produces a fixed merge list.
+**Byte-Pair Encoding (BPE)** is the dominant algorithm, and its idea is one sentence: repeatedly glue together whichever two neighbouring pieces occur together most often, and keep the result as a new piece.
+
+Run over a large body of text, that discovers common fragments on its own — "ing", "tion", " the" — without anyone writing rules. It happens once, before the model is trained, and produces a fixed list of merges that both encoding and decoding replay.
 
 ```diagram
    1. Start with every byte as its own token (256 base tokens)

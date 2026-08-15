@@ -10,9 +10,9 @@ unlocks: Reasoning about model execution as a resource-consumption problem rathe
 
 ## What we need from this
 
-You do not need to be able to derive backpropagation to design AI infrastructure. You need to know, precisely:
+You do not need to be able to derive the training mathematics to design AI infrastructure. You need to know, precisely:
 
-- Where the **parameters** live, because that's GPU memory you must pay for
+- Where the **parameters** live — the model's learned numbers, billions of them, and every one occupies GPU memory you pay for
 - Where the **arithmetic** happens, because that's compute
 - Which parts have **state that persists across tokens**, because that's the KV cache
 - Which operations are **compute-bound** versus **memory-bandwidth-bound**, because that determines everything about batching
@@ -41,7 +41,7 @@ That single asymmetry drives the entire system design. Independent per-token wor
 
 ## The residual stream
 
-A useful mental model: there's a running vector per token position — the **residual stream** — of width `d_model` (4,096 or 8,192 in typical models). Every block *reads* from it, computes something, and *adds* the result back.
+A useful mental model: each token position carries a running list of numbers with it through the whole model — the **residual stream**. Its length is called `d_model`, typically 4,096 or 8,192, and it's fixed for a given model. Every block *reads* that list, computes something from it, and *adds* the result back in.
 
 ```diagram
    Position i's residual stream, flowing down through layers:

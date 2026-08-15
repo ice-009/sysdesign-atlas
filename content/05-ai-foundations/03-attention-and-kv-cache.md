@@ -10,7 +10,7 @@ unlocks: The central constraint of LLM serving — scheduling memory, not comput
 
 ## The problem the cache solves
 
-Generation is autoregressive: to produce token *N*, the model runs a forward pass over the sequence so far. Done naively, that means reprocessing every previous token on every step.
+Generation is **autoregressive** — each new token is produced by feeding everything written so far back in, so the model is always predicting the next word given all the previous ones. Done naively, that means reprocessing every earlier token at every single step.
 
 :::derive Why naive generation is unusable
 ```
@@ -80,7 +80,7 @@ Almost everyone's first instinct on "how do we serve more users" is "add GPUs" o
 
 ## Making it smaller: attention variants
 
-Because the cache scales with `kv_heads`, the highest-leverage change is to have fewer of them.
+Attention runs as several parallel copies called **heads**, each learning to look for something different — one might track grammatical subjects, another nearby repetition. Each head normally keeps its own keys and values, so the cache scales with the number of heads. The highest-leverage change is therefore to let several heads *share* one set.
 
 ```diagram
    MULTI-HEAD (MHA)           GROUPED-QUERY (GQA)        MULTI-QUERY (MQA)
