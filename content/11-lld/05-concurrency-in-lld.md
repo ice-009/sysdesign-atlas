@@ -1,49 +1,57 @@
 ---
-title: Concurrency in LLD
-summary: The follow-up you will definitely get — what's shared, what guards it, and the four techniques (immutability, atomics, fine-grained locks, single-writer) that answer almost every version of the question.
+title: Threads and Races
+summary: The follow-up you will definitely get — which data is shared, what rule a collision would break, and the four techniques that answer almost every version of the question.
 difficulty: Medium
 scope: LLD
 tags: [concurrency, threads, locking, lld]
 prereqs: [lld-interview-method, concurrency-and-the-os]
-unlocks: Answering "what if two threads do this at once?" with a specific mechanism and its cost.
+unlocks: Answering "what if two people do this at the same time?" with a specific mechanism and its cost.
 ---
 
-Every LLD round for an SDE-2 ends up here, usually phrased as *"two people try to book the last seat at the same time — what happens?"* It is the single most reliable follow-up in the format, and the difference between a vague answer ("I'd synchronise it") and a specific one ("I'd make the seat-hold a compare-and-set on the seat's status, so exactly one wins and the other gets a `SeatUnavailable`") is a level.
+Almost every SDE-2 LLD round ends up here, usually as: *"two users try to book the last seat at the same moment — what happens?"*
+
+First, the vocabulary, because it's used loosely everywhere.
+
+- A **thread** is one flow of execution. A server handles many users by running many threads at once, and they share the same objects in memory.
+- A **race** (or race condition) is when the result depends on which thread happens to get there first — and one of the possible orders is wrong.
+- An **invariant** is a rule that must always hold. "A seat has at most one owner" is an invariant. A race is only a bug because it breaks one.
+
+The difference between a vague answer ("I'd synchronise it") and a specific one ("the seat hold is a compare-and-set on the seat's status, so exactly one caller wins and the other gets `SeatUnavailable`") is a level.
 
 ## The two-question drill
 
 Whatever the system, answer in this order:
 
-1. **What is the shared mutable state?** Name the exact field or collection. Usually there are only two or three in the whole design.
-2. **What is the invariant that a race would break?** "A spot is assigned to at most one vehicle." "The balance never goes negative." "A seat is held by one user."
+1. **Which data is shared and changes?** Name the exact field or collection. There are usually only two or three in a whole design.
+2. **What rule would a collision break?** "A spot is assigned to at most one car." "The balance never goes negative."
 
-Only then pick a mechanism. Candidates who jump straight to `synchronized` without naming the state are guessing, and interviewers can tell.
+Only then pick a mechanism. Jumping to `synchronized` without naming the data is guessing, and interviewers can tell.
 
 ```viz
 {
   "type": "steps",
-  "caption": "Reach for these in order. Each one down the list costs more and is easier to get wrong.",
+  "caption": "Try these in order. Each step down costs more and is easier to get wrong.",
   "steps": [
-    { "label": "1 · Make it immutable", "sub": "No shared mutable state, no race. Free." },
-    { "label": "2 · Confine it", "sub": "One thread / one owner per entity. Also free." },
-    { "label": "3 · Atomic op or concurrent collection", "sub": "CAS, ConcurrentHashMap. Cheap, no deadlock." },
-    { "label": "4 · Lock the smallest unit", "sub": "Per-seat, per-account — not the whole lot." },
-    { "label": "5 · Push it to the database", "sub": "Unique constraint, conditional update, transaction." }
+    { "label": "1 · Make it unchangeable", "sub": "Nothing to race on. Free." },
+    { "label": "2 · Give it one owner", "sub": "One thread touches it. Also free." },
+    { "label": "3 · Use an atomic operation", "sub": "Compare-and-set, ConcurrentHashMap. Cheap, can't deadlock." },
+    { "label": "4 · Lock the smallest thing", "sub": "One seat, one account — not the whole system." },
+    { "label": "5 · Push it into the database", "sub": "Unique constraint, conditional update, transaction." }
   ]
 }
 ```
 
-## 1 · Immutability — the answer you should give first
+## 1 · Unchangeable objects can't race
 
-Most of a good domain model is value objects, and value objects can't race. Say this early and you've removed 80% of the surface before anyone asks:
+Most of a good design is value objects, and a value object that never changes cannot be corrupted by two threads. Say this early and you've removed most of the surface before anyone asks:
 
-*"`Money`, `TimeSlot`, and `Ticket` are immutable — a fee calculation shares nothing. The only mutable state in this design is the spot occupancy map and the ticket store."*
+*"`Money`, `TimeSlot` and `Ticket` never change after they're created, so calculating a fee shares nothing. The only changing shared data here is spot occupancy and the ticket store."*
 
 Now the conversation is about two things instead of ten.
 
-## 2 · Confinement and the single writer
+## 2 · One owner needs no lock
 
-If exactly one thread ever touches a piece of state, no synchronisation is needed at all. This is why the elevator problem is usually modelled with one controller thread per elevator: requests go into a queue, the elevator's own loop drains it, and the elevator's internal state has exactly one writer.
+If exactly one thread ever touches a piece of data, no protection is needed at all. This is why a lift is usually modelled with one thread per car: requests go into a queue, the car's own loop takes them out, and the car's fields have exactly one writer.
 
 ```java
 class ElevatorController {
@@ -62,13 +70,15 @@ class ElevatorController {
 }
 ```
 
-**Say this:** *"Rather than locking the elevator's state, I give it a queue and a single owning thread. Callers hand off; the elevator is single-writer, so its internals need no locks."*
+**Say this:** *"Rather than locking the lift's state, I give it a queue and one owning thread. Callers hand work over; the lift has a single writer, so its internals need no locks."*
 
-The HLD echo is exact: this is why partitioned systems assign one owner per key. See [Sharding](../building-blocks/sharding.html).
+The same idea appears one level up in HLD: it's why systems give each slice of data a single owning server. See [Sharding](../building-blocks/sharding.html).
 
-## 3 · Atomics and concurrent collections
+## 3 · Atomic operations
 
-For the "reserve the last one" family of problems, the right primitive is usually **compare-and-set**, not a lock. It's non-blocking, deadlock-free, and expresses the invariant directly:
+For "grab the last one" problems, the right tool is usually **compare-and-set** rather than a lock.
+
+Compare-and-set (CAS) means: *change this value to B, but only if it is currently A — and tell me whether it worked.* The check and the change happen as one indivisible step, so two threads cannot both succeed.
 
 ```java
 class ParkingSpot {
@@ -83,31 +93,33 @@ class ParkingSpot {
 }
 ```
 
-Two callers, one `true`. The loser sees `false` and asks the allocator for another spot — no lock, no queue, no deadlock possible.
+Two cars, one `true`. The loser sees `false` and asks for another spot. No lock, no waiting, no deadlock possible.
 
 The collection equivalents matter just as much:
 
 | Instead of | Use | Why |
 |---|---|---|
-| `HashMap` + `synchronized` | `ConcurrentHashMap` | Lock striping; reads are lock-free |
-| `map.get` then `map.put` | `putIfAbsent` / `computeIfAbsent` | The check-then-act is the race |
-| `int counter++` | `AtomicLong` / `LongAdder` | `++` is read-modify-write, not atomic |
-| `ArrayList` for listeners | `CopyOnWriteArrayList` | Read-heavy, write-rare |
+| `HashMap` guarded by `synchronized` | `ConcurrentHashMap` | Readers don't block each other |
+| `map.get` then `map.put` | `putIfAbsent` / `computeIfAbsent` | The gap between the two *is* the bug |
+| `counter++` | `AtomicLong` | `++` is read, add, write — three steps, not one |
+| `ArrayList` of listeners | `CopyOnWriteArrayList` | Read constantly, written rarely |
 
-:::trap check-then-act is the bug you'll actually write
+:::trap Check-then-act is the bug you'll actually write
 ```java
 if (!map.containsKey(k)) map.put(k, newValue());   // two threads both pass the check
 ```
-Any *check* followed by an *act* on shared state is a race, even when both operations are individually thread-safe. `computeIfAbsent(k, this::newValue)` makes it one atomic operation. Saying the phrase "check-then-act" out loud is a strong signal — it shows you know *why* it's broken, not just that it is.
+Any **check** followed by an **act** on shared data is a race, even when each operation is individually thread-safe. `computeIfAbsent(k, this::newValue)` makes it a single atomic step.
+
+Saying the phrase "check-then-act" out loud is a strong signal — it shows you know *why* it's broken, not just that it is.
 :::
 
-## 4 · Locks, when you need them — and at the right granularity
+## 4 · Real locks, at the right size
 
-You need a real lock when the invariant spans **more than one object** (transfer money between two accounts; move a seat between two holds). The two things to get right:
+You need an actual lock when the rule spans **more than one object** — moving money between two accounts, moving a seat between two holds. Two things to get right.
 
-**Granularity.** Locking the whole `ParkingLot` serialises every car in the building. Lock the spot, or stripe by floor. State the tradeoff: *"one lock on the lot is correct but caps throughput at one operation at a time; per-spot locks give concurrency at the cost of ordering guarantees across spots, which I don't need here."*
+**Size.** A single lock on the whole car park means one car at a time, everywhere. Lock the individual spot instead. State the trade-off: *"one lock is obviously correct but serialises everything; per-spot locks give real concurrency and I don't need ordering between spots."*
 
-**Ordering, to avoid deadlock.** Two locks acquired in different orders by two threads deadlock. The standard fix is a global order:
+**Order, to avoid deadlock.** *Deadlock* is when two threads each hold something the other needs, so both wait forever. It needs two threads taking two locks in opposite orders. The standard fix is to always take them in the same order:
 
 ```java
 void transfer(Account from, Account to, Money amount) {
@@ -122,37 +134,41 @@ void transfer(Account from, Account to, Money amount) {
 }
 ```
 
-Know the four deadlock conditions (mutual exclusion, hold-and-wait, no preemption, circular wait) and that breaking *any one* is enough — ordering breaks circular wait; `tryLock` with a timeout breaks hold-and-wait.
+Worth knowing: deadlock needs four conditions at once (mutual exclusion, hold-and-wait, no preemption, circular wait), and **breaking any one is enough**. Ordering breaks circular wait; `tryLock` with a timeout breaks hold-and-wait.
 
-`ReentrantReadWriteLock` is worth one sentence when reads dominate writes by a lot: many readers concurrently, writers exclusive. Note the caveat — under a heavy read load, writers can starve.
+`ReentrantReadWriteLock` deserves a sentence when reads hugely outnumber writes: many readers at once, writers alone. The catch is that constant reading can starve writers.
 
-## 5 · Push it to the store
+## 5 · Push it into the database
 
-When the interviewer says "but you have five servers", in-process locks stop working and the answer must move down a layer:
+When the interviewer says "but you have five servers", in-memory tricks stop working — each server has its own copy of everything. The answer moves down a layer:
 
-- **Unique constraint** — the database rejects the second insert of `(seat_id, active_hold)`. Simple, correct, no extra infrastructure.
-- **Conditional update** — `UPDATE seats SET status='HELD', holder=? WHERE id=? AND status='FREE'`, then check the affected-row count. This is compare-and-set at the database. One row updated means you won.
-- **Optimistic locking** — a `version` column: `WHERE id=? AND version=?`, bump on write. Zero rows means someone else got there; retry or fail.
-- **A distributed lock** (Redis/ZooKeeper) — only when the resource isn't a row you can conditionally update. Say the caveats: it needs a TTL, and a lease can expire mid-operation. See [Distributed Locks](../building-blocks/distributed-locks.html).
+- **Unique constraint** — the database rejects a second row for the same seat. Simple, correct, nothing extra to run.
+- **Conditional update** — `UPDATE seats SET status='HELD' WHERE id=? AND status='FREE'`, then check how many rows changed. This is compare-and-set, written in SQL. One row changed means you won.
+- **Optimistic locking** — a `version` column: `WHERE id=? AND version=?`, incremented on write. Zero rows means someone beat you; retry or fail.
+- **A distributed lock** (Redis, ZooKeeper) — only when the thing isn't a row you can conditionally update. Say the caveats: it needs an expiry, and the lease can run out mid-operation. See [Distributed Locks](../building-blocks/distributed-locks.html).
 
-:::goat Prefer conditional writes to locks — at both levels
-`compareAndSet` in memory and `UPDATE … WHERE status='FREE'` in a database are the same idea: **make the check and the act one operation, and let the loser find out by failing.** It's cheaper than a lock, can't deadlock, and it degrades to a clean error instead of a hang. When you can express your invariant as a conditional write, do — that answer works in the LLD round *and* when the same interviewer pushes it to a cluster.
+:::goat Prefer a conditional write to a lock — at both levels
+`compareAndSet` in memory and `UPDATE … WHERE status='FREE'` in a database are the same idea: **make the check and the change one operation, and let the loser find out by failing.**
+
+It's cheaper than a lock, can't deadlock, and fails cleanly instead of hanging. Whenever your rule can be written as a conditional write, write it that way — the answer then works in the LLD round *and* when the same interviewer moves the question to a cluster.
 :::
 
-## Answering the classic follow-ups
+## The classic follow-ups, answered
 
 **"Two users book the last seat at the same time."**
-> "The seat's status is the shared state; the invariant is one active hold per seat. I'd make the hold a conditional transition — `compareAndSet(FREE, HELD)` in-process, or `UPDATE … WHERE status='FREE'` with a row-count check across servers. Exactly one wins; the loser gets `SeatUnavailable` and I refresh their view. The hold carries a TTL so an abandoned checkout releases it — I'd expire it lazily on read plus a sweeper, so I don't depend on a timer being alive."
+> "The seat's status is the shared data; the rule is one live hold per seat. I'd make the hold a conditional change — `compareAndSet(FREE, HELD)` in one process, or `UPDATE … WHERE status='FREE'` with a row-count check across servers. Exactly one wins; the other gets `SeatUnavailable` and I refresh their view. The hold carries an expiry so an abandoned checkout frees the seat — checked when the seat is next read, so it doesn't depend on a timer still being alive."
 
 **"How do you avoid deadlock?"**
-> "Mostly by not needing two locks. Where I do — a transfer — I acquire in a fixed global order by ID, and use `tryLock` with a timeout so worst case is a failed operation rather than a stuck thread."
+> "Mostly by needing only one lock. Where I need two — a transfer — I always take them in the same order by ID, and use `tryLock` with a timeout so the worst case is a failed operation rather than a stuck thread."
 
 **"Is your singleton thread-safe?"**
-> "The enum form is, and it's initialised safely by the class loader. But I'd rather create one instance at the composition root and inject it than use a static accessor — same single instance, testable, no global state."
+> "The enum form is, and the class loader guarantees it. But I'd rather create one instance at startup and pass it in than use a static accessor — same single instance, testable, no global state."
 
 **"How would you test this?"**
-> "A latch-based test: N threads all blocked on a `CountDownLatch`, released together, all calling `book(seat)`. Assert exactly one success and N−1 failures, and that the seat's final state is consistent. Run it a few thousand times — races are probabilistic, so a single pass proves little."
+> "A latch test: start N threads, hold them all at a `CountDownLatch`, release them together, all calling `book(seat)`. Assert exactly one success and N−1 failures, and that the seat ends up consistent. Run it a few thousand times, because a race that appears one time in fifty proves nothing in a single run."
 
-:::warn Don't over-lock to look safe
-Wrapping every method in `synchronized` is not the safe answer; it's a design that's both slow and *still* racy at the composite level (two synchronised calls in a row are not one atomic operation). Interviewers read blanket synchronisation as "hasn't thought about which invariant needs protecting". Name the state, name the invariant, protect exactly that.
+:::warn Don't lock everything to look careful
+Putting `synchronized` on every method is not the safe answer. It's slow *and* still wrong at the next level up — two synchronised calls in a row are not one atomic operation, so the check-then-act bug survives.
+
+Interviewers read blanket locking as "hasn't worked out which rule needs protecting". Name the data, name the rule, protect exactly that.
 :::

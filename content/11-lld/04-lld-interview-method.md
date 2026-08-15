@@ -1,145 +1,145 @@
 ---
 title: The 45-Minute LLD Method
-summary: A minute-by-minute structure for an LLD round — requirements, entities, relationships, interfaces, method signatures, a walkthrough, and the extension question — plus what to do when you're stuck.
+summary: What to do minute by minute in an LLD round — requirements, entities, relationships, interfaces, a walkthrough, and the "now add a feature" question that decides the result.
 difficulty: Medium
 scope: LLD
 tags: [framework, interview, lld, structure]
 prereqs: [design-patterns]
-unlocks: A repeatable sequence that gets you to a complete class design with time left for the follow-ups.
+unlocks: A repeatable order of steps that gets you to a complete class design with time left over.
 ---
 
-The [HLD framework](../appendix/framework.html) has an equivalent here, and it matters more: LLD rounds have no natural structure, so unstructured candidates produce a scattered pile of classes and never get to the part that scores.
+An LLD round has no built-in structure. Nobody tells you to do requirements first. So candidates without a plan produce a scattered pile of classes and never reach the part that scores. Having an order fixes that, and it's most of what separates people who pass.
 
 ```viz
 {
   "type": "steps",
-  "caption": "Default shape of a 45-minute LLD round. Announce it in the first minute.",
-  "note": "The extension question at minute 35 is the real exam. Everything before it is setup.",
+  "caption": "A default shape for 45 minutes. Announce it in the first minute.",
+  "note": "The \"now add a feature\" question at minute 35 is the real exam. Everything before it is setup.",
   "steps": [
-    { "label": "0–5 · Requirements", "sub": "Clarify, list use cases, cut scope explicitly." },
-    { "label": "5–10 · Entities", "sub": "The nouns, their fields, and the enums." },
-    { "label": "10–17 · Relationships", "sub": "has-a / is-a, multiplicity, who owns whom." },
-    { "label": "17–27 · Interfaces + classes", "sub": "Axes of variation, the service layer, signatures." },
-    { "label": "27–33 · Walkthrough", "sub": "One end-to-end operation through your objects." },
-    { "label": "33–40 · Extension + concurrency", "sub": "The follow-ups. Where seniority shows." },
-    { "label": "40–45 · Gaps and tests", "sub": "What you'd add with more time; how you'd test it." }
+    { "label": "0–5 · Requirements", "sub": "Ask, list the use cases, say what's out." },
+    { "label": "5–10 · Entities", "sub": "The nouns, their fields, the enums." },
+    { "label": "10–17 · Relationships", "sub": "Who has what, and how many." },
+    { "label": "17–27 · Interfaces + service", "sub": "What varies, plus the class that runs the show." },
+    { "label": "27–33 · Walkthrough", "sub": "One operation, traced through your objects." },
+    { "label": "33–40 · Add a feature + threads", "sub": "The follow-ups. Where seniority shows." },
+    { "label": "40–45 · Gaps and testing", "sub": "What you'd add next, and how you'd test it." }
   ]
 }
 ```
 
 ## 0–5 · Requirements
 
-Do not draw yet. Ask three to five questions, then state the use cases as a list. The questions that pay for themselves in almost any LLD prompt:
+Don't draw anything yet. Ask three to five questions, then read back the use cases as a list. Questions that pay for themselves in almost any LLD problem:
 
-- **Scope:** "Is this a single-instance system, or do multiple servers share state?" (This decides whether the concurrency answer is locks or a database.)
-- **Actors:** "Who uses it — one user type, or several with different permissions?"
-- **Variation:** "Should I assume the pricing/matching/notification rules will change?" (They'll say yes. Now your strategy interfaces are *requested*, not decorative.)
-- **Persistence:** "In-memory is fine for this, or do you want the storage layer designed too?"
-- **Scale:** "Roughly how many X?" — one question only, and only to justify data-structure choices.
+- **Scale of the design:** "Is this one machine, or do several servers share state?" This decides whether your threading answer is locks or a database.
+- **Users:** "Is there one kind of user, or several with different permissions?"
+- **What changes:** "Should I assume the pricing / matching / notification rules will change?" They'll say yes — and now your interfaces are *requested* rather than decorative.
+- **Storage:** "Is in-memory fine, or do you want the storage layer designed too?"
+- **Size:** "Roughly how many of these?" One question only, and only to justify a data-structure choice.
 
-Then say the scope cut out loud: *"I'll design ticketing, spot allocation, and fee calculation. I'll leave out authentication, the admin dashboard, and reporting unless you want them."*
+Then say the boundary out loud: *"I'll design ticketing, spot allocation and fee calculation. I'll leave out login, the admin dashboard and reporting unless you want them."*
 
-:::interview Open with the plan
-"Let me spend five minutes on requirements, then list the core entities, then the class relationships and interfaces — I'd like a working design by minute 25 so we have time for extensions. Stop me whenever."
+:::interview Open with your plan
+"Let me spend five minutes on requirements, then list the main classes, then relationships and interfaces. I'd like a working design by minute 25 so we have time for extensions. Stop me whenever."
 
-Same fifteen seconds as the HLD round, same effect: it makes everything afterwards look deliberate.
+Fifteen seconds, and everything afterwards looks deliberate rather than improvised.
 :::
 
 ## 5–10 · Entities — the noun pass
 
-Read your use-case list and underline the nouns. That's your first draft of the class list, and it's almost always 80% right.
+Read your use cases and underline the nouns. That is your first list of classes, and it's usually 80% right.
 
-> *"A **vehicle** enters the **parking lot** and takes a **ticket** at an **entrance gate**. The **spot** is assigned by size. On leaving, the **exit gate** computes a **fee** and takes a **payment**."*
+> *"A **vehicle** enters the **parking lot** and takes a **ticket** at an **entrance gate**. A **spot** is assigned by size. On leaving, the **exit gate** works out a **fee** and takes a **payment**."*
 
-Entities: `Vehicle`, `ParkingLot`, `Ticket`, `Gate`, `ParkingSpot`, `Fee`/`Money`, `Payment`. Write them as a column with two or three fields each. Don't write methods yet — you'll invent responsibilities you don't need.
+Classes: `Vehicle`, `ParkingLot`, `Ticket`, `Gate`, `ParkingSpot`, `Money`, `Payment`. Write them in a column with two or three fields each. Don't add methods yet — you'll invent jobs nothing needs.
 
-Two refinements that take one minute and make the list look considered:
+Two quick refinements that make the list look considered:
 
-- **Collapse near-duplicates.** `Car`, `Bike`, `Truck` → `Vehicle` + `VehicleSize` enum. (See [OOP](oop-refresher.html).)
-- **Promote value objects.** `double amount` → `Money`. `LocalDateTime in, out` → `TimeSlot`. Immutable, self-validating, thread-safe for free.
+- **Merge near-duplicates.** `Car`, `Bike`, `Truck` → one `Vehicle` plus a `VehicleSize` enum.
+- **Promote value objects.** `double amount` → `Money`. `LocalDateTime in, out` → `TimeSlot`. Unchangeable, self-checking, and safe to share between threads. See [Objects, in practice](oop-refresher.html).
 
 ## 10–17 · Relationships — the arrow pass
 
-Now connect them, out loud, in "has-a" sentences with multiplicity. This is the step candidates skip and it's where most design errors are caught cheaply:
+Now connect them out loud, in "has-a" sentences, with numbers attached. Candidates skip this step, and it's where design mistakes are cheapest to catch.
 
 ```diagram
-   ParkingLot  1 ──── * Floor
-   Floor       1 ──── * ParkingSpot
-   ParkingSpot 0..1 ── 1 Ticket        (occupied ⇔ has an active ticket)
-   Ticket      * ──── 1 Vehicle
-   Ticket      1 ──── 0..1 Payment
+   ParkingLot  1 ──── * Floor          one lot has many floors
+   Floor       1 ──── * ParkingSpot    one floor has many spots
+   ParkingSpot 0..1 ── 1 Ticket        a spot is taken ⇔ it has a live ticket
+   Ticket      * ──── 1 Vehicle        many tickets over time, one vehicle each
+   Ticket      1 ──── 0..1 Payment     a ticket may not be paid yet
 ```
 
-Ask of each arrow: **who owns the lifecycle?** (Deleting a floor deletes its spots; deleting a ticket must not delete the vehicle.) And: **which direction do you need to navigate?** Bidirectional links are a maintenance cost — keep the one you'll actually traverse.
+Ask two things of every arrow. **Who owns the lifetime?** Deleting a floor should delete its spots; deleting a ticket must not delete the vehicle. **Which way will you actually navigate?** Links in both directions cost maintenance — keep the one you'll use.
 
-This is also where you state your **key lookup structures**, because they follow from the arrows: *"I'll keep a `Map<SpotSize, TreeSet<Spot>>` of free spots so allocation is O(log n) rather than a scan."*
+This is also where you name your lookup structures, because they follow from the arrows: *"I'll keep free spots in a `Map<SpotSize, TreeSet<Spot>>` so finding one is O(log n) instead of scanning the building."*
 
-## 17–27 · Interfaces and the service layer
+## 17–27 · Interfaces and the service class
 
-Three moves, in order:
+Three moves, in order.
 
-**1. Find the axes of variation** and put interfaces there — the "different/depending on/configurable" words from the requirements. Typically one to three: pricing, allocation, payment, notification.
+**1. Find what varies** and put an interface there — the "different / depending on / configurable" words from the requirements. Usually one to three things: pricing, allocation, payment, notification.
 
-**2. Add the service/manager class** that orchestrates the entities. This is the object with the use cases on it, and it's the one place with the transaction-like logic:
+**2. Add the service class** that runs the use cases. This is the object that coordinates the others:
 
 ```java
 class ParkingLotService {
-    private final SpotAllocator allocator;     // interface: nearest / random / level-first
+    private final SpotAllocator allocator;     // interface: nearest / random / lowest floor
     private final ParkingFeeStrategy pricing;  // interface
     private final TicketRepository tickets;    // interface
 
-    Ticket park(Vehicle v, Gate entry) { /* allocate, create ticket, persist */ }
-    Receipt unpark(String ticketId, PaymentMethod m) { /* price, charge, free spot */ }
+    Ticket park(Vehicle v, Gate entry) { /* find a spot, issue a ticket, save it */ }
+    Receipt unpark(String ticketId, PaymentMethod m) { /* price it, charge, free the spot */ }
 }
 ```
 
-**3. Write the signatures of the two or three most important methods.** Not bodies — signatures. What goes in, what comes out, what it throws. Interviewers read a lot from a signature: `Ticket park(Vehicle, Gate)` says you thought about who's calling; `void park(String, String, int, boolean)` says you didn't.
+**3. Write the signatures of the two or three most important methods.** Not the bodies — the signatures. What goes in, what comes out, what can go wrong. Interviewers read a lot from these. `Ticket park(Vehicle, Gate)` says you thought about the caller. `void park(String, String, int, boolean)` says you didn't.
 
-:::tip Return types carry information
-`Optional<Spot> findFreeSpot(VehicleSize)` says a full lot is a normal outcome, not an exception. `Result<Booking, BookingError>` (or a checked exception) says failures are part of the contract. Choosing deliberately between "returns empty", "returns a result object", and "throws" — and saying why — is a cheap, strong signal.
+:::tip Return types say things
+`Optional<Spot> findFreeSpot(VehicleSize)` says a full car park is a normal outcome, not an error. `Result<Booking, BookingError>` says failure is part of the contract. Choosing deliberately between "returns nothing", "returns a result object" and "throws" — and saying why — is a cheap, strong signal.
 :::
 
-## 27–33 · Walk one operation end to end
+## 27–33 · Walk one operation through
 
-Pick the most important use case and trace it through your objects, naming every call. This is the LLD equivalent of narrating a request through the architecture, and it does two jobs: it proves the design works, and it exposes the missing class you didn't notice.
+Pick the most important use case and trace it through your objects, naming each call. This does two jobs: it proves the design works, and it exposes the class you forgot.
 
-> "`park(vehicle)` on the service. It asks the `SpotAllocator` for a free spot of the right size — that's a `TreeSet` poll, so O(log n). It marks the spot occupied, creates a `Ticket` with entry time, saves it via the repository, and returns it. If no spot is free, the allocator returns empty and the service throws `LotFullException`, which the gate turns into a display message."
+> "`park(vehicle)` on the service. It asks the allocator for a free spot of the right size — that's a `TreeSet` poll, so O(log n). It marks the spot taken, creates a `Ticket` with the entry time, saves it, and returns it. If nothing is free, the allocator returns empty and the service throws `LotFullException`, which the gate turns into a message on the display."
 
-Say the complexity of anything non-trivial as you pass it. Say what happens on the unhappy path. Those two habits alone separate the top quartile.
+Two habits while you narrate: **say the cost** of anything non-trivial ("that's O(log n)"), and **say what happens when it fails**. Together they put you in the top quartile.
 
-## 33–40 · The extension question — this is the exam
+## 33–40 · "Now add a feature" — this is the exam
 
-They will ask for a change. Common ones: *"add electric charging spots", "add a monthly pass", "support multiple entrances", "add a valet", "make pricing time-of-day dependent".*
+They will ask for a change. Common ones: *add electric charging spots, add a monthly pass, support several entrances, add valet parking, make pricing depend on time of day.*
 
-The answer has a shape:
+Answer in three parts:
 
-1. **Name where it lands.** "That's a pricing change, so it's a new `PricingStrategy` implementation."
-2. **Name what does *not* change.** "The gate, the ticket, and the allocator are untouched."
-3. **Be honest if it does hurt.** "Multiple entrances is harder — my `Ticket` assumes one gate, so I'd add a `gateId` and make the allocator entrance-aware. That's a real change, but contained to two classes."
+1. **Where it lands.** "That's a pricing change, so it's a new `PricingStrategy` implementation."
+2. **What does *not* change.** "The gate, the ticket and the allocator are untouched."
+3. **Be honest when it does hurt.** "Several entrances is harder — my `Ticket` assumes one gate, so I'd add a `gateId` and make the allocator entrance-aware. That's a real change, but it's contained to two classes."
 
 That third move — admitting a change is invasive and scoping it precisely — scores higher than pretending your design absorbs everything.
 
-Concurrency almost always follows. Have the answer ready: what's shared, what guards it, and what happens under contention. [Concurrency in LLD](concurrency-in-lld.html) is the whole page on it.
+Threading questions almost always follow. Have the answer ready: what's shared, what protects it, what happens when two things collide. [Threads and races](concurrency-in-lld.html) is the whole page on it.
 
-## 40–45 · Close deliberately
+## 40–45 · Close on purpose
 
 Don't trail off. Spend the last three minutes on:
 
-- **Known gaps.** "I've kept persistence behind a repository and not designed the schema — with more time I'd do that, plus the admin flows I cut."
-- **Testing.** "Everything is constructor-injected, so I'd unit-test the fee strategies in isolation with fixed clocks, and test the service against in-memory repositories. The interesting test is two threads parking into the last spot."
-- **One thing you'd revisit.** Naming your own weakest decision is a strength signal, not a confession.
+- **Known gaps.** "I've hidden storage behind a repository rather than designing the schema. With more time I'd do that, plus the admin flows I cut."
+- **Testing.** "Everything is passed in through constructors, so I'd test the fee strategies on their own with a fixed clock, and test the service against in-memory fakes. The interesting test is two threads taking the last spot."
+- **One thing you'd revisit.** Naming your own weakest decision reads as confidence, not doubt.
 
 ## When you get stuck
 
 ```viz
 {
   "type": "flow",
-  "caption": "Unsticking, in order of what to try.",
+  "caption": "Unsticking, in the order to try it.",
   "nodes": [
-    { "id": "n", "label": "List nouns", "sub": "entities from the prompt" },
+    { "id": "n", "label": "List nouns", "sub": "classes from the problem" },
     { "id": "v", "label": "List verbs", "sub": "use cases → methods" },
     { "id": "a", "label": "What varies?", "sub": "→ interfaces" },
-    { "id": "w", "label": "Walk a use case", "sub": "the gap appears" }
+    { "id": "w", "label": "Walk a use case", "sub": "the gap shows up" }
   ],
   "edges": [
     { "from": "n", "to": "v" },
@@ -149,8 +149,14 @@ Don't trail off. Spend the last three minutes on:
 }
 ```
 
-And say what you're doing while you do it. Silence reads as being lost; *"let me walk the booking flow through these classes and see what's missing"* reads as method.
+And narrate while you do it. Silence reads as being lost. *"Let me walk a booking through these classes and see what's missing"* reads as method.
 
-:::warn The three time sinks
-**Perfect naming** — pick a decent name and move on; you can rename in ten seconds if challenged. **Full method bodies** — you were asked for a design, not an implementation; write bodies only for the one or two algorithmically interesting methods. **Database schemas** — unless asked, a repository interface is enough. Each of these has cost candidates the extension question, which is the part that decides the round.
+:::warn Three ways to waste ten minutes
+**Perfect names.** Pick a decent one and move on; renaming takes seconds if challenged.
+
+**Full method bodies.** You were asked for a design. Write bodies only for the one or two genuinely interesting methods.
+
+**Database schemas.** Unless asked, a repository interface is enough.
+
+Each of these has cost candidates the "add a feature" question, which is the part that decides the round.
 :::

@@ -1,154 +1,157 @@
 ---
 title: The HLD Refresher
-summary: The whole high-level-design round compressed into one page — the 45-minute structure, the six numbers worth memorising, a decision table for every building block, and a worked ten-minute mini-design.
+summary: The whole high-level-design round on one page — the 45-minute structure, the six numbers worth memorising, what each component is for, and a worked ten-minute example.
 difficulty: Medium
 scope: HLD
 tags: [hld, framework, revision, cheatsheet]
 prereqs: [hld-vs-lld, back-of-envelope]
-unlocks: Walking into an HLD round with the structure, the numbers, and the component tradeoffs in working memory.
+unlocks: Walking into an HLD round with the structure, the numbers and the component trade-offs in your head.
 ---
 
-This is the compression of [Foundations](../fundamentals/scalability-basics.html), [Building Blocks](../building-blocks/load-balancing.html), and the [interview framework](../appendix/framework.html) into what fits in your head two days before an interview. Read the first half on day 1 and the second on day 2; skim both on day 3.
+This compresses [Foundations](../fundamentals/scalability-basics.html), [Building Blocks](../building-blocks/load-balancing.html) and the [Appendix](../appendix/framework.html) into what fits in your head two days before an interview. Read the first half on day 1, the second on day 2, and skim both on day 3.
 
 ## Part 1 · The structure
 
 ```viz
 {
   "type": "steps",
-  "caption": "45 minutes. Announce it in the first minute, then deviate when steered.",
+  "caption": "45 minutes. Announce it in the first minute, then follow the interviewer when they steer.",
   "note": "Minutes 27–40 hold most of the score. Everything before them exists to buy that time.",
   "steps": [
-    { "label": "0–5 · Requirements", "sub": "Functional, non-functional, explicit scope cut." },
+    { "label": "0–5 · Requirements", "sub": "What it does, what matters, what you're skipping." },
     { "label": "5–10 · Estimation", "sub": "Only numbers that change a decision." },
-    { "label": "10–15 · API + data model", "sub": "Endpoints, schema, and the partition key." },
-    { "label": "15–27 · High-level design", "sub": "Draw it, then narrate one request end to end." },
+    { "label": "10–15 · API + data", "sub": "The endpoints, the tables, and how data is split up." },
+    { "label": "15–27 · The diagram", "sub": "Draw it, then follow one request through it." },
     { "label": "27–40 · Deep dives", "sub": "Two, properly. Depth beats breadth." },
-    { "label": "40–45 · Wrap", "sub": "Bottleneck at 10×, failure modes, what you'd monitor." }
+    { "label": "40–45 · Wrap up", "sub": "What breaks at 10×, what fails, what you'd watch." }
   ]
 }
 ```
 
-**Requirements.** Three or four functional bullets, then the non-functional ones that actually shape the design: read/write ratio, latency target, consistency need, availability target, and scale. Then say what you're *not* doing. Scope discipline is scored.
+**Requirements.** Three or four things it must do, then the qualities that actually shape the design: how many reads versus writes, how fast it must respond, how fresh the data must be, how much downtime is acceptable, and how big it is. Then say what you're *not* building. Scope discipline is scored.
 
-**Estimation.** One or two numbers, each followed by "…which means". `QPS = DAU × actions/day ÷ 10⁵`. Storage = objects × size × retention × replication. If a number doesn't change a decision, skip it and say you're skipping it.
+**Estimation.** One or two numbers, each followed by "…which means". `requests per second = daily users × actions each ÷ 100,000`. Storage = number of things × size each × how long you keep them × number of copies. If a number doesn't change a decision, skip it and say you're skipping it.
 
-**API + data model.** Four or five endpoints max. Then the schema — and always name the **partition key** and why. "Partition by `user_id`, because every read is scoped to a user and it keeps a timeline on one shard" is one of the highest-value sentences in the round.
+**API and data.** Four or five endpoints at most. Then the tables — and always say **how the data is split across machines** and why. "Split by user id, because every read is for one user and it keeps their whole timeline on one machine" is one of the highest-value sentences in the round.
 
-**High-level design.** Draw the boxes, then walk one write and one read through them, labelling every arrow with what flows. Never leave an unlabelled arrow.
+**The diagram.** Draw the boxes, then walk one write and one read through them, saying what travels along every arrow. Never leave an arrow unlabelled.
 
-**Deep dives.** Pick the two hardest parts — usually the hot path and the consistency problem — and go three levels down. Offer a choice: *"the interesting parts here are the fan-out strategy and the cache invalidation; which would you rather I dig into?"*
+**Deep dives.** Pick the two hardest parts — usually the busiest path and the place where data can go stale — and go three levels down. Offer a choice: *"the interesting parts here are how the feed is built and how the cache is kept fresh; which would you rather I dig into?"*
 
-**Wrap.** "At 10× this breaks first, here's what I'd do. If this component dies, here's the degradation. I'd monitor these three metrics." Three sentences, and they close the round strongly.
+**Wrap up.** "At ten times the traffic this breaks first, and here's what I'd do. If this component dies, here's what users see. I'd watch these three numbers." Three sentences, and they close the round strongly.
 
 :::interview The two sentences that raise your score most
-**At the start:** "Here's how I'd like to use the time…" — it frames everything after as deliberate.
-**Throughout:** "…which means…" — never state a number or a component without the consequence. "300K read QPS, *which means* the cache tier is the primary read path, not an optimisation." Decisions with reasons are the entire scoring rubric.
+**At the start:** "Here's how I'd like to use the time…" — it makes everything after it look deliberate.
+
+**Throughout:** "…which means…" — never state a number or name a component without its consequence. "300,000 reads a second, *which means* the cache is the main read path, not a nice-to-have." Decisions plus reasons is the entire marking scheme.
 :::
 
 ## Part 2 · The numbers
 
-Six facts. Everything else can be derived at the whiteboard.
+Six facts. Everything else you can derive at the whiteboard.
 
 ```diagram
-   1 day  ≈ 10⁵ seconds                    QPS = DAU × actions/day ÷ 10⁵
-   Peak   ≈ 3× average                     (10× for events, launches, matches)
+   1 day  ≈ 100,000 seconds            requests/sec = users × actions ÷ 100,000
+   Peak   ≈ 3× average                 (10× for launches, sales, match days)
 
-   Memory read       ~100 ns    ─┐
-   SSD random read   ~100 µs     │  memory is ~1,000× SSD
-   Same-DC round trip ~500 µs    │  a network hop costs more than reading 1 MB of RAM
-   Cross-continent RTT ~100 ms  ─┘  physics; only moving data closer helps
+   Read from memory   ~100 ns    ─┐
+   Read from SSD      ~100 µs     │  memory is ~1,000× faster than disk
+   One network hop     ~500 µs    │  a hop costs more than reading 1 MB of memory
+   Across the world   ~100 ms    ─┘  physics; only moving data closer helps
 
-   One commodity server:  ~50K QPS trivial work · ~10K QPS real work
-                          64–512 GB RAM · 10 Gbps NIC ≈ 1.2 GB/s
-   One SQL primary:       ~10–50K writes/s · single-node ceiling ~10 TB comfortably
-   Redis:                 ~100K ops/s per core, sub-ms
-   Kafka partition:       ~10 MB/s, ordered
+   One ordinary server:  ~50,000 requests/sec for trivial work
+                         ~10,000/sec for real work · 64–512 GB memory
+   One SQL primary:      ~10–50,000 writes/sec · comfortable up to ~10 TB
+   Redis:                ~100,000 operations/sec per core, under a millisecond
 ```
 
-**Object sizes:** ID 8–16 B · text post ~300 B · DB row ~1 KB · thumbnail ~10 KB · web photo ~500 KB · 1 hr 1080p ≈ 2 GB.
+**Rough sizes:** an ID is 8–16 bytes · a short text post ~300 bytes · a database row ~1 KB · a thumbnail ~10 KB · a web photo ~500 KB · an hour of 1080p video ~2 GB.
 
-**The three derived conclusions** that do most of the work in an interview:
+**The three conclusions** that do most of the work:
 
-1. If working-set data fits in memory across a few machines, **cache it** — you just removed most of your read load.
-2. If storage exceeds ~10 TB or writes exceed ~50K/s, **you're sharding**, and the only question is the key.
-3. If a step is slow, fallible, or bursty and the user doesn't need its result immediately, **queue it**.
+1. If the data people actually read fits in memory across a few machines, **cache it** — you've just removed most of your read traffic.
+2. If storage passes ~10 TB or writes pass ~50,000/sec, **you're splitting the data across machines**, and the only question is what you split it by.
+3. If a step is slow, unreliable or bursty and the user doesn't need the result immediately, **put it on a queue**.
 
-For the full tables see [the cheat sheet](../appendix/cheat-sheet.html).
+The full tables are in [the cheat sheet](../appendix/cheat-sheet.html).
 
-## Part 3 · The building blocks, as a decision table
+## Part 3 · What each component is for
 
-| Component | Use it when | The tradeoff to say out loud |
+| Component | Use it when | The trade-off to say out loud |
 |---|---|---|
-| **Load balancer** | Always, in front of any tier | L4 is fast and dumb; L7 can route on path/header and terminate TLS. Health checks decide what "up" means |
-| **Cache** | Read-heavy and staleness is tolerable | Invalidation is the hard part. Name the pattern: cache-aside (default), write-through, write-behind. Set a TTL even with invalidation |
-| **CDN** | Static or cacheable media, geographically spread users | Cheap latency win; purge lag is real. Version URLs instead of purging |
-| **SQL** | Relationships, transactions, ad-hoc queries; the default | One primary bounds writes. Read replicas add read capacity and replication lag |
-| **NoSQL (KV/wide-column)** | Known access pattern, huge scale, simple queries | You trade joins and flexible querying for linear scale. Model the table around the query |
-| **Sharding** | Past a single node's storage or write ceiling | Cross-shard queries and transactions get hard. Choose the key for even distribution *and* query locality |
-| **Message queue** | Decouple, absorb bursts, retry, fan out | Adds eventual consistency and duplicate delivery — so consumers must be idempotent |
-| **Search index** | Full-text, faceting, relevance ranking | A second store to keep in sync; near-real-time, not real-time |
-| **Object store** | Blobs — images, video, backups | Store the URL in the database, never the bytes. Upload direct with pre-signed URLs |
-| **WebSockets / SSE** | Server must push; sub-second delivery | Stateful connections make deploys and scaling harder than polling |
-| **Rate limiter** | Any public API | Fail-open vs fail-closed is a real decision. See [rate limiting](rate-limiter-classes.html) |
+| **Load balancer** | Always, in front of any group of servers | Simple ones just forward traffic; smarter ones can route by URL and handle HTTPS. Health checks decide what counts as "alive" |
+| **Cache** | Lots of reads, and slightly stale data is fine | Knowing when to throw it away is the hard part. Name the pattern and always set an expiry |
+| **CDN** | Images, video, anything static, users spread out | Cheap speed win; changes take time to propagate. Put a version in the URL rather than trying to purge |
+| **SQL database** | Related data, transactions, queries you haven't thought of yet. The default | One machine takes all the writes. Read copies add read capacity but lag slightly behind |
+| **NoSQL** | You know exactly how you'll read it, and there's a lot of it | You give up joins and flexible queries for easy growth. Design the table around the one query |
+| **Splitting data (sharding)** | Past one machine's storage or write limit | Queries spanning machines get hard. Pick the split key for even spread *and* for the queries you'll run |
+| **Message queue** | Decouple things, absorb bursts, retry, fan out | Adds delay before the result is visible, and messages can arrive twice — so consumers must tolerate repeats |
+| **Search index** | Free-text search and ranking | A second copy of the data to keep in sync; nearly real-time, not real-time |
+| **Object storage** | Files — images, video, backups | Store the link in the database, never the file itself |
+| **WebSockets** | The server must push, within a second | Keeping connections open makes deploys and scaling harder than plain polling |
 
-## Part 4 · The reference architecture
+## Part 4 · The starting diagram
 
-Most designs are this picture with two or three boxes changed. Start here, then justify each deviation.
+Most designs are this picture with two or three boxes changed. Start here and justify each deviation.
 
 ```diagram
-   Client ─▶ CDN ─▶ LB ─▶ API gateway ──▶ Service tier ──▶ Cache ──▶ Primary DB
-                          (auth,               │                        │
-                           rate limit)         │                        ├─▶ Read replicas
-                                               │                        └─▶ Shards
-                                               ▼
-                                        Message queue ──▶ Workers ──▶ Search index
-                                                                 └──▶ Object store
-                                                                 └──▶ Analytics / OLAP
+   Client ─▶ CDN ─▶ LB ─▶ API gateway ──▶ Servers ──▶ Cache ──▶ Main database
+                          (auth,             │                     │
+                           rate limit)       │                     ├─▶ Read copies
+                                             │                     └─▶ Split by key
+                                             ▼
+                                      Message queue ──▶ Workers ──▶ Search index
+                                                               └──▶ File storage
+                                                               └──▶ Analytics
 ```
 
-- **Sync path** (left to right, top row): must be fast, must be simple. Every component here is on the user's critical path.
-- **Async path** (down through the queue): anything the user's response doesn't depend on — notifications, indexing, thumbnails, analytics, fan-out.
+- **The top row** is what the user waits for. Keep it fast and simple.
+- **Everything below the queue** is what the user doesn't wait for: notifications, indexing, thumbnails, analytics.
 
-Deciding what goes below the line is most of the design. "The user's write must return once it's durable in the primary; indexing, notifications, and feed fan-out all happen off the queue" is a sentence that covers a lot of ground in one breath.
+Deciding what goes below the line is most of the design. *"The write returns as soon as it's safely stored; indexing, notifications and fan-out all happen off the queue"* covers a lot of ground in one breath.
 
-## Part 5 · The five deep dives that appear everywhere
+## Part 5 · The five deep dives that come up everywhere
 
-Have a paragraph ready on each. One of them will come up in any HLD round.
+Have a paragraph ready on each.
 
-**1 · Caching strategy.** Cache-aside with TTL as the default. Say what you cache (the object, or the rendered result), where (client / CDN / app / distributed), and how invalidation works. Name the two hard cases: **stampede** (many misses on one hot key → single-flight or a locked refresh) and **hot key** (one key exceeding a node's capacity → replicate it across nodes or add a local L1). See [Caching](../building-blocks/caching.html).
+**1 · Caching.** Look in the cache first, fall back to the database, and put the answer in the cache — with an expiry. Say what you cache, where, and how it gets thrown away. Name the two hard cases: **a stampede** (a popular item expires and a thousand requests hit the database at once — let one of them do the work while the rest wait) and **a hot key** (one item so popular it overloads a single cache node — copy it to several). See [Caching](../building-blocks/caching.html).
 
-**2 · Partitioning.** State the key and why. Range keys give you scans but hotspots; hash keys give you distribution but no range queries; [consistent hashing](../building-blocks/consistent-hashing.html) makes resharding cheap. Always mention the celebrity/hot-partition problem and one mitigation (salting the key, dedicated handling for the top 0.1%).
+**2 · Splitting the data.** Say the key and why. Splitting by ranges lets you scan but creates hot spots; splitting by hash spreads evenly but kills range queries; [consistent hashing](../building-blocks/consistent-hashing.html) makes adding machines cheap. Always mention the celebrity problem and one fix.
 
-**3 · Consistency.** Where do you need strong consistency, and where is eventual fine? The good answer is per-operation, not per-system: "the booking write is strongly consistent — it's a conditional update on one row; the seat map is eventually consistent with a one-second TTL, and the UI says so." See [CAP/PACELC](../fundamentals/cap-pacelc.html).
+**3 · Freshness.** Where do you need the absolute truth, and where is slightly-behind fine? The good answer is per operation, not per system: "the booking write must be exact — it's one conditional update on one row; the seat map can be a second out of date, and the screen says so." See [CAP and PACELC](../fundamentals/cap-pacelc.html).
 
-**4 · Failure.** For each major component: what happens when it dies, and what does the user see? Cache down → higher latency, database load spikes (so have a circuit breaker). Queue backed up → delayed side effects, not lost ones. Region down → failover, with a stated RTO/RPO. Retries need **backoff, jitter, and idempotency keys**, or your retries become the outage.
+**4 · Failure.** For each major box: what happens when it dies, and what does the user see? Cache down → slower, and the database takes the load. Queue backed up → things happen late, not never. Whole region down → fail over, and say how much data you'd lose. Retries need spacing, randomness and a way to detect duplicates, or your retries become the outage.
 
-**5 · The hot path at 10×.** Name the first thing to break and the fix. This is the wrap-up question and the one candidates fumble because they never actually thought about which component is closest to its limit.
+**5 · Ten times the traffic.** Name the first thing to break and the fix. This is the closing question, and candidates fumble it because they never worked out which box is nearest its limit.
 
-## Part 6 · A worked ten-minute mini-design
+## Part 6 · A worked ten-minute example
 
-*"Design a URL shortener"* — how the pieces above assemble under time pressure.
+*"Design a URL shortener"* — how the pieces above go together under time pressure.
 
-> **Requirements.** Create short link, redirect, optional expiry. Read-heavy, redirect latency in the low tens of ms, high availability — a dead shortener breaks every link ever shared. Out of scope: accounts, analytics dashboards, malware scanning.
+> **Requirements.** Make a short link, redirect it, optional expiry. Far more reads than writes, redirects must be fast, and it must basically never be down — a dead shortener breaks every link ever shared. Out of scope: accounts, analytics dashboards, spam scanning.
 >
-> **Estimation.** 100M writes/day → 100M ÷ 10⁵ = **1K write QPS**, ~3K peak. 100:1 reads → **100K read QPS**, ~300K peak. 500 B/record × 100M × 365 × 5 ≈ **91 TB** with retention. *Which means:* sharded storage (past one node), and a cache tier as the primary read path (300K QPS of tiny immutable payloads is the ideal cache workload).
+> **Estimation.** 100 million new links a day ÷ 100,000 = **1,000 writes/sec**, about 3,000 at peak. A hundred reads per write → **100,000 reads/sec**, 300,000 at peak. 500 bytes each × 100 million × 5 years ≈ **91 TB**. *Which means:* too big for one machine, so split it; and 300,000 reads a second of tiny unchanging values is the perfect cache workload.
 >
-> **API.** `POST /urls {long_url} → {short_url}`; `GET /{code} → 302`. 302 not 301, because a permanent redirect is cached by browsers and effectively unrevocable — I'd rather keep control and pay the traffic.
+> **API.** `POST /urls {long_url} → {short_url}`, and `GET /{code}` → redirect. Use a temporary redirect, not a permanent one: browsers cache permanent redirects forever, so you could never disable a bad link.
 >
-> **Data model.** `urls(code PK, long_url, created_at, expires_at)`. Partition by hash of `code` — every access is a point lookup by code, so there's no range query to preserve and hashing distributes evenly.
+> **Data.** `urls(code, long_url, created_at, expires_at)`, split by the hash of the code. Every lookup is by code, so there are no range queries to preserve and hashing spreads load evenly.
 >
-> **Design.** CDN/LB → stateless API tier → Redis (code → URL, ~99% hit rate given the Zipf distribution of link popularity) → sharded KV store. Writes go to the store and populate the cache.
+> **Design.** CDN → load balancer → stateless servers → Redis (code → URL, roughly 99% hit rate, because a few links get most of the traffic) → the split store. Writes go to the store and populate the cache.
 >
-> **Deep dive: ID generation.** Three options — random 7-char base62 with a uniqueness check (62⁷ = 3.5 × 10¹², collisions negligible but a read before every write), a counter encoded to base62 (dense and sequential, but enumerable and needs a distributed counter), or per-node ranges pre-allocated from a central allocator (no coordination per request, small gaps on restart). I'd take pre-allocated ranges: no read-before-write, no hot counter, and unpredictable enough with a random suffix.
+> **Deep dive: making codes.** Three options. Random seven characters with a uniqueness check — 3.5 trillion possibilities, but a read before every write. A counter converted to base 62 — compact, but guessable and it needs one shared counter. Or give each server a block of numbers in advance — no coordination per request, small gaps when a server restarts. I'd take the pre-allocated blocks with a random suffix.
 >
-> **Failure and scale.** Cache down → all 300K QPS hits the store; mitigate with a local in-process L1 and a circuit breaker. The store is append-mostly and immutable, so replicas are trivially consistent. At 10× the bottleneck is cache memory, and the fix is more cache nodes with consistent hashing.
+> **Failure and growth.** If the cache dies, all 300,000 reads a second hit the store — so keep a small local cache on each server and a circuit breaker. Records never change once written, so copies are trivially consistent. At ten times the traffic the limit is cache memory, and the fix is more cache nodes.
 
-That's the entire round in six paragraphs. The full version is in [the case study](../case-studies/url-shortener.html).
+That's the whole round in six paragraphs. The long version is in [the case study](../case-studies/url-shortener.html).
 
-:::warn The four ways prepared candidates still lose
-**No scope cut** — designing everything and finishing nothing. **Numbers with no conclusion** — five minutes of arithmetic that changes no decision. **Breadth over depth** — twelve components named, none explained. **Silent drawing** — three minutes of boxes with no narration. Every one of these is a time-management failure, not a knowledge failure, which is why the structure at the top of this page is the highest-leverage thing on it.
+:::warn Four ways prepared candidates still lose
+**No scope cut** — designing everything, finishing nothing. **Numbers with no conclusion** — five minutes of arithmetic that changes nothing. **Breadth over depth** — twelve components named, none explained. **Drawing in silence** — three minutes of boxes with no words.
+
+Every one of those is a time-management failure rather than a knowledge failure, which is why the structure at the top of this page is the most valuable thing on it.
 :::
 
 :::exercise Ten minutes, out loud
-Do the mini-design above for **a pastebin with expiring notes**, or **a notification service**. Six paragraphs, ten minutes, spoken. If you dry up, the missing thing is almost always the "…which means" after a number.
+Do the same six-paragraph treatment for **a pastebin with expiring notes**, or **a notification service**. Speak it, don't write it.
+
+If you dry up, the missing piece is almost always the "…which means…" after a number.
 :::

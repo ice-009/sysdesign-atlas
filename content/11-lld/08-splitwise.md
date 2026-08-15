@@ -1,51 +1,51 @@
 ---
 title: Design Splitwise
-summary: The money-modelling problem — expenses, split strategies that must sum exactly, the balance sheet, and simplifying debts with a greedy settlement algorithm.
+summary: The money problem — expenses, split rules that must add up exactly, who owes whom, and a small greedy algorithm for settling a group with the fewest payments.
 difficulty: Medium
 scope: LLD
 tags: [lld-problem, strategy, money, algorithms]
 prereqs: [parking-lot, oop-refresher]
-unlocks: Modelling money and shared state correctly, and handling the rounding question that trips most candidates.
+unlocks: Modelling money correctly, and handling the rounding question that trips up most candidates.
 ---
 
-Splitwise is asked because it looks trivial and isn't. The trap is `double`, the interesting part is making splits sum to exactly the total, and the bonus round is a small graph algorithm. It also has a natural strategy axis, so it rewards everything from [SOLID](solid.html) and [Patterns](design-patterns.html).
+Splitwise looks trivial and isn't. The trap is using `double` for money. The interesting part is making the split add up to exactly the total. The bonus round is a small graph algorithm. It also has an obvious place where things vary, so it rewards everything from [SOLID](solid.html) and [the patterns](design-patterns.html).
 
 ## 1 · Requirements (0–5)
 
-**Ask first:** groups or just pairs? split types needed? multi-currency? do we need settlement suggestions or just balances?
+**Ask first:** groups, or just pairs of people? which split types? more than one currency? do you want settlement suggestions or just balances?
 
-Assume: groups and one-off expenses, equal/exact/percentage/share splits, single currency, plus a "simplify debts" feature.
+Assume: groups and one-off expenses, four split types, one currency, plus a "simplify debts" feature.
 
-**Functional**
-- A user adds an expense: amount, payer(s), participants, and a split type.
-- Everyone's net balance updates — who owes whom, and how much.
+**What it must do**
+- Someone adds an expense: amount, who paid, who shares it, and how it's split.
+- Everyone's balance updates — who owes whom, and how much.
 - View balances overall, per group, and per friend.
-- Record a settlement (a payment between two users).
-- Simplify group debts into the fewest transactions.
+- Record a settlement (one person paying another back).
+- Simplify a group's debts into the fewest payments.
 
-**Non-functional**
-- **Money is exact.** Split amounts must sum to the total, to the last minor unit.
-- Adding a new split type must not edit existing code.
-- Balance lookups are O(1)-ish; expense history is append-only and auditable.
+**Qualities that shape the design**
+- **Money is exact.** The split amounts must add up to the total, to the last paisa.
+- Adding a new split type must not mean editing existing code.
+- Balances are quick to read; the expense history is append-only so it can be audited.
 
-**Out of scope:** auth, notifications, real payment rails, multi-currency FX.
+**Out of scope:** login, notifications, real payment rails, currency conversion.
 
-## 2 · Entities (5–12)
+## 2 · Classes (5–12)
 
 ```diagram
    User        id, name, email
    Group       id, name, members[]
    Expense     id, description, Money amount, paidBy, splits[], createdAt, groupId?
-   Split       user, Money amount            (the resolved share, never a %)
+   Split       user, Money amount            (the resolved share, never a percentage)
    Settlement  from, to, Money amount, settledAt
-   BalanceSheet  Map<UserPair, Money>        (derived, kept up to date)
+   BalanceSheet  who owes whom, kept up to date
 
    enum SplitType { EQUAL, EXACT, PERCENTAGE, SHARES }
 ```
 
-The two decisions worth narrating:
+Two decisions worth narrating:
 
-**`Money`, always.** Minor units in a `long`, never `double`. Say why: `0.1 + 0.2 != 0.3` in binary floating point, and money bugs are the kind nobody forgives.
+**Always `Money`, never `double`.** Store whole paise (or cents) in a `long`. Say why: `0.1 + 0.2` doesn't equal `0.3` in binary floating point, so pennies drift, and money bugs are unforgivable.
 
 ```java
 record Money(long minor, Currency currency) implements Comparable<Money> {
@@ -56,15 +56,15 @@ record Money(long minor, Currency currency) implements Comparable<Money> {
 }
 ```
 
-**A `Split` holds a resolved amount, not a percentage.** Percentages are *input*; the stored split is the computed money. Otherwise every read re-derives it, and rounding drifts between reads.
+**A `Split` stores an amount, not a percentage.** Percentages are what the *user typed*; the stored split is the money it worked out to. Otherwise every screen recalculates it and the rounding drifts between them.
 
-## 3 · The split strategy (12–20)
+## 3 · Splitting, and the leftover paisa (12–20)
 
-The obvious axis. The subtlety — the thing that separates candidates — is the **residual**.
+The obvious place where things vary. The subtlety — and the thing that separates candidates — is what happens to the remainder.
 
 ```java
 interface SplitStrategy {
-    /** Must return splits summing exactly to `total`. */
+    /** Must return splits that add up to exactly `total`. */
     List<Split> split(Money total, List<User> participants, SplitInput input);
 }
 
@@ -72,11 +72,11 @@ class EqualSplit implements SplitStrategy {
     public List<Split> split(Money total, List<User> people, SplitInput in) {
         int n = people.size();
         long base = total.minor() / n;
-        long residual = total.minor() - base * n;      // 0 ≤ residual < n
+        long leftover = total.minor() - base * n;      // 0 ≤ leftover < n
 
         List<Split> splits = new ArrayList<>(n);
         for (int i = 0; i < n; i++) {
-            long amount = base + (i < residual ? 1 : 0);   // spread the extra paise
+            long amount = base + (i < leftover ? 1 : 0);   // spread the spare paise
             splits.add(new Split(people.get(i), Money.of(amount)));
         }
         return splits;
@@ -84,16 +84,18 @@ class EqualSplit implements SplitStrategy {
 }
 ```
 
-:::goat The rounding answer that wins the question
-₹100 between 3 people is ₹33.33 each — which sums to ₹99.99. Someone must absorb the last paisa. **Say this out loud:** *"I distribute the residual deterministically — the first k participants pay one extra minor unit, where k is the remainder. That guarantees the splits sum to the total exactly, and it's reproducible rather than dependent on float rounding. In a real product I'd rotate who absorbs it, or give it to the payer."*
+:::goat The rounding answer that wins this question
+₹100 between three people is ₹33.33 each — which adds up to ₹99.99. Someone has to absorb the last paisa.
 
-Most candidates never notice the residual. Noticing it, and having a rule, is the single highest-value sentence in this problem.
+**Say this out loud:** *"I hand the remainder out deterministically — the first k people pay one extra paisa, where k is the remainder. That guarantees the parts add up to the total exactly, and it's repeatable rather than depending on floating-point rounding. In a real product I'd rotate who absorbs it, or give it to whoever paid."*
+
+Most candidates never notice the leftover exists. Noticing it, and having a rule, is the single highest-value sentence in this problem.
 :::
 
 The other strategies, each with its own validation:
 
 ```java
-class ExactSplit implements SplitStrategy {          // validate: parts sum to total
+class ExactSplit implements SplitStrategy {          // check: the parts add up
     public List<Split> split(Money total, List<User> people, SplitInput in) {
         Money sum = in.amounts().stream().reduce(Money.zero(), Money::plus);
         if (!sum.equals(total)) throw new SplitMismatchException(total, sum);
@@ -101,53 +103,46 @@ class ExactSplit implements SplitStrategy {          // validate: parts sum to t
     }
 }
 
-class PercentageSplit implements SplitStrategy {     // validate: percentages sum to 100
-    // Compute each share by percentage, then hand the residual to the largest share
-    // (largest-remainder method) so the total is exact.
+class PercentageSplit implements SplitStrategy {     // check: percentages add to 100
+    // Work out each share, then give the leftover to the largest share, so the
+    // parts still add up exactly.
 }
 
-class ShareSplit implements SplitStrategy {          // "Alice 2 shares, Bob 1 share"
-    // amount_i = total × share_i / totalShares, residual by largest remainder.
-}
+class ShareSplit implements SplitStrategy { }        // "Alice 2 shares, Bob 1 share"
 ```
 
-**Validation belongs in the strategy**, not in the service — that's SRP in a form you can point at: *"the service doesn't know what makes a percentage split valid; the percentage strategy does."*
+**Validation belongs inside each strategy**, not in the service. That's "one job per class" in a form you can point at: *"the service doesn't know what makes a percentage split valid — the percentage strategy does."*
 
 ## 4 · Balances (20–28)
 
-The core question: store balances, or derive them from expenses?
+The real question: work balances out on demand from the expense list, or keep a running total?
 
-| | Derive on read | Maintain incrementally |
+| | Work it out each time | Keep it updated |
 |---|---|---|
-| Add expense | O(1) | O(participants) |
-| Read balance | O(all expenses) | O(1) |
-| Correctness | Always consistent | Can drift if a path forgets to update |
-| Audit | Natural | Needs the ledger anyway |
+| Adding an expense | Instant | Touch each participant |
+| Reading a balance | Walk every expense | Instant |
+| Correctness | Always right | Can drift if some path forgets |
+| Audit trail | Natural | Needs the expense list anyway |
 
-**The answer to give:** *"Both — the expense list is the source of truth, and the balance sheet is a derived index maintained on write. It's the same read-model-over-an-event-log idea as [CDC and materialised views](../data/cdc-outbox.html), just in memory. I'd expose a `recompute()` that rebuilds balances from expenses, so drift is detectable and fixable."*
+**The answer to give:** *"Both. The expense list is the truth, and the balance sheet is a summary kept up to date as expenses arrive. I'd also expose a `recompute()` that rebuilds balances from the expenses, so any drift is detectable and fixable."*
 
-The representation, and the trick that halves it:
+Then the representation, and the trick that halves it:
 
 ```java
 class BalanceSheet {
-    /** balances[a][b] > 0 means a owes b. Only one direction is stored. */
+    /** A positive number under (a, b) means a owes b. Only one direction is stored. */
     private final Map<UserId, Map<UserId, Money>> balances = new ConcurrentHashMap<>();
 
     void record(UserId debtor, UserId creditor, Money amount) {
         if (debtor.equals(creditor)) return;
-        // Net against any existing opposite-direction balance so we never hold both.
+        // Cancel against anything owed the other way, so we never hold both.
         adjust(debtor, creditor, amount);
         adjust(creditor, debtor, amount.negate());
-    }
-
-    Money netBalance(UserId of) {                 // sum of what they're owed minus owed
-        return balances.getOrDefault(of, Map.of()).values()
-                       .stream().reduce(Money.zero(), Money::plus).negate();
     }
 }
 ```
 
-**Say this:** *"I net on write: if Bob owes Alice ₹50 and Alice then owes Bob ₹30, I store one edge of ₹20, not two edges. It keeps reads trivial and makes 'who owes whom' unambiguous."*
+**Say this:** *"I cancel on write. If Bob owes Alice ₹50 and Alice then owes Bob ₹30, I store one debt of ₹20 rather than two facing each other. Reads stay trivial and 'who owes whom' has one answer."*
 
 The service that ties it together:
 
@@ -162,7 +157,7 @@ class ExpenseService {
         List<Split> splits = strategy.split(cmd.amount(), cmd.participants(), cmd.input());
 
         Expense expense = Expense.create(cmd, splits);
-        expenses.save(expense);                                  // ledger first
+        expenses.save(expense);                                  // the record first
 
         for (Split s : splits) {
             if (!s.user().equals(cmd.paidBy())) {
@@ -174,23 +169,23 @@ class ExpenseService {
 }
 ```
 
-Note the order: **ledger first, derived state second.** If the process dies between them, the truth survives and `recompute()` fixes the index. That's the in-memory version of the [outbox pattern](../data/cdc-outbox.html), and saying so lands well.
+Note the order: **save the expense first, update the summary second.** If the process dies in between, the truth survives and `recompute()` fixes the summary. Reversing the order can leave a balance with no expense behind it.
 
-## 5 · Simplify debts (28–36)
+## 5 · Simplifying debts (28–36)
 
-The bonus round, and it's a small, clean algorithm. Given net balances, minimise the number of transactions.
+The bonus round, and it's a clean little algorithm. Given everyone's net position, find the fewest payments that settle up.
 
 ```diagram
-   Net balances:   A: −40   B: −20   C: +50   D: +10
-                   (negative = owes, positive = is owed; they always sum to 0)
+   Net positions:  A: −40   B: −20   C: +50   D: +10
+                   (negative = owes, positive = is owed; they always add to 0)
 
-   Greedy: repeatedly settle the largest debtor against the largest creditor.
+   Greedy: repeatedly make the biggest debtor pay the biggest creditor.
 
-     A(−40) → C(+50)   pay 40    →  A: 0    C: +10
-     B(−20) → C(+10)   pay 10    →  C: 0    B: −10
-     B(−10) → D(+10)   pay 10    →  B: 0    D: 0
+     A(−40) → C(+50)   pays 40   →  A: 0    C: +10
+     B(−20) → C(+10)   pays 10   →  C: 0    B: −10
+     B(−10) → D(+10)   pays 10   →  B: 0    D: 0
 
-   3 transactions instead of up to 6 pairwise ones.
+   3 payments instead of up to 6 person-to-person ones.
 ```
 
 ```java
@@ -204,33 +199,37 @@ List<Settlement> simplify(Map<UserId, Money> netBalances) {
         long amount = Math.min(-d.amount(), c.amount());
         out.add(new Settlement(d.user(), c.user(), Money.of(amount)));
 
-        if (-d.amount() > amount) debtors.add(d.minus(amount));   // partially settled
+        if (-d.amount() > amount) debtors.add(d.minus(amount));   // partly settled
         if (c.amount()  > amount) creditors.add(c.minus(amount));
     }
     return out;
 }
 ```
 
-Complexity: O(n log n). Be precise about what it guarantees: **greedy gives at most n−1 transactions and is not provably minimal** — the true minimum-transaction problem is NP-hard (it's a subset-sum flavour: you'd want to find groups whose balances net to zero and settle them internally). Saying that sentence — "greedy is a good heuristic; optimal is NP-hard" — is worth more than a fake proof of optimality.
+Cost: O(n log n). Be precise about what it guarantees. **Greedy gives at most n−1 payments and is not guaranteed to be the true minimum** — finding that is NP-hard, because you'd have to find every subgroup whose debts cancel out internally. Saying "greedy is a good heuristic, the optimal version is NP-hard" is worth far more than inventing a proof.
 
-:::warn Simplify has a product cost, not just an algorithmic one
-Simplified debts create payments between people who never shared an expense — "why do I owe Dave? I've never met Dave." Real Splitwise makes it opt-in per group for exactly this reason. Naming a product consequence of an algorithmic choice is a senior move and takes one sentence.
+:::warn Simplifying has a human cost, not just an algorithmic one
+Simplified debts create payments between people who never shared an expense — "why do I owe Dave? I've never met Dave." Real Splitwise makes this opt-in per group for exactly that reason.
+
+Naming a product consequence of an algorithmic choice takes one sentence and reads as senior.
 :::
 
-## 6 · Extensions and concurrency (36–43)
+## 6 · Extensions and threads (36–43)
 
-**"Multiple currencies."**
-> "`Money` already carries a currency and refuses cross-currency arithmetic — that's the guardrail. I'd store each expense in its original currency plus the FX rate at creation time, and convert for display. Balances would be per-currency; netting across currencies needs an explicit user-visible conversion, not a silent one."
+**"Several currencies."**
+> "`Money` already carries its currency and refuses to add two different ones — that's the guardrail. I'd store each expense in the currency it happened in, plus the exchange rate at the time, and convert only for display. Balances stay per-currency; combining them needs an explicit conversion the user can see, never a silent one."
 
 **"Edit or delete an expense."**
-> "The ledger is append-only: an edit is a reversing entry plus a new expense, not a mutation. Balances are adjusted by the delta. That keeps history auditable and makes 'who changed what' answerable — the same reasoning as a WAL."
+> "The history is append-only: an edit becomes a reversing entry plus a new expense, not a change in place. Balances move by the difference. That keeps 'who changed what' answerable."
 
-**"Two people add expenses to the same group simultaneously."**
-> "The shared mutable state is the balance sheet. Per-pair updates through `ConcurrentHashMap.compute` are atomic, so the individual edges are safe. If I need a group-consistent snapshot for the simplify view, I'd take a read lock on the group or compute from the immutable expense list at a point in time — with the ledger as truth, a stale snapshot is never *wrong*, just slightly old."
+**"Two people add expenses to the same group at once."**
+> "The shared changing data is the balance sheet. Per-pair updates through `ConcurrentHashMap.compute` are atomic, so individual debts are safe. If I need a consistent snapshot of a whole group for the simplify view, I'd take a read lock or compute it from the expense list at a point in time — with the expenses as the truth, a slightly stale snapshot is never *wrong*, just slightly old."
 
-**"Recurring expenses / receipt uploads / comments."**
-> "None of them touch the split or balance logic — they're new entities hanging off `Expense`. That's the design working."
+**"Recurring expenses, receipt photos, comments."**
+> "None of them touch the splitting or balance logic — they're new classes hanging off `Expense`. That's the design doing its job."
 
 :::exercise Sanity check
-Alice pays ₹1000 for dinner, split by shares: Alice 2, Bob 1, Carol 1. Compute the three splits with exact minor units, then the balance edges. (₹500/₹250/₹250 — clean. Now redo it with ₹1000 split three ways equally: 33334/33333/33333, and say who absorbs the extra paisa and why.)
+Alice pays ₹1000 for dinner, split by shares: Alice 2, Bob 1, Carol 1. Work out the three splits in exact paise, then the debts.
+
+(₹500 / ₹250 / ₹250 — clean. Now redo it as an equal three-way split of ₹1000: 33334 / 33333 / 33333 paise, and say who takes the extra paisa and why.)
 :::
