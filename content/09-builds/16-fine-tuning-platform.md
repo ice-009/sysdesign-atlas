@@ -13,7 +13,11 @@ unlocks: The economics that make per-customer models possible at all.
 
 Customers upload a dataset, get a fine-tuned model, and call it through the same API as the base model. You run the training and the serving.
 
-The entire business depends on one technical fact: **LoRA adapters are small enough to share a base model.** Without that, serving 500 customer models means 500 × 140 GB, which is not a product.
+**Fine-tuning** means taking an existing trained model and nudging it with your own examples so it behaves the way you want. The naive way rewrites all of the model's weights, producing a whole new 140 GB model per customer.
+
+**LoRA** avoids that. Instead of changing the original weights, it trains a small set of extra weights that sit alongside them — an **adapter** of perhaps 50 MB — and the base model stays untouched and shared.
+
+The entire business depends on that one fact: **adapters are small enough to share a base model.** Without it, serving 500 customer models means 500 × 140 GB, which is not a product.
 
 ## Phase 1 — One job, one GPU
 

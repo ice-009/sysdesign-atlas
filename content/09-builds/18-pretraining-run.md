@@ -57,7 +57,9 @@ Before allocating anything, the compute budget and the model/data split.
 
 ## Phase 1 — The parallelism layout
 
-From [model parallelism](../06-ai-infrastructure/model-parallelism.html): match communication frequency to link speed.
+The model is far too big for one GPU, so it must be split — and there are three different ways to split it, used together. **Tensor parallel** splits individual layers across GPUs, which means they must talk twice per layer, so they'd better be in the same box. **Pipeline parallel** gives different GPUs different layers, so they hand off once per stage. **Data parallel** gives every group a full copy of the model and different training examples, syncing once per step.
+
+The rule that arranges them, from [model parallelism](../06-ai-infrastructure/model-parallelism.html): the more often something has to communicate, the faster the wire between the participants must be.
 
 ```diagram
    4,000 GPUs = 500 nodes × 8 GPUs
@@ -141,6 +143,8 @@ The [training data pipeline](../06-ai-infrastructure/training-data-pipelines.htm
 
 ## Phase 3 — Checkpointing
 
+A **checkpoint** is a full snapshot of the run, written to storage so a crash costs you minutes rather than weeks. Note what has to go in it: not just the model's weights, but the optimiser's own accumulated state — the running averages it uses to decide how big each adjustment should be. Restarting without those doesn't resume the run, it disturbs it.
+
 :::derive The checkpoint budget
 ```
    CHECKPOINT SIZE
@@ -199,11 +203,13 @@ At a failure every four days, manual restart means someone paged fourteen times 
 Details that decide whether this works:
 
 - **Warm spares — 3% (15 nodes).** A replacement must be available immediately, not queued behind provisioning.
-- **Pre-flight health checks on every node before it joins.** GPU self-test, HBM ECC error rate, NCCL bandwidth test against a neighbour, thermal headroom. A node that passes "is up" but negotiates its link at half rate becomes a permanent 50% straggler.
+- **Pre-flight health checks on every node before it joins.** Run a GPU self-test, check the memory's error-correction counters for a chip going bad, measure actual bandwidth to a neighbour, and check it isn't already running hot. A node that answers "yes I'm up" but negotiated its network link at half speed becomes a permanent drag on all 4,000 GPUs.
 - **Verify the loss after restore.** A resume that loads the wrong checkpoint or misplaces the loader shows up as a loss discontinuity. Check it automatically and halt if it jumps.
 - **Global batch size must stay constant.** If you resume on fewer data-parallel ranks, adjust gradient accumulation to compensate, or your learning-rate schedule silently no longer matches the run.
 
 ## Phase 5 — Watching for the failures that don't error
+
+Every GPU must finish each step before any of them can start the next, so the slowest one sets the pace for all 4,000. A **straggler** — one machine quietly running at 80% — therefore costs you 20% of the entire cluster, and nothing logs an error.
 
 ```diagram
    THE THREE THAT COST THE MOST

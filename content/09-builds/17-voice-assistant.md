@@ -19,6 +19,8 @@ Everything below is subordinate to a budget of roughly 500 milliseconds.
 
 ## Phase 1 — The naive pipeline
 
+Three stages run in sequence, and the abbreviations recur throughout: **STT** (speech to text, also called ASR) turns the caller's audio into words; the model decides what to say; **TTS** (text to speech) turns that reply back into audio.
+
 ```diagram
    caller speaks
      → wait for 700 ms of silence
@@ -80,7 +82,7 @@ This is the same principle as progressive rendering on the web, and it applies w
 
 ## Phase 3 — Endpointing
 
-Deciding the caller has finished. A silence timer is simple and costs you its entire duration on every single turn.
+**Endpointing** is deciding that the caller has finished speaking and it's your turn. It sounds trivial and is the largest remaining delay in the whole system, because the obvious approach — wait for silence — costs you that full wait on every single turn.
 
 ```diagram
    SILENCE TIMER (700 ms)
@@ -110,7 +112,7 @@ Speculative start is worth the waste. A cancelled prefill costs a few cents of G
 
 ## Phase 4 — Barge-in
 
-The hardest correctness problem in the build.
+**Barge-in** is the caller interrupting while the assistant is still talking — the thing every human does instinctively, and the hardest correctness problem in the build.
 
 ```diagram
    CALLER STARTS SPEAKING MID-RESPONSE
