@@ -35,7 +35,9 @@ A position index only means something relative to a specific document state. Loc
 
 ## Phase 2 — Pick a convergence strategy
 
-**Operational Transformation** — transform each incoming op against the ops it didn't know about.
+**Convergence** is the requirement that every editor ends up with an identical document, whatever order the edits arrived in. Two families achieve it.
+
+**Operational Transformation (OT)** — adjust each incoming edit to account for the edits it didn't know about, so it lands where its author meant.
 
 ```diagram
    Bob's insert@3 arrives at Alice, who already applied insert@1
@@ -93,7 +95,7 @@ Naming the *criterion* rather than declaring a winner is what scores.
                  not a replay from creation
 ```
 
-[Event sourcing](../building-blocks/pub-sub.html) applied to a document, with snapshots for the reason event sourcing always needs them.
+This is [event sourcing](../building-blocks/pub-sub.html) applied to a document: the list of changes is the truth, and the document is what you get by replaying them. Snapshots exist for the reason event sourcing always needs them — without one, opening a three-year-old document would mean replaying every keystroke ever typed into it.
 
 **Ops must be persisted before acknowledgment** — that's what makes recovery possible when a session server dies and another takes ownership.
 

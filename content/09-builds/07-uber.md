@@ -69,7 +69,7 @@ Redis GEO is [geohash](../building-blocks/geospatial.html) over a sorted set —
 
 **Straight-line distance is the wrong ranking metric**, and saying so is the highest-value observation here. A driver 500m away across a river may be 15 minutes out; one 2km away on a main road is 4 minutes. The spatial index is a cheap *filter* that narrows millions to twenty; real ETAs are computed only on those twenty.
 
-Two-stage retrieve-then-rank is the same pattern as [search](../building-blocks/search.html) and feed ranking. Recognizing it as general is worth points.
+This shape — a cheap step that narrows millions to a shortlist, then an expensive step applied only to the shortlist — is called **retrieve-then-rank**, and it's the same pattern behind [search](../building-blocks/search.html) results and ranked feeds. Recognising it as general is worth points.
 
 ## Phase 3 — No double-assignment
 
@@ -81,7 +81,7 @@ WHERE driver_id=:d AND status='AVAILABLE';
 -- 0 rows → already taken, try the next candidate
 ```
 
-**No distributed lock needed.** The atomic compare-and-set *is* the mutual exclusion, and it's naturally fenced. Pair it with a short offer TTL — if the driver doesn't accept in 15 seconds the assignment expires and they return to available. Same reserve-with-TTL pattern as [ticket booking](../case-studies/ticket-booking.html), and explicitly rejecting a Redis lock here (per [Distributed Locks](../building-blocks/distributed-locks.html)) is a strong move.
+**No distributed lock needed.** That single statement only succeeds if the driver is still available at the moment it runs, so exactly one rider can win — the check and the change are one step, and a slow or paused server can't sneak in later. Pair it with a short expiry on the offer: if the driver doesn't accept within 15 seconds, the assignment lapses and they return to available. Same reserve-with-TTL pattern as [ticket booking](../case-studies/ticket-booking.html), and explicitly rejecting a Redis lock here (per [Distributed Locks](../building-blocks/distributed-locks.html)) is a strong move.
 
 ## Phase 4 — The trip state machine
 

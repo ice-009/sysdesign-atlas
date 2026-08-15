@@ -87,7 +87,7 @@ Payment spans systems you don't control, so [2PC is unavailable](../distributed/
    4. Confirm order          forward-only from here
 ```
 
-**Before the pivot, compensate. After it, roll forward.** If step 4 fails after the card was charged, you do not silently drop it — you retry until the order is confirmed, or issue a refund as a deliberate, recorded action. "Money taken, nothing delivered, no record" is precisely the failure this ordering prevents.
+The **pivot** is the point of no return — the last step you can still undo cleanly. **Before it, compensate; after it, roll forward.** If step 4 fails after the card was charged, you do not silently drop it — you retry until the order is confirmed, or issue a refund as a deliberate, recorded action. "Money taken, nothing delivered, no record" is precisely the failure this ordering prevents.
 
 ## Phase 4 — Reconciliation
 
@@ -109,7 +109,9 @@ Plus continuous internal invariant checks: every transaction sums to zero, no ac
 
 ## Phase 5 — Webhooks in both directions
 
-**Inbound** (provider → you): at-least-once, so dedupe on the provider's event ID and write every event to an append-only log *before* processing. And **don't rely on webhooks alone** — poll for anything stuck in `processing` past a threshold, because a webhook that never arrives is silent.
+A **webhook** is the reverse of an API call: instead of you asking for updates, the other side posts them to a URL you registered. Payments need them in both directions.
+
+**Inbound** (provider → you): assume the same event can arrive twice, so recognise repeats by the provider's event ID, and append every event to a log *before* acting on it. And **don't rely on webhooks alone** — poll for anything stuck in `processing` past a threshold, because a webhook that never arrives is silent.
 
 **Outbound** (you → merchants): the [outbox pattern](../data/cdc-outbox.html) — write the event in the same transaction as the state change, with a relay publishing it. Retry with exponential backoff, sign the payload so merchants can verify authenticity, and expose a replay endpoint for when their endpoint was down.
 
