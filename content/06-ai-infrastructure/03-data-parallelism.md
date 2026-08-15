@@ -10,7 +10,9 @@ unlocks: The default parallelism strategy, and knowing exactly where it stops wo
 
 ## The simple version
 
-Put a full copy of the model on every GPU. Give each a different slice of the batch. Average the gradients. Everyone applies the same update, so the replicas stay identical.
+Put a full copy of the model on every GPU and give each one a different slice of the training examples. Each computes its **gradients** — the adjustments it thinks the weights need, based on the examples it saw. Average those across all GPUs, and every copy applies the identical average, so the replicas never drift apart.
+
+That averaging step is the entire cost of data parallelism, and everything below is about making it cheaper.
 
 ```diagram
    GPU 0: full model, batch slice 0 → gradients g₀
@@ -27,7 +29,7 @@ It's simple, it's the default, and it scales remarkably well — up to the point
 
 ## Why it hits a wall
 
-The wall is not the weights. It's everything else training requires.
+The wall is not the weights. It's everything else training requires — and most of that is **optimizer state**. The optimizer doesn't just apply each gradient; it keeps running statistics per parameter (how that weight has been trending, and how erratic it's been) so it can adapt the step size. Adam, the standard choice, keeps two such numbers per parameter, in full precision, which ends up dwarfing the model itself.
 
 :::derive The memory bill for training
 ```

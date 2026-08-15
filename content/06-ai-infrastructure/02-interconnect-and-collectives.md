@@ -12,12 +12,14 @@ unlocks: Choosing a parallelism strategy from the shape of the interconnect rath
 
 Multi-GPU work is constrained by a bandwidth hierarchy spanning three orders of magnitude.
 
+A **node** here is one physical server holding 8 GPUs. The names below are just the wires between things — NVLink is the dedicated GPU-to-GPU link inside a server, PCIe is the general-purpose bus to the CPU, InfiniBand is the fast network between servers.
+
 ```diagram
-   Within one GPU:      HBM              2-8 TB/s
-   GPU ↔ GPU, in node:  NVLink       400-1,800 GB/s
-   GPU ↔ CPU:           PCIe 5 x16        ~64 GB/s
-   Node ↔ node:         InfiniBand    25-100 GB/s per GPU
-   Across datacenters:  WAN            <1 GB/s, high latency
+   Within one GPU:      its own memory    2-8 TB/s
+   GPU ↔ GPU, in node:  NVLink        400-1,800 GB/s
+   GPU ↔ CPU:           PCIe               ~64 GB/s
+   Node ↔ node:         InfiniBand     25-100 GB/s per GPU
+   Across datacenters:  wide-area net   <1 GB/s, high latency
 
    → Each step down is roughly 5-10× worse.
 
@@ -30,7 +32,7 @@ That's the whole design principle, and it explains the standard configuration yo
 
 ## The collectives
 
-Distributed training uses a small vocabulary of group communication patterns. Knowing what each costs is enough to reason about any parallelism scheme.
+A **collective** is an operation that all the GPUs perform together — not one sending to one, but the whole group participating to reach a shared result. Distributed training uses a small vocabulary of them, and knowing what each costs is enough to reason about any parallelism scheme.
 
 ```diagram
    Four GPUs, each starting with data [A] [B] [C] [D]
@@ -57,7 +59,9 @@ Distributed training uses a small vocabulary of group communication patterns. Kn
 
 ## The cost of an all-reduce
 
-Naive all-reduce sends everything to one node to sum and back — O(N) traffic through a single bottleneck. **Ring all-reduce** is the standard alternative and its cost is worth knowing precisely.
+The obvious way — everyone sends their numbers to one designated GPU, which adds them up and sends the answer back — puts all the traffic through a single machine, and gets worse the more GPUs you add.
+
+**Ring all-reduce** avoids that by arranging the GPUs in a circle where each only ever talks to its neighbour, passing partial sums around. No one is a bottleneck, and remarkably, the amount each GPU sends barely changes as the ring grows.
 
 :::derive Ring all-reduce bandwidth cost
 ```

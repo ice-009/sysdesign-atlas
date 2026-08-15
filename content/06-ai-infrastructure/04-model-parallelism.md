@@ -81,7 +81,9 @@ Split the weight matrices themselves. The clever part is choosing splits so that
 
 ## Pipeline parallelism
 
-Assign consecutive layers to different GPUs and stream micro-batches through.
+Assign consecutive layers to different GPUs, like stations on an assembly line, and feed the batch through in small pieces called **micro-batches** so the stations can work simultaneously rather than one at a time.
+
+The catch is the same one every assembly line has: at the start of a run the later stations sit idle waiting for work to reach them, and at the end the earlier ones have nothing left to do. That idle time is the **bubble**.
 
 ```diagram
    4 stages, naive scheduling — the bubble problem:
