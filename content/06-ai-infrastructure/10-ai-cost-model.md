@@ -2,6 +2,7 @@
 title: The Cost Model
 summary: Deriving dollars per million tokens from hardware specs, why utilization dominates every other term, and how to decide between an API and self-hosting with actual arithmetic.
 difficulty: Medium
+scope: HLD
 tags: [ai, cost, capacity, economics]
 prereqs: [inference-arithmetic, back-of-envelope, gpus]
 unlocks: Making the build-versus-buy decision with numbers instead of intuition.

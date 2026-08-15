@@ -2,6 +2,7 @@
 title: Rate Limiter — the Same Problem at Both Levels
 summary: One prompt, two rounds. The class design of a rate-limiting library (algorithms behind a strategy, per-key state, thread safety), and the two-sentence pivot to the distributed version.
 difficulty: Medium
+scope: Both
 tags: [lld-problem, strategy, concurrency, hld-bridge]
 prereqs: [lru-cache, rate-limiting]
 unlocks: Answering a boundary-straddling prompt at whichever altitude the interviewer wants, and switching cleanly on request.
@@ -81,7 +82,7 @@ class TokenBucketAlgorithm implements RateLimitAlgorithm {
 
 Two things to point at while writing this:
 
-- **Lazy refill.** No background thread adding tokens. State is `(tokens, lastRefillTime)` and the refill is computed on access — the same lazy-evaluation trick as expiry in the [cache](lru-cache.html) and holds in [seat booking](seat-booking.html). It's O(1), needs no scheduler, and works for a million idle keys.
+- **Lazy refill.** No background thread adding tokens. State is `(tokens, lastRefillTime)` and the refill is computed on access — the same lazy-evaluation trick as expiry in the [cache](../11-lld/lru-cache.html) and holds in [seat booking](seat-booking.html). It's O(1), needs no scheduler, and works for a million idle keys.
 - **The rejection carries a retry time**, computed from the deficit and the refill rate. That's why the algorithm — not the caller — builds the decision.
 
 **Fixed window** is worth implementing too, purely so you can name its flaw out loud:
@@ -111,9 +112,9 @@ class InMemoryRateLimiter implements RateLimiter {
 
 Three deliberate decisions, each worth naming:
 
-1. **`computeIfAbsent`, not `containsKey` + `put`.** Check-then-act is the race. (See [Concurrency in LLD](concurrency-in-lld.html).)
+1. **`computeIfAbsent`, not `containsKey` + `put`.** Check-then-act is the race. (See [Concurrency in LLD](../11-lld/concurrency-in-lld.html).)
 2. **Lock the per-key state object**, so two different users never contend. A single lock over the map would make the limiter itself the bottleneck it exists to prevent. The alternative — an all-atomic `KeyState` with a CAS loop — is faster still and worth mentioning as the next step.
-3. **Bound the map.** A million keys × 32 B is fine; unbounded growth from spoofed keys is not. Evict idle keys — which is exactly the [LRU cache](lru-cache.html) you just designed, or a `Caffeine` cache with expiry-after-access longer than the window. *"An evicted key resets to full tokens, which is permissive rather than restrictive — I'd rather occasionally allow a burst than reject a legitimate user, and the window is short enough that it doesn't matter."* Naming which way an approximation errs is a strong habit.
+3. **Bound the map.** A million keys × 32 B is fine; unbounded growth from spoofed keys is not. Evict idle keys — which is exactly the [LRU cache](../11-lld/lru-cache.html) you just designed, or a `Caffeine` cache with expiry-after-access longer than the window. *"An evicted key resets to full tokens, which is permissive rather than restrictive — I'd rather occasionally allow a burst than reject a legitimate user, and the window is short enough that it doesn't matter."* Naming which way an approximation errs is a strong habit.
 
 ## 5 · Where it sits (30–34)
 

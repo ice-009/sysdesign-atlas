@@ -2,6 +2,7 @@
 title: Build Pastebin
 summary: The simplest complete system design. One service, one database, one cache — and the exact numbers at which each stops being enough.
 difficulty: Easy
+scope: HLD
 level: 1
 prereqs: [back-of-envelope, sql-vs-nosql, caching]
 tags: [level-1, storage, cache]

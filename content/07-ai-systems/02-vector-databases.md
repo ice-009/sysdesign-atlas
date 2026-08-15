@@ -2,6 +2,7 @@
 title: Vector Databases at Scale
 summary: Sharding an ANN index, replication when the index is derived state, incremental updates, and why "just add a vector column" is often the right answer.
 difficulty: Hard
+scope: HLD
 tags: [ai, vector-database, sharding, replication]
 prereqs: [vector-search, sharding, replication]
 unlocks: Operating vector retrieval as a real distributed system rather than a library call.

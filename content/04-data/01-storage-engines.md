@@ -2,6 +2,7 @@
 title: Storage Engines — B-Tree vs LSM
 summary: The two ways databases put bytes on disk, why one favours reads and the other writes, and how compaction and write amplification decide your workload's fate.
 difficulty: Hard
+scope: Core
 tags: [b-tree, lsm, storage, compaction]
 prereqs: [indexing, hardware-numbers]
 ---

@@ -2,6 +2,7 @@
 title: API Gateway & Service Communication
 summary: What belongs at the edge, REST vs gRPC vs GraphQL, the BFF pattern, and how services should talk to each other without creating a distributed monolith.
 difficulty: Medium
+scope: HLD
 tags: [api, gateway, grpc, graphql, microservices]
 prereqs: [load-balancing, rate-limiting]
 ---

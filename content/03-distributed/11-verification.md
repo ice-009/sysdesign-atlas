@@ -2,6 +2,7 @@
 title: How You Know It's Correct
 summary: Model checking, Jepsen, and deterministic simulation — the three techniques that find distributed bugs tests cannot, and why "we tested it" is not an answer.
 difficulty: Hard
+scope: HLD
 tags: [distributed, correctness, testing, verification]
 prereqs: [consensus, failure-modes]
 unlocks: A defensible answer to "how do you know your replication protocol is right?"

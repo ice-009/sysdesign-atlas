@@ -2,6 +2,7 @@
 title: Build a Voice Assistant
 summary: A phone-quality conversational agent — the 500 ms budget, streaming every stage, barge-in handling, and what happens when a tool call is slower than a human will wait.
 difficulty: Hard
+scope: HLD
 level: 5
 prereqs: [realtime-ai, agent-architectures, realtime, inference-engines]
 tags: [level-5, ai, voice, realtime, latency]

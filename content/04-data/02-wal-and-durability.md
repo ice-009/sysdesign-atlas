@@ -2,6 +2,7 @@
 title: Durability & the Write-Ahead Log
 summary: What "the write succeeded" actually promises — fsync, group commit, torn writes, and the several layers of hardware that will cheerfully lie to you about all of it.
 difficulty: Medium
+scope: Core
 tags: [data, durability, wal, storage]
 prereqs: [storage-engines, failure-modes]
 unlocks: Knowing exactly what a database has guaranteed when it returns success.

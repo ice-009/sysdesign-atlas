@@ -2,6 +2,7 @@
 title: The ML Platform
 summary: Feature stores, training/serving skew, batch versus online inference, and drift monitoring — the classical ML infrastructure that still runs most production predictions.
 difficulty: Medium
+scope: HLD
 tags: [ai, mlops, feature-store, ml-platform]
 prereqs: [stream-processing, lakehouse-and-batch]
 unlocks: The systems underneath fraud detection, ranking, pricing, and forecasting — which is most production ML.

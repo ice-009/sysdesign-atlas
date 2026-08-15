@@ -2,6 +2,7 @@
 title: Fine-Tuning & Adaptation
 summary: Full fine-tuning, LoRA, and preference optimization from an infrastructure point of view — what each costs to train, and what each does to your serving stack.
 difficulty: Hard
+scope: Core
 tags: [ai, fine-tuning, lora, rlhf]
 prereqs: [transformer-as-a-system, quantization]
 unlocks: Deciding between prompting, retrieval, and training — and knowing what the training option costs to serve.

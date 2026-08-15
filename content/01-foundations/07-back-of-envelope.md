@@ -2,6 +2,7 @@
 title: Back-of-the-Envelope Estimation
 summary: The numbers to memorize, a repeatable four-step method, and worked examples — plus the crucial judgment of which estimates actually change a decision.
 difficulty: Medium
+scope: Core
 tags: [estimation, capacity, math]
 prereqs: [latency-throughput, hardware-numbers]
 ---

@@ -2,6 +2,7 @@
 title: Idempotency & Delivery Semantics
 summary: Why duplicates are guaranteed, why "exactly-once delivery" doesn't exist, and the concrete patterns that make repeated operations safe.
 difficulty: Medium
+scope: HLD
 tags: [idempotency, exactly-once, retries, correctness]
 prereqs: [failure-modes, message-queues]
 ---

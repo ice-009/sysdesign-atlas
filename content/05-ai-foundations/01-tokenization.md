@@ -2,6 +2,7 @@
 title: Tokens — the Unit of Everything
 summary: Why models see subword fragments rather than characters or words, how BPE builds a vocabulary, and why the token is simultaneously the unit of cost, latency, memory, and context.
 difficulty: Easy
+scope: Core
 tags: [ai, tokenization, llm, cost]
 prereqs: [back-of-envelope]
 unlocks: Reasoning about model cost and context limits in the units the system actually uses.

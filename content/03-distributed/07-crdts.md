@@ -2,6 +2,7 @@
 title: CRDTs — Conflict-Free Replicated Data Types
 summary: Data structures that merge automatically regardless of order, the maths that makes it work, the practical types, and their real costs.
 difficulty: Hard
+scope: HLD
 tags: [crdt, convergence, collaboration, offline]
 prereqs: [consistency-models, clocks]
 ---

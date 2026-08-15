@@ -2,6 +2,7 @@
 title: Real-Time & Voice AI
 summary: Speech pipelines, latency budgets measured against human conversational expectations, and interruption handling — where a 300 ms delay is the difference between natural and broken.
 difficulty: Hard
+scope: HLD
 tags: [ai, voice, realtime, streaming, webrtc]
 prereqs: [realtime, inference-engines, queueing-theory]
 unlocks: Building conversational systems that feel like conversation.

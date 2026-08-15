@@ -2,6 +2,7 @@
 title: Context Engineering & Memory
 summary: Assembling the prompt as a resource-allocation problem — cache-aware ordering, history compaction, and the memory architectures that let a system remember across sessions.
 difficulty: Medium
+scope: HLD
 tags: [ai, context, memory, prompt, caching]
 prereqs: [kv-cache-management, retrieval-architecture]
 unlocks: Treating the context window as a budget to allocate rather than a box to fill.

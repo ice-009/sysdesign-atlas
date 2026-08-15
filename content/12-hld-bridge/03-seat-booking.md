@@ -2,6 +2,7 @@
 title: Design Seat Booking (BookMyShow)
 summary: The problem that spans both rounds — seat state machine, temporary holds with TTL, payment flow, and the exact moment the answer has to move from an in-process lock to a conditional database write.
 difficulty: Medium
+scope: Both
 tags: [lld-problem, concurrency, state-machine, hld-bridge]
 prereqs: [concurrency-in-lld, splitwise, idempotency]
 unlocks: Handling the double-booking question at both zoom levels, and knowing when an in-memory answer stops being valid.

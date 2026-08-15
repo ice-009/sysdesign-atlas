@@ -2,6 +2,7 @@
 title: Practice Question Bank
 summary: 60+ prompts organized by the core difficulty each one tests, plus the follow-ups interviewers actually ask and a protocol for practicing alone.
 difficulty: Easy
+scope: HLD
 tags: [practice, questions, drills]
 ---
 

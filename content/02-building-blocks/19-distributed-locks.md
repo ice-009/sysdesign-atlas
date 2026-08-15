@@ -2,6 +2,7 @@
 title: Distributed Locks & Leases
 summary: Why a lock in a distributed system is never as safe as it looks, why fencing tokens are mandatory, and the designs that avoid needing a lock at all.
 difficulty: Hard
+scope: HLD
 tags: [locks, leases, coordination, fencing]
 prereqs: [consistency-models, replication]
 ---

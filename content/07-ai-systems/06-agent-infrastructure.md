@@ -2,6 +2,7 @@
 title: Agent Infrastructure
 summary: Durable execution, sandboxing, concurrency, and cost ceilings — the platform an agent needs to survive a process restart, a hostile input, and a runaway loop.
 difficulty: Hard
+scope: HLD
 tags: [ai, agents, durable-execution, sandboxing, platform]
 prereqs: [agent-architectures, job-scheduler, backpressure]
 unlocks: Running agents in production rather than in a notebook.

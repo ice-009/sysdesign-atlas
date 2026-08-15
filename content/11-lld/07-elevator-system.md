@@ -2,6 +2,7 @@
 title: Design an Elevator System
 summary: The state-machine problem — request types, the scheduling policy behind an interface, one owning thread per car, and how to answer "which elevator do you send?" without hand-waving.
 difficulty: Medium
+scope: LLD
 tags: [lld-problem, state-machine, scheduling, concurrency]
 prereqs: [parking-lot, design-patterns]
 unlocks: Modelling lifecycle-driven systems with explicit states and a swappable scheduling policy.

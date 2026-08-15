@@ -2,6 +2,7 @@
 title: Training at Scale — the Operational Reality
 summary: Checkpointing, failure arithmetic at 10,000 GPUs, MFU, stragglers, and determinism — what actually consumes a training team's time, which is not the model.
 difficulty: Hard
+scope: HLD
 tags: [ai, training, reliability, checkpointing, mfu]
 prereqs: [model-parallelism, failure-modes, availability-slas]
 unlocks: Running a multi-week training job without losing it.

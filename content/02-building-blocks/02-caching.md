@@ -2,6 +2,7 @@
 title: Caching
 summary: The caching layers, the four write strategies, eviction policies, and the three failure modes — stampede, penetration, avalanche — that every serious interview eventually reaches.
 difficulty: Medium
+scope: HLD
 tags: [cache, redis, performance]
 prereqs: [hardware-numbers, latency-throughput]
 ---

@@ -2,6 +2,7 @@
 title: Build an AI Code Assistant
 summary: Inline completion under a sub-500ms budget — speculative requests, cancellation, context selection from a repository, and measuring acceptance rather than uptime.
 difficulty: Hard
+scope: HLD
 level: 5
 prereqs: [llm-inference-serving, rag-system, caching, backpressure, latency-throughput]
 tags: [level-5, ai, latency, developer-tools]

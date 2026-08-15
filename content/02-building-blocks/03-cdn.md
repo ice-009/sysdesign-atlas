@@ -2,6 +2,7 @@
 title: CDNs & Edge Delivery
 summary: How content lands close to users, push vs pull, cache keys and invalidation, and why the CDN is often the single largest scaling decision in a media-heavy design.
 difficulty: Easy
+scope: HLD
 tags: [cdn, edge, latency]
 prereqs: [caching, networking]
 ---

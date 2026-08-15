@@ -2,6 +2,7 @@
 title: Time, Clocks & Ordering
 summary: Why wall-clock timestamps lie, Lamport and vector clocks, hybrid logical clocks, and how TrueTime buys strong consistency by waiting out uncertainty.
 difficulty: Hard
+scope: HLD
 tags: [clocks, ordering, causality, vector-clocks]
 prereqs: [consistency-models, networking]
 ---

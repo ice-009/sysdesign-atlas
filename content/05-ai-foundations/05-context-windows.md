@@ -2,6 +2,7 @@
 title: Context Windows & Long Context
 summary: How position is encoded, why attention cost is quadratic and memory cost is linear, and what actually breaks when you extend a model to a million tokens.
 difficulty: Hard
+scope: Core
 tags: [ai, context, attention, rope]
 prereqs: [attention-and-kv-cache, inference-arithmetic]
 unlocks: Deciding between long context and retrieval on cost and quality grounds rather than marketing.

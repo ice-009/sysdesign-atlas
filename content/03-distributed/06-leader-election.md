@@ -2,6 +2,7 @@
 title: Leader Election
 summary: When you need a leader, how election works, split brain and fencing, and the designs that avoid needing a single leader in the first place.
 difficulty: Medium
+scope: HLD
 tags: [leader-election, coordination, split-brain]
 prereqs: [consensus, failure-modes]
 ---

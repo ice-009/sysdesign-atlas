@@ -2,6 +2,7 @@
 title: How to Study Systems
 summary: Why reading about architecture doesn't produce the ability to do it, and the four habits that do — estimation, generation before consumption, tracing the request, and deliberately being wrong.
 difficulty: Easy
+scope: Core
 tags: [orientation, meta, learning]
 unlocks: Getting durable understanding out of the rest of this atlas instead of familiarity.
 ---

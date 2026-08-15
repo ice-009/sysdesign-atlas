@@ -2,6 +2,7 @@
 title: The Arithmetic of Inference
 summary: FLOPs per token, memory bandwidth, arithmetic intensity, and the roofline model — the calculations that tell you what a GPU can actually serve before you buy one.
 difficulty: Hard
+scope: Core
 tags: [ai, performance, roofline, capacity]
 prereqs: [attention-and-kv-cache, hardware-numbers, back-of-envelope]
 unlocks: Predicting throughput, latency, and cost from a model spec and a GPU spec.

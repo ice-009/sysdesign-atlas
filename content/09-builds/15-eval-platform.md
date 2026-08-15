@@ -2,6 +2,7 @@
 title: Build an Evaluation Platform
 summary: The system that tells you whether an AI change helped — golden sets, judge orchestration, CI gates, and the statistics that stop you shipping noise.
 difficulty: Hard
+scope: HLD
 level: 5
 prereqs: [evaluation-systems, lakehouse-and-batch, job-scheduler, ai-observability]
 tags: [level-5, ai, evaluation, testing]

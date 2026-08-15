@@ -2,6 +2,7 @@
 title: Company-by-Company Guides
 summary: What each major company's system design loop actually emphasizes, the question styles you'll see, and how to adjust your preparation for each.
 difficulty: Easy
+scope: Both
 tags: [google, meta, amazon, netflix, uber, companies]
 ---
 

@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import {
+  SCOPE_META,
   SECTIONS,
   getAllTopics,
   getNeighbors,
@@ -84,6 +85,18 @@ export default async function TopicPage({
           )}
 
           <div className="mt-5 flex flex-wrap items-center gap-2">
+            {/* Altitude first: which round this belongs to is the thing readers
+                were mixing up, so it leads the badge row. */}
+            <span
+              className="rounded-full px-2.5 py-1 text-[11.5px] font-bold"
+              style={{
+                background: `color-mix(in srgb, ${SCOPE_META[topic.scope].color} 16%, transparent)`,
+                color: SCOPE_META[topic.scope].color,
+              }}
+              title={SCOPE_META[topic.scope].blurb}
+            >
+              {SCOPE_META[topic.scope].label}
+            </span>
             {topic.difficulty && (
               <span
                 className="rounded-full px-2.5 py-1 text-[11.5px] font-bold"

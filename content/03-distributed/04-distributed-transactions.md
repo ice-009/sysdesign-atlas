@@ -2,6 +2,7 @@
 title: Distributed Transactions & Sagas
 summary: Why 2PC blocks, how sagas trade atomicity for availability, designing compensating actions, and the honest answer — avoid needing one.
 difficulty: Hard
+scope: HLD
 tags: [transactions, saga, 2pc, consistency]
 prereqs: [idempotency, consistency-models]
 ---

@@ -1,121 +1,128 @@
 ---
 title: The Three-Day Revision Plan
-summary: What an SDE-2 interview actually asks for, and an hour-by-hour plan for the two or three days you have left — LLD in the mornings, HLD refresher in the evenings.
+summary: What an SDE-2 interview asks for, in plain terms, and an hour-by-hour plan for the two or three days you have left.
 difficulty: Easy
+scope: Both
 tags: [orientation, revision, interview, sde2]
-unlocks: A concrete schedule for the days before the interview, and a clear picture of what each round is scored on.
+unlocks: A schedule for the days before the interview, and a clear picture of what each round is scored on.
 ---
 
-You have two or three days. That is not enough time to learn design, and it is more than enough time to revise it. The failure mode this week is not ignorance — it is **breadth panic**: reading forty topics shallowly, recognising everything, being able to produce nothing under time pressure.
+Two terms come up constantly here, so let's fix them first.
 
-This section is built for the opposite. A small number of things, practised until they come out in order without thinking.
+**HLD** is high-level design. You draw boxes — a web server, a database, a cache — and explain how they talk to each other over the network. The question sounds like *"design Twitter for 100 million users"*.
 
-## What the SDE-2 bar actually is
+**LLD** is low-level design. You stay inside one program and design the *classes*: what objects exist, what each one does, and how they fit together. The question sounds like *"design a parking lot"*.
 
-The distinction that matters between an SDE-1 and an SDE-2 answer is not the number of components on the whiteboard. It's this:
+Same skill, different zoom level. This track is the LLD half; the [HLD Bridge](../12-hld-bridge/hld-vs-lld.html) track next door covers the other half and the overlap.
 
-| | SDE-1 answer | SDE-2 answer |
+## What the interviewer is actually grading
+
+You have two or three days. That is not enough time to *learn* design. It is plenty of time to *revise* it.
+
+The thing that separates a pass from a fail is rarely knowledge. It is whether you can produce a complete, sensible answer in 45 minutes while saying why you chose each thing. Here is the difference in practice:
+
+| | A weaker answer | The answer that passes |
 |---|---|---|
-| Requirements | Starts coding/drawing immediately | Scopes first, states what is out |
-| Structure | One giant class, or one giant box | Named responsibilities with clear seams |
-| Choices | "I'll use Redis" | "Redis, because the read path is 100:1 and staleness of a few seconds is fine" |
-| Extension | Rewrites when the requirement changes | Adds a class / adds a consumer |
-| Failure | Doesn't come up | Names what breaks and what happens then |
-| Concurrency | Ignored | Named the shared state and how it's guarded |
+| Requirements | Starts drawing straight away | Asks a few questions first, says what's out of scope |
+| Structure | One huge class, or one huge box | A few pieces, each with one clear job |
+| Choices | "I'll use Redis" | "Redis, because reads are 100× writes and slightly stale data is fine" |
+| New feature | Rewrites things | Adds a class |
+| Failure | Never mentions it | Says what breaks and what happens next |
+| Threads | Ignored | Says which data is shared and how it's protected |
 
-Nobody expects novel architecture from you. They expect a **competent, complete, defensible** design produced calmly in 45 minutes, with the tradeoffs said out loud.
+Nobody expects a brilliant new architecture. They want a calm, complete, ordinary-but-well-argued design.
 
-:::goat The one sentence to internalise
-Every point you score comes from a **decision plus its reason**. A design with ten components and no reasons scores below a design with five components where you said why each one is there and what you gave up. When in doubt, slow down and justify.
+:::goat The one habit worth building
+Every point you score comes from **a decision plus the reason for it**. Five components you can justify beat ten you can't. When you're unsure, slow down and explain why.
 :::
 
-## LLD vs HLD in one picture
+## The two zoom levels, side by side
 
 ```viz
 {
   "type": "compare",
-  "caption": "Same system, two zoom levels. Most SDE-2 loops test both, sometimes in the same hour.",
+  "caption": "Most SDE-2 loops test both, sometimes in the same hour.",
   "left": {
-    "title": "HLD — between processes",
+    "title": "HLD — between programs",
     "items": [
-      "Boxes are services, caches, queues, stores",
-      "Currency: QPS, latency, storage, consistency",
-      "Output: architecture diagram + data model",
-      "Failure = a machine or region dies",
-      "\"Shard by user_id, cache the read path\""
+      "Boxes are servers, databases, caches, queues",
+      "You talk about traffic, storage and delay",
+      "You produce an architecture diagram",
+      "Failure means a machine dies",
+      "\"Split the data by user, cache the reads\""
     ]
   },
   "right": {
-    "title": "LLD — inside one process",
+    "title": "LLD — inside one program",
     "items": [
-      "Boxes are classes, interfaces, methods",
-      "Currency: responsibilities, coupling, extensibility",
-      "Output: class diagram + key method signatures",
-      "Failure = a race, or a change that touches 9 files",
-      "\"Strategy for pricing, so a new rule is a new class\""
+      "Boxes are classes and their methods",
+      "You talk about responsibilities and change",
+      "You produce a class diagram",
+      "Failure means two threads clash",
+      "\"Pricing is an interface, so a new rule is a new class\""
     ]
   }
 }
 ```
 
-The two rounds reward different instincts, and the most common mistake is bringing the wrong one: estimating QPS in an LLD round (nobody asked), or drawing class diagrams in an HLD round (you'll run out of time). [HLD vs LLD](hld-vs-lld.html) draws the boundary precisely.
+The most common mistake is answering at the wrong level: estimating traffic in an LLD round, or drawing class diagrams in an HLD round. [HLD vs LLD](../12-hld-bridge/hld-vs-lld.html) shows you how to tell which one you're in within the first two minutes.
 
 ## The plan
 
-Times are indicative. If you only have two days, drop Day 2 and merge its problems into Day 3.
+Times are a guide. If you only have two days, drop Day 2 and fold its problems into Day 3.
 
-### Day 1 — the toolkit (≈4 hours)
+### Day 1 — the vocabulary (about 4 hours)
 
-You cannot design classes fluently without the vocabulary. Get it back into working memory first.
+You can't design classes fluently without the words for it. Get them back first.
 
 | | Topic | Why now |
 |---|---|---|
-| 60 min | [OOP for interviews](oop-refresher.html) | Composition, interfaces, and what an object is *for* |
-| 45 min | [SOLID, practically](solid.html) | The language you'll narrate your design in |
-| 75 min | [The patterns worth knowing](design-patterns.html) | Strategy, factory, observer, state — 80% of what appears |
-| 45 min | [The LLD method](lld-interview-method.html) | The minute-by-minute structure |
-| 30 min | [HLD refresher](hld-refresher.html), first half | Keep the other muscle warm |
+| 60 min | [Objects, in practice](oop-refresher.html) | What an object is *for*, and when to use an interface |
+| 45 min | [SOLID, in plain English](solid.html) | The five ideas you'll narrate your design with |
+| 75 min | [The patterns worth knowing](design-patterns.html) | Strategy, factory, observer, state — most of what appears |
+| 45 min | [The LLD method](lld-interview-method.html) | What to do minute by minute |
+| 30 min | [HLD refresher](../12-hld-bridge/hld-refresher.html), first half | Keep the other muscle warm |
 
-End of day: without notes, write down the six steps of the LLD method and the five SOLID letters with a one-line example each. If you can't, redo the last hour rather than moving on.
+Before you stop: without looking, write down the six steps of the LLD method, and the five SOLID letters with one example each. If you can't, redo the last hour instead of moving on.
 
-### Day 2 — problems, out loud (≈4 hours)
+### Day 2 — problems, out loud (about 4 hours)
 
-Solving is not the point; **producing an answer under time pressure** is. Set a 40-minute timer per problem, talk out loud, write the class diagram on paper before you look at the solution.
+Solving them isn't the point. **Producing an answer under time pressure** is. Set a 40-minute timer per problem. Talk out loud. Draw the classes on paper before you read the solution.
 
-| | Problem | Teaches |
+| | Problem | What it teaches |
 |---|---|---|
-| 40 min | [Parking Lot](parking-lot.html) | The canonical entity/strategy decomposition |
-| 40 min | [Elevator System](elevator-system.html) | State machines and scheduling policy |
-| 40 min | [Splitwise](splitwise.html) | Modelling money, splits, and settlement |
-| 30 min | [Concurrency in LLD](concurrency-in-lld.html) | The follow-up question you will definitely get |
-| 45 min | [HLD refresher](hld-refresher.html), second half | Building blocks and the decision table |
+| 40 min | [Parking Lot](parking-lot.html) | The standard way to break a problem into classes |
+| 40 min | [Elevator System](elevator-system.html) | Objects whose behaviour depends on their current state |
+| 40 min | [Splitwise](splitwise.html) | Handling money and splitting it exactly |
+| 30 min | [Threads and races](concurrency-in-lld.html) | The follow-up question you will definitely get |
+| 45 min | [HLD refresher](../12-hld-bridge/hld-refresher.html), second half | Components and the choices between them |
 
-### Day 3 — the bridge, then taper (≈3 hours)
+### Day 3 — the overlap, then taper (about 3 hours)
 
 | | Topic | Why last |
 |---|---|---|
-| 40 min | [Seat Booking](seat-booking.html) | LLD and HLD in one problem — locking, holds, payment |
-| 30 min | [In-Memory Cache](lru-cache.html) | Data-structure-flavoured LLD, very common |
-| 30 min | [Rate Limiter classes](rate-limiter-classes.html) | Same problem at both zoom levels |
-| 45 min | Re-solve **one** Day-2 problem from scratch | Proves it's in muscle memory, not recognition |
-| 30 min | [The final checklist](final-checklist.html) | Rapid-fire recall, then stop |
+| 40 min | [Seat Booking](../12-hld-bridge/seat-booking.html) | One problem asked at both levels |
+| 30 min | [In-memory cache](lru-cache.html) | A data-structure flavoured question, very common |
+| 30 min | [Rate limiter](../12-hld-bridge/rate-limiter-classes.html) | The same problem, both zoom levels |
+| 45 min | Re-solve **one** Day-2 problem from scratch | Proves you can recall it, not just recognise it |
+| 30 min | [The final checklist](../12-hld-bridge/final-checklist.html) | Quick recall, then stop |
 
 :::warn Stop the night before
-The last two hours before sleep should be the [checklist](final-checklist.html) and nothing else. New material the night before does not land, and it displaces the things you actually rehearsed. Sleep is a better use of the time than a fourteenth pattern.
+Spend the last two hours on the [checklist](../12-hld-bridge/final-checklist.html) and nothing else. New material the night before doesn't stick, and it pushes out what you already rehearsed. Sleep is the better investment.
 :::
 
-## How to practise so it sticks
+## Three rules for practising
 
-Three rules, all of which cost you nothing and are routinely ignored:
+They cost nothing and almost everyone ignores them.
 
-1. **Say it out loud.** The gap between "I understand this" and "I can explain this in sequence to a stranger" is enormous, and it only closes by speaking. Talk to a wall if you have to.
-2. **Draw before you read.** Look at the problem statement, close the page, spend ten minutes producing your own class diagram, *then* compare. Reading solutions builds recognition; producing them builds recall. Only recall shows up in the interview.
-3. **Time everything.** Every problem here is written to be answerable in 40 minutes. If you take 70, you are practising a skill you cannot use.
+1. **Say it out loud.** Understanding something and explaining it in order to a stranger are different skills. Only speaking closes the gap. Talk to a wall if you have to.
+2. **Draw before you read.** Look at the problem, close the page, spend ten minutes on your own class diagram, *then* compare. Reading solutions teaches you to recognise them. Drawing teaches you to produce them, which is what the interview asks for.
+3. **Use a timer.** Every problem here is written to be answerable in 40 minutes. If you take 70, you're practising something you can't use on the day.
 
-:::exercise Before you go on
-Pick any system you use daily — a food delivery app, a music player, a library catalogue. Spend five minutes listing its nouns (entities), then five minutes listing the ones that would need an interface because there's obviously more than one variant. That warm-up *is* the LLD interview in miniature.
+:::exercise A two-minute warm-up
+Pick an app you use daily — food delivery, a music player, a library catalogue. Spend five minutes listing its nouns (those become your classes). Then five minutes marking which ones obviously come in several varieties (those become your interfaces). That small exercise is the LLD interview in miniature.
 :::
 
-## If you have already done the rest of this course
+## If you've already read the rest of this course
 
-The HLD material in this section is deliberately a compression of [Foundations](../fundamentals/scalability-basics.html), [Building Blocks](../building-blocks/load-balancing.html), and the [Appendix](../appendix/framework.html). If you've read those, skim [the HLD refresher](hld-refresher.html) and spend the reclaimed time on the LLD problems — that's the side most SDE-2 candidates under-prepare.
+The HLD material in the [Bridge](../12-hld-bridge/hld-refresher.html) track is a compressed version of [Foundations](../fundamentals/scalability-basics.html), [Building Blocks](../building-blocks/load-balancing.html) and the [Appendix](../appendix/framework.html). If you know those, skim it and put the time into the LLD problems instead — that's the side most SDE-2 candidates under-prepare.

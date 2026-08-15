@@ -1,6 +1,7 @@
 import { SECTIONS, getAllTopics, getGroupedSections } from '@/lib/content';
 import TopicGrid from '@/components/TopicGrid';
 import Reveal from '@/components/Reveal';
+import ScopeFilter from '@/components/ScopeFilter';
 import { SectionIcon } from '@/components/Icons';
 
 export const metadata = { title: 'Learn — SysDesign Atlas' };
@@ -23,10 +24,20 @@ export default function LearnIndex() {
           have not read yet. Foundations first — every later decision is downstream of them. Each
           topic lists what it assumes; mark topics complete and rate your confidence as you go.
         </p>
+        <p className="mt-3 max-w-[68ch] text-[15px]" style={{ color: 'var(--text-dim)' }}>
+          Every topic is tagged by design altitude — <strong style={{ color: '#38bdf8' }}>HLD</strong>{' '}
+          for services and the traffic between them,{' '}
+          <strong style={{ color: '#f97316' }}>LLD</strong> for classes inside one process,{' '}
+          <strong style={{ color: '#a78bfa' }}>HLD + LLD</strong> where a topic spans both, and{' '}
+          <strong style={{ color: '#94a3b8' }}>Core</strong> for the background underneath them.
+        </p>
+        <ScopeFilter />
       </Reveal>
 
       {groups.map((g) => (
-        <div key={g.name}>
+        // data-group so a scope filter can hide the heading of a group whose
+        // sections have all been filtered away.
+        <div key={g.name} data-group>
           <Reveal>
             <div className="mt-16 border-t pt-6" style={{ borderColor: 'var(--border)' }}>
               <h2
@@ -81,6 +92,7 @@ export default function LearnIndex() {
                     title: t.title,
                     summary: t.summary,
                     difficulty: t.difficulty,
+                    scope: t.scope,
                     minutes: t.minutes,
                     href: `/learn/${t.section.slug}/${t.slug}`,
                     accent: s.accent,

@@ -2,6 +2,7 @@
 title: Quantization & Numeric Formats
 summary: Why FP32 was always overkill, what BF16, FP8 and INT4 actually change, and why halving the bits nearly halves your latency as well as your memory.
 difficulty: Medium
+scope: Core
 tags: [ai, quantization, precision, memory]
 prereqs: [inference-arithmetic]
 unlocks: The highest-leverage single knob in inference deployment.

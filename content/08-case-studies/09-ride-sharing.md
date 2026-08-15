@@ -2,6 +2,7 @@
 title: Design a Ride-Sharing Service (Uber / Lyft)
 summary: Millions of moving objects, geospatial matching under a latency budget, and a trip state machine that must survive every kind of failure.
 difficulty: Hard
+scope: HLD
 tags: [case-study, geospatial, realtime, matching]
 prereqs: [geospatial, realtime, sharding]
 ---

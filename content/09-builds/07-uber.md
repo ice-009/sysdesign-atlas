@@ -2,6 +2,7 @@
 title: Build Uber
 summary: A million moving objects, spatial matching under a latency budget, and a trip state machine with money attached.
 difficulty: Hard
+scope: HLD
 level: 4
 prereqs: [geospatial, realtime, ride-sharing, idempotency, distributed-locks]
 tags: [level-4, geospatial, realtime, matching]

@@ -829,6 +829,23 @@ body.focus-mode [data-timer-bar]:focus-within > * {
   opacity: 1;
 }
 
+/* Curriculum index filtered by design altitude. A topic marked Both passes
+   every filter — it genuinely belongs to both sides — and a section left with
+   no visible cards takes its heading with it. */
+body[data-scope-filter='HLD'] [data-topic-scope]:not([data-topic-scope='HLD']):not([data-topic-scope='Both']),
+body[data-scope-filter='LLD'] [data-topic-scope]:not([data-topic-scope='LLD']):not([data-topic-scope='Both']),
+body[data-scope-filter='Core'] [data-topic-scope]:not([data-topic-scope='Core']):not([data-topic-scope='Both']) {
+  display: none;
+}
+body[data-scope-filter='HLD'] section:not(:has([data-topic-scope='HLD'], [data-topic-scope='Both'])),
+body[data-scope-filter='LLD'] section:not(:has([data-topic-scope='LLD'], [data-topic-scope='Both'])),
+body[data-scope-filter='Core'] section:not(:has([data-topic-scope='Core'], [data-topic-scope='Both'])),
+body[data-scope-filter='HLD'] [data-group]:not(:has([data-topic-scope='HLD'], [data-topic-scope='Both'])),
+body[data-scope-filter='LLD'] [data-group]:not(:has([data-topic-scope='LLD'], [data-topic-scope='Both'])),
+body[data-scope-filter='Core'] [data-group]:not(:has([data-topic-scope='Core'], [data-topic-scope='Both'])) {
+  display: none;
+}
+
 /* The ambient background is decoration, and decoration that MOVES behind text
    is the worst kind. The aurora drifts on a 22s loop forever; in focus mode it
    stops and recedes, and the grid goes entirely. */

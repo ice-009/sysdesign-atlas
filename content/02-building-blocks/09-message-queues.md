@@ -2,6 +2,7 @@
 title: Message Queues
 summary: Why async decoupling changes a system's failure behavior, the log vs broker distinction, delivery semantics, ordering, and dead letter handling.
 difficulty: Medium
+scope: HLD
 tags: [queue, kafka, async, decoupling]
 prereqs: [scalability-basics, queueing-theory]
 ---

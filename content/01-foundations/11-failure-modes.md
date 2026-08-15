@@ -2,6 +2,7 @@
 title: Failure Modes & Fault Tolerance
 summary: Partial failure is the defining property of distributed systems. Gray failures, cascading collapse, retry storms, and the design patterns that contain them.
 difficulty: Medium
+scope: Core
 tags: [failure, resilience, fault-tolerance]
 prereqs: [availability-slas, networking]
 ---

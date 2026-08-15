@@ -2,6 +2,7 @@
 title: Model Deployment & Rollout
 summary: Shipping a 140 GB artifact — registries, weight distribution, warm-up, and why canarying a model needs quality gates that a service deployment never does.
 difficulty: Medium
+scope: HLD
 tags: [ai, deployment, mlops, rollout]
 prereqs: [object-storage, inference-engines]
 unlocks: Rolling out a model change without a quality regression or a cold-start outage.

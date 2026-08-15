@@ -2,6 +2,7 @@
 title: Unique ID Generation
 summary: Why auto-increment breaks when you shard, the Snowflake layout, UUID versions, and how to get sortable IDs without a coordinator.
 difficulty: Medium
+scope: HLD
 tags: [id, snowflake, uuid, distributed]
 prereqs: [sharding]
 ---

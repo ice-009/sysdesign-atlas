@@ -52,6 +52,7 @@ export default async function SectionPage({ params }: { params: Promise<{ sectio
           title: t.title,
           summary: t.summary,
           difficulty: t.difficulty,
+          scope: t.scope,
           minutes: t.minutes,
           href: `/learn/${t.section.slug}/${t.slug}`,
           accent: s.accent,

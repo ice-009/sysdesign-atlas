@@ -2,6 +2,7 @@
 title: Multi-Region Architecture
 summary: Active-passive vs active-active, data residency, the latency floor you can't optimize away, and cell-based architecture for bounding blast radius.
 difficulty: Hard
+scope: HLD
 tags: [multi-region, geo, disaster-recovery, cells]
 prereqs: [replication, cap-pacelc, consensus]
 ---

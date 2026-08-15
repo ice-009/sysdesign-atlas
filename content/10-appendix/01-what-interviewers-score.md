@@ -2,6 +2,7 @@
 title: What Interviewers Actually Score
 summary: The rubric behind the whiteboard. Four signals decide the outcome, and knowing the architecture of a real system is only one of them — and not the heaviest.
 difficulty: Easy
+scope: Both
 tags: [interview, rubric, signal]
 ---
 

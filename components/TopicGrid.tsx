@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { motion } from 'motion/react';
 import { useProgress } from './ProgressProvider';
+import { SCOPE_META, type Scope } from '@/lib/scope';
 import { IconCheck, IconBookmark } from './Icons';
 
 export type GridItem = {
@@ -10,6 +11,7 @@ export type GridItem = {
   title: string;
   summary: string;
   difficulty: string;
+  scope: Scope;
   minutes: number;
   href: string;
   accent: string;
@@ -23,7 +25,6 @@ const DIFF: Record<string, string> = {
 
 export default function TopicGrid({ topics }: { topics: GridItem[] }) {
   const { progress, bookmarks } = useProgress();
-
   const onMove = (e: React.MouseEvent<HTMLElement>) => {
     const el = e.currentTarget;
     const r = el.getBoundingClientRect();
@@ -32,7 +33,8 @@ export default function TopicGrid({ topics }: { topics: GridItem[] }) {
   };
 
   return (
-    <div className="grid gap-3.5 sm:grid-cols-2 xl:grid-cols-3">
+    <>
+      <div className="grid gap-3.5 sm:grid-cols-2 xl:grid-cols-3">
       {topics.map((t, i) => {
         const done = progress[t.slug]?.completed;
         const conf = progress[t.slug]?.confidence ?? 0;
@@ -50,6 +52,7 @@ export default function TopicGrid({ topics }: { topics: GridItem[] }) {
             <Link
               href={t.href}
               onMouseMove={onMove}
+              data-topic-scope={t.scope}
               className="card-glow relative flex h-full flex-col rounded-2xl border p-5"
               style={
                 {
@@ -62,6 +65,15 @@ export default function TopicGrid({ topics }: { topics: GridItem[] }) {
               }
             >
               <div className="mb-2.5 flex items-center gap-2">
+                <span
+                  className="rounded-full px-2 py-0.5 text-[10.5px] font-bold"
+                  style={{
+                    background: `color-mix(in srgb, ${SCOPE_META[t.scope].color} 15%, transparent)`,
+                    color: SCOPE_META[t.scope].color,
+                  }}
+                >
+                  {SCOPE_META[t.scope].label}
+                </span>
                 {t.difficulty && (
                   <span
                     className="rounded-full px-2 py-0.5 text-[10.5px] font-bold"
@@ -122,6 +134,7 @@ export default function TopicGrid({ topics }: { topics: GridItem[] }) {
           </motion.div>
         );
       })}
-    </div>
+      </div>
+    </>
   );
 }

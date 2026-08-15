@@ -2,6 +2,7 @@
 title: Concurrency & What the OS Is Doing
 summary: Threads versus event loops, the real cost of a context switch and a syscall, and why the answer to "how many concurrent connections" depends on what they're waiting for.
 difficulty: Medium
+scope: Core
 tags: [fundamentals, concurrency, os, performance]
 prereqs: [hardware-numbers, queueing-theory]
 unlocks: Choosing a concurrency model on evidence instead of fashion, and knowing what a server's connection ceiling really is.

@@ -2,6 +2,7 @@
 title: Data Lakes, Lakehouses & Batch Processing
 summary: Parquet, table formats like Iceberg, partitioning that actually helps, and why the industry converged on "object storage plus metadata" for everything analytical.
 difficulty: Medium
+scope: HLD
 tags: [data, batch, parquet, iceberg, lakehouse]
 prereqs: [olap-columnar, object-storage]
 unlocks: Designing the storage layer that every analytics and ML training pipeline sits on.

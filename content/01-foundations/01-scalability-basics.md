@@ -2,6 +2,7 @@
 title: Scalability Basics
 summary: Vertical vs horizontal scaling, why stateless services are the whole game, and the three-axis model that tells you which direction to scale next.
 difficulty: Easy
+scope: Core
 tags: [scaling, architecture]
 prereqs: []
 ---

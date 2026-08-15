@@ -1,6 +1,9 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { render, parseFrontmatter, type Heading } from './markdown';
+import { isScope, type Scope } from './scope';
+
+export { SCOPE_META, type Scope } from './scope';
 
 const CONTENT_DIR = path.join(process.cwd(), 'content');
 
@@ -134,10 +137,19 @@ export const SECTIONS: Section[] = [
     dir: '11-lld',
     slug: 'lld',
     title: 'Low-Level Design',
-    desc: 'Objects, interfaces, and concurrency inside a single service — the SDE-2 revision track, with a compressed HLD refresher alongside it.',
+    desc: 'One process, up close: objects, interfaces, concurrency, and the classic LLD problems worked end to end.',
     group: 'Applied Design',
     accent: '#f97316',
     icon: 'target',
+  },
+  {
+    dir: '12-hld-bridge',
+    slug: 'hld-bridge',
+    title: 'HLD Bridge',
+    desc: 'Where the two altitudes meet: telling the rounds apart, a compressed HLD refresher, and the problems that get asked at both levels.',
+    group: 'Applied Design',
+    accent: '#2dd4bf',
+    icon: 'layers',
   },
   {
     dir: '10-appendix',
@@ -163,6 +175,7 @@ export type Topic = {
   title: string;
   summary: string;
   difficulty: string;
+  scope: Scope;
   tags: string[];
   minutes: number;
   section: Section;
@@ -193,6 +206,7 @@ function readTopicFile(section: Section, file: string) {
       title: String(data.title ?? slug),
       summary: String(data.summary ?? ''),
       difficulty: String(data.difficulty ?? ''),
+      scope: isScope(data.scope) ? data.scope : 'Core',
       tags: asList(data.tags),
       minutes: Math.max(3, Math.round(words / 220)),
       section,

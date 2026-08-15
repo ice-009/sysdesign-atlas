@@ -2,6 +2,7 @@
 title: Object Storage & Blob Handling
 summary: Why files never belong in your database, presigned uploads, multipart and resumable transfers, storage tiers, and the metadata pattern every media system uses.
 difficulty: Easy
+scope: HLD
 tags: [s3, storage, blob, media]
 prereqs: [replication, cdn]
 ---

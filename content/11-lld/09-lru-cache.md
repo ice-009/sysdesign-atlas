@@ -2,6 +2,7 @@
 title: Design an In-Memory Cache
 summary: The data-structure-flavoured LLD round — O(1) LRU with a hash map and a doubly linked list, eviction and expiry behind interfaces, and how to make it thread-safe without one global lock.
 difficulty: Medium
+scope: LLD
 tags: [lld-problem, data-structures, caching, concurrency]
 prereqs: [design-patterns, concurrency-in-lld, caching]
 unlocks: Building a small library-style component with clean interfaces and defensible complexity.
@@ -124,7 +125,7 @@ Optional<V> get(K key) {
 }
 ```
 
-The design point, which transfers to [seat booking](seat-booking.html) and everywhere else: **expiry is evaluated on read, so correctness never depends on a timer firing.** A background sweeper is then an optimisation — it reclaims memory held by entries nobody reads — not a correctness requirement. State that split explicitly.
+The design point, which transfers to [seat booking](../12-hld-bridge/seat-booking.html) and everywhere else: **expiry is evaluated on read, so correctness never depends on a timer firing.** A background sweeper is then an optimisation — it reclaims memory held by entries nobody reads — not a correctness requirement. State that split explicitly.
 
 The alternative worth naming: a `DelayQueue` or a min-heap by expiry time, which gives precise eviction at the cost of a second ordering structure to maintain on every write. For a cache, lazy plus sampling (what Redis does — random sample, delete the expired ones) is the better tradeoff.
 

@@ -2,6 +2,7 @@
 title: GPUs & Accelerators
 summary: SMs, HBM, tensor cores, and the memory hierarchy that decides your kernel's speed — plus why every accelerator vendor is fighting the same battle against memory bandwidth.
 difficulty: Medium
+scope: HLD
 tags: [ai, gpu, hardware, accelerators]
 prereqs: [hardware-numbers, inference-arithmetic]
 unlocks: Reading a GPU spec sheet and predicting how your workload will actually perform on it.

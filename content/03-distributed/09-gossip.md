@@ -2,6 +2,7 @@
 title: Gossip Protocols & Failure Detection
 summary: How thousands of nodes agree on who is alive without a coordinator, epidemic dissemination, and why suspicion beats a binary alive/dead verdict.
 difficulty: Medium
+scope: HLD
 tags: [gossip, membership, failure-detection, epidemic]
 prereqs: [failure-modes, networking]
 ---

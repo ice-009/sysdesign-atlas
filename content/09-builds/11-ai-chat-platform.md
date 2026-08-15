@@ -2,6 +2,7 @@
 title: Build a Claude-style Chat Platform
 summary: The product layer over a token server — conversation state, context window management, streaming, safety, and the economics of a per-token cost model.
 difficulty: Hard
+scope: HLD
 level: 5
 prereqs: [llm-inference-serving, realtime, sharding, rate-limiting, caching]
 tags: [level-5, ai, chat, streaming]

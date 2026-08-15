@@ -2,6 +2,7 @@
 title: Design an Ad Click Aggregator
 summary: Stream processing at enormous scale with a hard requirement most systems don't have — the numbers are money, so approximate isn't good enough.
 difficulty: Hard
+scope: HLD
 tags: [case-study, streaming, kafka, analytics]
 prereqs: [stream-processing, message-queues, olap-columnar]
 ---

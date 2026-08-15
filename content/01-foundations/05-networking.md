@@ -2,6 +2,7 @@
 title: The Network Between Your Boxes
 summary: TCP handshakes, congestion control, head-of-line blocking, and TLS cost — why the arrows in your architecture diagram are the expensive part.
 difficulty: Medium
+scope: Core
 tags: [fundamentals, networking, tcp, latency]
 prereqs: [latency-throughput]
 unlocks: Reading a latency budget correctly, and knowing which arrows in a diagram cost real money.

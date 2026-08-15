@@ -2,6 +2,7 @@
 title: Design a Video Streaming Platform (YouTube / Netflix)
 summary: The upload-and-transcode pipeline, adaptive bitrate streaming, and why the CDN isn't an optimization here — it's the architecture.
 difficulty: Hard
+scope: HLD
 tags: [case-study, cdn, video, pipeline]
 prereqs: [cdn, object-storage, load-balancing]
 ---

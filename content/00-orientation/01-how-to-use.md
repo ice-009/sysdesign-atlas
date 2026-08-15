@@ -2,6 +2,7 @@
 title: How to Use This Atlas
 summary: A map of the whole curriculum, how the four groups depend on each other, and the reading habit that decides whether any of it sticks.
 difficulty: Easy
+scope: Core
 tags: [orientation, meta]
 unlocks: A route through the material that matches what you're actually trying to do.
 ---

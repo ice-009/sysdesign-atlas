@@ -2,6 +2,7 @@
 title: Stream Processing
 summary: Event time versus processing time, watermarks, windowing, and what "exactly-once" actually means — the machinery for computing over data that never stops arriving.
 difficulty: Hard
+scope: HLD
 tags: [data, streaming, flink, exactly-once]
 prereqs: [message-queues, clocks, idempotency]
 unlocks: Designing correct aggregations over unbounded, late, out-of-order data.

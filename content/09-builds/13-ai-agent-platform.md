@@ -2,6 +2,7 @@
 title: Build an AI Agent Platform
 summary: Where the model stops answering and starts acting — tool execution, sandboxing, loop control, and treating model output as untrusted input.
 difficulty: Hard
+scope: HLD
 level: 5
 prereqs: [ai-chat-platform, job-scheduler, idempotency, distributed-locks, backpressure]
 tags: [level-5, ai, agents, security]

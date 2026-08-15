@@ -2,6 +2,7 @@
 title: Build Netflix
 summary: When bandwidth is the binding constraint. The transcoding pipeline, adaptive bitrate, and why the CDN isn't a layer — it's the whole design.
 difficulty: Hard
+scope: HLD
 level: 3
 prereqs: [cdn, object-storage, video-streaming, message-queues, back-of-envelope]
 tags: [level-3, media, cdn, pipeline]

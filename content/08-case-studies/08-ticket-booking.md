@@ -2,6 +2,7 @@
 title: Design a Ticket Booking System (Ticketmaster)
 summary: Extreme burst traffic against a hard correctness constraint. Seat reservation without double-booking, the virtual waiting room, and why this is the case study where consistency wins.
 difficulty: Hard
+scope: HLD
 tags: [case-study, consistency, transactions, burst]
 prereqs: [transactions-isolation, distributed-locks, idempotency]
 ---

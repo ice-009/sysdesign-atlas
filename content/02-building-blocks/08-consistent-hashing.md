@@ -2,6 +2,7 @@
 title: Consistent Hashing
 summary: Why modulo hashing breaks on rescale, how the ring fixes it, virtual nodes, and the modern alternatives — rendezvous hashing and bounded loads.
 difficulty: Medium
+scope: HLD
 tags: [hashing, sharding, distribution]
 prereqs: [sharding]
 ---

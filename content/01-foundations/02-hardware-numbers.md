@@ -2,6 +2,7 @@
 title: The Numbers Underneath Everything
 summary: The memory hierarchy, and where the latency figures every engineer half-remembers actually come from — derived from physics and clock rates rather than memorised.
 difficulty: Easy
+scope: Core
 tags: [fundamentals, hardware, latency, memory]
 prereqs: []
 unlocks: The ability to reason about where time goes in a system instead of guessing.

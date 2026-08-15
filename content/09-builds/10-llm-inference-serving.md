@@ -2,6 +2,7 @@
 title: Build an LLM Inference Platform
 summary: Serving a large language model at scale — the KV cache, continuous batching, and why GPU memory rather than compute is the binding constraint.
 difficulty: Hard
+scope: HLD
 level: 5
 prereqs: [back-of-envelope, message-queues, backpressure, caching, latency-throughput]
 tags: [level-5, ai, gpu, inference]

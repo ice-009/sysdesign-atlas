@@ -2,6 +2,7 @@
 title: Build a Pretraining Cluster
 summary: The capstone — 4,000 GPUs, 60 days, one computation that must not stop. Parallelism layout, checkpointing arithmetic, failure recovery, and the operational discipline that makes it finish.
 difficulty: Hard
+scope: HLD
 level: 6
 prereqs: [training-at-scale, model-parallelism, training-data-pipelines, gpu-cluster-scheduling]
 tags: [level-6, ai, training, hpc, reliability]

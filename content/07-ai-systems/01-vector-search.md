@@ -2,6 +2,7 @@
 title: Vector Search & ANN Indexes
 summary: HNSW, IVF, and product quantization — how approximate nearest neighbour search trades a little recall for a thousand-fold speedup, and the filtering problem nobody mentions.
 difficulty: Hard
+scope: HLD
 tags: [ai, vector-search, ann, hnsw, indexing]
 prereqs: [embeddings, indexing, hardware-numbers]
 unlocks: Choosing and tuning the index underneath every retrieval system.

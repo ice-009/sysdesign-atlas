@@ -2,6 +2,7 @@
 title: Design a Chat System (WhatsApp / Messenger)
 summary: Persistent connections at scale, the message routing problem, delivery guarantees and ordering, plus group chat fanout and end-to-end encryption.
 difficulty: Hard
+scope: HLD
 tags: [case-study, websocket, realtime, messaging]
 prereqs: [realtime, message-queues, sharding]
 ---

@@ -2,6 +2,7 @@
 title: Decoding & Sampling
 summary: How logits become tokens, why temperature and top-p behave the way they do, constrained decoding for structured output, and speculative decoding — the trick that gets latency for free.
 difficulty: Medium
+scope: Core
 tags: [ai, decoding, sampling, speculative]
 prereqs: [transformer-as-a-system, inference-arithmetic]
 unlocks: Controlling output shape and cutting latency without touching the model.

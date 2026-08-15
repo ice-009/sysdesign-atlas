@@ -2,6 +2,7 @@
 title: Data Parallelism & ZeRO
 summary: Replicating the model across GPUs, why optimizer state is the memory hog, and how sharding it turns a technique that hits a wall at 1B parameters into one that trains 500B.
 difficulty: Hard
+scope: HLD
 tags: [ai, distributed-training, zero, fsdp]
 prereqs: [interconnect-and-collectives, transformer-as-a-system]
 unlocks: The default parallelism strategy, and knowing exactly where it stops working.

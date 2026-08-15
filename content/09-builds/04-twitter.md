@@ -2,6 +2,7 @@
 title: Build Twitter / X
 summary: Fanout at higher write volume, plus real-time delivery, trending detection, and the ranking layer that changes the feed problem entirely.
 difficulty: Medium
+scope: HLD
 level: 2
 prereqs: [news-feed, message-queues, realtime, bloom-filters, ad-click-aggregator]
 tags: [level-2, feed, realtime, streaming]

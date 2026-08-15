@@ -2,6 +2,7 @@
 title: Build Google Docs
 summary: Concurrent editing without conflicts. The one build where the hard problem is an algorithm rather than an architecture.
 difficulty: Hard
+scope: HLD
 level: 4
 prereqs: [collaborative-editor, crdts, realtime, clocks, leader-election]
 tags: [level-4, collaboration, crdt, realtime]

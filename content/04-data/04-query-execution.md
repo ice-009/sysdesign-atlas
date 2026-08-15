@@ -2,6 +2,7 @@
 title: How a Query Actually Runs
 summary: Parser to plan to execution — join algorithms, cost models, why the optimizer picks the wrong plan, and what "vectorized execution" buys you.
 difficulty: Hard
+scope: Core
 tags: [data, query, optimizer, joins]
 prereqs: [indexing, storage-engines]
 unlocks: Reading an EXPLAIN plan and knowing which part is the problem.

@@ -2,6 +2,7 @@
 title: Retrieval Architecture (RAG)
 summary: Chunking, hybrid search, reranking, and evaluation — the pipeline between a question and a grounded answer, and why retrieval quality caps everything downstream.
 difficulty: Hard
+scope: HLD
 tags: [ai, rag, retrieval, reranking, hybrid-search]
 prereqs: [vector-databases, search]
 unlocks: Building retrieval that actually finds the right context, and knowing when it doesn't.

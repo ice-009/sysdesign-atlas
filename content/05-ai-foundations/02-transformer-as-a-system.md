@@ -2,6 +2,7 @@
 title: The Transformer as a System
 summary: What a forward pass actually does, where the parameters and the FLOPs live, and why prefill and decode are two completely different workloads running the same code.
 difficulty: Medium
+scope: Core
 tags: [ai, transformer, architecture, inference]
 prereqs: [tokenization, hardware-numbers]
 unlocks: Reasoning about model execution as a resource-consumption problem rather than a black box.

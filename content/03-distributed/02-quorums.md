@@ -2,6 +2,7 @@
 title: Quorums
 summary: Why R + W > N works, what it does and does not guarantee, sloppy quorums, and the anti-entropy machinery that keeps leaderless replicas converging.
 difficulty: Medium
+scope: HLD
 tags: [quorum, replication, consistency]
 prereqs: [replication, consistency-models]
 ---

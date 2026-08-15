@@ -2,6 +2,7 @@
 title: Level Rubrics — L4 vs L5 vs L6
 summary: What "senior" actually means to an interviewer, the specific behaviours that map to each level, and how to calibrate your answers to the role you're targeting.
 difficulty: Medium
+scope: Both
 tags: [levels, rubric, seniority]
 ---
 

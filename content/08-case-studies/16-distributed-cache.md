@@ -2,6 +2,7 @@
 title: Design a Distributed Cache
 summary: Building Memcached/Redis from first principles — sharding, eviction, replication, and the hot key problem that consistent hashing cannot solve.
 difficulty: Medium
+scope: HLD
 tags: [case-study, cache, consistent-hashing, memory]
 prereqs: [caching, consistent-hashing, replication]
 ---

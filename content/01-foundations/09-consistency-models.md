@@ -2,6 +2,7 @@
 title: Consistency Models
 summary: The spectrum from linearizability to eventual consistency, the session guarantees that solve most real problems cheaply, and how to pick one without saying "strong" or "eventual."
 difficulty: Hard
+scope: Core
 tags: [consistency, linearizability, replication]
 prereqs: [cap-pacelc]
 ---

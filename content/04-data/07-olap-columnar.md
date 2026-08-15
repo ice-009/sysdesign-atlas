@@ -2,6 +2,7 @@
 title: OLTP vs OLAP & Columnar Storage
 summary: Why analytical queries need a different database, how column orientation changes everything, and the modern pipeline from operational data to insight.
 difficulty: Medium
+scope: HLD
 tags: [olap, columnar, analytics, warehouse]
 prereqs: [storage-engines, query-execution]
 ---

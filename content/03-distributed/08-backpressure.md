@@ -2,6 +2,7 @@
 title: Backpressure, Load Shedding & Circuit Breakers
 summary: How systems collapse under overload, why accepting every request is the wrong instinct, and the three mechanisms that keep degradation graceful.
 difficulty: Medium
+scope: HLD
 tags: [backpressure, load-shedding, circuit-breaker, resilience]
 prereqs: [queueing-theory, message-queues]
 ---

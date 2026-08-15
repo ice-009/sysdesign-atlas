@@ -2,6 +2,7 @@
 title: Embeddings
 summary: What a vector actually encodes, why cosine similarity is the metric, how dimensionality trades quality against cost, and the operational problem nobody plans for — re-embedding.
 difficulty: Medium
+scope: Core
 tags: [ai, embeddings, vectors, retrieval]
 prereqs: [transformer-as-a-system, indexing]
 unlocks: The representation underneath every retrieval, recommendation, and clustering system.

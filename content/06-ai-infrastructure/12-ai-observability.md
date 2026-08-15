@@ -2,6 +2,7 @@
 title: Observability for AI Systems
 summary: Token metrics, tracing across model calls, cost attribution, and the hard part — monitoring output quality when there is no ground truth and no exception to catch.
 difficulty: Medium
+scope: HLD
 tags: [ai, observability, monitoring, tracing]
 prereqs: [inference-engines, ai-cost-model]
 unlocks: Knowing your AI system is degrading before your users tell you.

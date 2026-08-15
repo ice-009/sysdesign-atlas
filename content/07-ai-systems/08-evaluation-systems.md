@@ -2,6 +2,7 @@
 title: Evaluation Systems
 summary: Golden sets, LLM-as-judge, statistical power, and CI gates — building the measurement infrastructure without which every AI change is a guess.
 difficulty: Hard
+scope: HLD
 tags: [ai, evaluation, testing, llm-judge]
 prereqs: [ai-observability, lakehouse-and-batch]
 unlocks: Knowing whether a change made your system better, rather than believing it did.

@@ -2,6 +2,7 @@
 title: Attention & the KV Cache
 summary: The cache that turns quadratic generation into linear, the memory it consumes, and why concurrency on a GPU is set by megabytes rather than by FLOPs.
 difficulty: Medium
+scope: Core
 tags: [ai, attention, kv-cache, memory]
 prereqs: [transformer-as-a-system, caching]
 unlocks: The central constraint of LLM serving — scheduling memory, not compute.

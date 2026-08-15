@@ -2,6 +2,7 @@
 title: The HLD Refresher
 summary: The whole high-level-design round compressed into one page — the 45-minute structure, the six numbers worth memorising, a decision table for every building block, and a worked ten-minute mini-design.
 difficulty: Medium
+scope: HLD
 tags: [hld, framework, revision, cheatsheet]
 prereqs: [hld-vs-lld, back-of-envelope]
 unlocks: Walking into an HLD round with the structure, the numbers, and the component tradeoffs in working memory.

@@ -2,6 +2,7 @@
 title: Common Mistakes
 summary: The failure patterns that sink otherwise-competent candidates, ranked by how often they actually cost the offer — with the specific fix for each.
 difficulty: Easy
+scope: Both
 tags: [mistakes, interview, pitfalls]
 ---
 

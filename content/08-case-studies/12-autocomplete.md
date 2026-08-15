@@ -2,6 +2,7 @@
 title: Design Search Autocomplete
 summary: Sub-50ms suggestions at every keystroke — tries, precomputation, and the realization that the read path must never compute anything.
 difficulty: Medium
+scope: HLD
 tags: [case-study, trie, cache, latency]
 prereqs: [search, caching, indexing]
 ---

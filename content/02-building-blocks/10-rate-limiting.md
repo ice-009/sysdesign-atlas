@@ -2,6 +2,7 @@
 title: Rate Limiting
 summary: The five algorithms with their exact tradeoffs, where to enforce limits, and how to make counters correct across a distributed fleet.
 difficulty: Medium
+scope: HLD
 tags: [rate-limit, throttling, protection]
 prereqs: [caching, queueing-theory]
 ---

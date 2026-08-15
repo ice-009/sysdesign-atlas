@@ -2,6 +2,7 @@
 title: Design a Payment System
 summary: Double-entry ledgers, idempotency where duplicates cost real money, the saga across external providers, and why reconciliation is not optional.
 difficulty: Hard
+scope: HLD
 tags: [case-study, ledger, idempotency, consistency]
 prereqs: [idempotency, distributed-transactions, transactions-isolation]
 ---

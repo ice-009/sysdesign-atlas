@@ -2,6 +2,7 @@
 title: Guardrails, Safety & Abuse
 summary: Prompt injection as a confused-deputy problem, output filtering, PII handling, and cost abuse — defence in depth for a component that cannot distinguish instructions from data.
 difficulty: Hard
+scope: HLD
 tags: [ai, security, prompt-injection, guardrails, abuse]
 prereqs: [rate-limiting, api-gateway, ai-cost-model]
 unlocks: Threat modelling an AI feature properly rather than adding a filter and hoping.

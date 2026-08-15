@@ -2,6 +2,7 @@
 title: Availability, SLAs & Redundancy Math
 summary: What the nines cost, why serial dependencies destroy availability, and how error budgets convert reliability from an argument into a number.
 difficulty: Medium
+scope: Core
 tags: [availability, reliability, sla]
 prereqs: [back-of-envelope, scalability-basics]
 ---

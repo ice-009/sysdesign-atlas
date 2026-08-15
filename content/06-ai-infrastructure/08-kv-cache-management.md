@@ -2,6 +2,7 @@
 title: KV Cache Management
 summary: Prefix caching as a radix tree, tiering across HBM/DRAM/NVMe, prefill-decode disaggregation, and cache-affinity routing — squeezing more concurrency out of the resource that actually binds.
 difficulty: Hard
+scope: HLD
 tags: [ai, kv-cache, caching, routing, serving]
 prereqs: [inference-engines, caching, consistent-hashing]
 unlocks: The highest-leverage optimisation available in a production LLM serving stack.

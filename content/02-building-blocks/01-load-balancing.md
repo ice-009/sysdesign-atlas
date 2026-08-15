@@ -2,6 +2,7 @@
 title: Load Balancing
 summary: L4 vs L7, the algorithms and when each actually matters, health checking, and why the load balancer itself isn't a single point of failure.
 difficulty: Easy
+scope: HLD
 tags: [load-balancer, traffic, L4, L7]
 prereqs: [scalability-basics, networking]
 ---

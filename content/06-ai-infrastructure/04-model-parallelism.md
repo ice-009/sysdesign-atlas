@@ -2,6 +2,7 @@
 title: Model Parallelism
 summary: Tensor, pipeline, and sequence parallelism — splitting a model that no single GPU can hold, and composing all of them into the 3D layout frontier runs actually use.
 difficulty: Hard
+scope: HLD
 tags: [ai, distributed-training, tensor-parallel, pipeline]
 prereqs: [data-parallelism, interconnect-and-collectives]
 unlocks: Designing the parallelism layout for a model too large for any single device.

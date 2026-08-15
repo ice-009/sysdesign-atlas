@@ -2,6 +2,7 @@
 title: Sharding & Partitioning
 summary: How to split data across machines, choosing a partition key, hot spots and celebrity problems, and why cross-shard queries and resharding are the costs you must name.
 difficulty: Hard
+scope: HLD
 tags: [sharding, partitioning, scale]
 prereqs: [replication, indexing]
 ---

@@ -2,6 +2,7 @@
 title: Design a Parking Lot
 summary: The canonical LLD question, worked end to end in the 45-minute structure — entities, allocation strategy, pricing strategy, the concurrency answer, and the four extensions interviewers actually ask for.
 difficulty: Medium
+scope: LLD
 tags: [lld-problem, strategy, entities, concurrency]
 prereqs: [lld-interview-method, concurrency-in-lld]
 unlocks: A rehearsed answer to the most-asked LLD problem, and a template that transfers to any bounded-resource system.

@@ -2,6 +2,7 @@
 title: Queueing Theory & Why Latency Explodes
 summary: Little's Law, the utilization curve, and the mathematical reason a system that is fine at 70% load falls apart at 85% — the most useful theory in systems engineering.
 difficulty: Medium
+scope: Core
 tags: [fundamentals, latency, queueing, capacity]
 prereqs: [latency-throughput]
 unlocks: Predicting where a system will fall over, and why adding capacity sometimes doesn't help.

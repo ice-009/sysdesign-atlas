@@ -2,6 +2,7 @@
 title: Design a Collaborative Editor (Google Docs)
 summary: Concurrent editing without conflicts — operational transformation versus CRDTs, cursor presence, and how documents are actually persisted.
 difficulty: Hard
+scope: HLD
 tags: [case-study, crdt, ot, realtime, collaboration]
 prereqs: [crdts, realtime, clocks]
 ---

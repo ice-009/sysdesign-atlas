@@ -2,6 +2,7 @@
 title: Interconnect & Collective Operations
 summary: NVLink, InfiniBand, and the all-reduce — why the network between GPUs determines how large a model you can train, and why bandwidth hierarchy dictates parallelism strategy.
 difficulty: Hard
+scope: HLD
 tags: [ai, networking, nccl, collectives, distributed-training]
 prereqs: [gpus, networking]
 unlocks: Choosing a parallelism strategy from the shape of the interconnect rather than by convention.

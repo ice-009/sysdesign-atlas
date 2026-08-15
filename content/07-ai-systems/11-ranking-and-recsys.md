@@ -2,6 +2,7 @@
 title: Ranking & Recommendation Systems
 summary: Candidate generation, ranking, and re-ranking — the funnel that picks 10 items out of 100 million in under 100 milliseconds, and why each stage uses a different model.
 difficulty: Hard
+scope: HLD
 tags: [ai, ranking, recsys, retrieval, two-tower]
 prereqs: [embeddings, ml-platform, vector-search]
 unlocks: The architecture behind every feed, search result page, and "recommended for you".

@@ -2,6 +2,7 @@
 title: The Patterns Worth Knowing
 summary: The ten design patterns that account for almost every LLD interview — each with the problem it solves, minimal code, and the interview prompt that should trigger it.
 difficulty: Medium
+scope: LLD
 tags: [patterns, oop, lld]
 prereqs: [solid]
 unlocks: Reaching for the right pattern by recognising the requirement that calls for it, instead of listing patterns from memory.

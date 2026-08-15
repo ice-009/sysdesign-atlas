@@ -2,6 +2,7 @@
 title: Pub/Sub & Event-Driven Architecture
 summary: Fanout messaging, event notification vs event-carried state vs event sourcing, and the coupling problems event-driven systems trade for the ones they solve.
 difficulty: Medium
+scope: HLD
 tags: [pubsub, events, architecture]
 prereqs: [message-queues]
 ---

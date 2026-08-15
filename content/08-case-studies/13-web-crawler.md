@@ -2,6 +2,7 @@
 title: Design a Web Crawler
 summary: Politeness, frontier management, and deduplication at a scale where "have I seen this URL?" is itself a hard systems problem.
 difficulty: Medium
+scope: HLD
 tags: [case-study, crawler, bloom-filter, queue]
 prereqs: [message-queues, bloom-filters, rate-limiting]
 ---

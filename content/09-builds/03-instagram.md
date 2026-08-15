@@ -2,6 +2,7 @@
 title: Build Instagram
 summary: Media pipeline plus a social graph. Where read:write asymmetry starts dictating architecture and the feed becomes the hard problem.
 difficulty: Medium
+scope: HLD
 level: 2
 prereqs: [object-storage, cdn, caching, sharding, news-feed]
 tags: [level-2, feed, media, social]

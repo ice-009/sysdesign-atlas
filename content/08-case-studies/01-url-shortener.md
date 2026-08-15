@@ -2,6 +2,7 @@
 title: Design a URL Shortener
 summary: The classic opener. Deceptively simple, and a precise test of whether you scope, estimate, and pick an ID strategy for stated reasons.
 difficulty: Easy
+scope: HLD
 tags: [case-study, ids, cache, read-heavy]
 prereqs: [back-of-envelope, caching, unique-id-generation]
 ---

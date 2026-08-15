@@ -2,6 +2,7 @@
 title: Transactions, Isolation & MVCC
 summary: What ACID actually guarantees, the anomalies each isolation level permits, how MVCC gives readers a consistent view without locks, and why write skew catches everyone.
 difficulty: Hard
+scope: Core
 tags: [acid, isolation, mvcc, transactions]
 prereqs: [consistency-models, storage-engines]
 ---

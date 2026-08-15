@@ -2,6 +2,7 @@
 title: Consensus — Raft & Paxos
 summary: How a group of unreliable machines agrees on one value, Raft explained well enough to whiteboard, and why you should almost never implement it yourself.
 difficulty: Hard
+scope: HLD
 tags: [raft, paxos, consensus, replication]
 prereqs: [replication, consistency-models, failure-modes]
 ---

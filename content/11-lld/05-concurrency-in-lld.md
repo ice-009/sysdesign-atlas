@@ -2,6 +2,7 @@
 title: Concurrency in LLD
 summary: The follow-up you will definitely get — what's shared, what guards it, and the four techniques (immutability, atomics, fine-grained locks, single-writer) that answer almost every version of the question.
 difficulty: Medium
+scope: LLD
 tags: [concurrency, threads, locking, lld]
 prereqs: [lld-interview-method, concurrency-and-the-os]
 unlocks: Answering "what if two threads do this at once?" with a specific mechanism and its cost.

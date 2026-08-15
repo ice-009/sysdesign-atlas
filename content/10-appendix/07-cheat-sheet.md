@@ -2,6 +2,7 @@
 title: The Cheat Sheet
 summary: Every number, comparison table, and decision heuristic worth having in working memory — the page to review the morning of the interview.
 difficulty: Easy
+scope: HLD
 tags: [reference, numbers, cheatsheet]
 ---
 

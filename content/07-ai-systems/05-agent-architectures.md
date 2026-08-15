@@ -2,6 +2,7 @@
 title: Agent Architectures
 summary: The tool-calling loop, why unbounded autonomy fails, and how to build agents as state machines with checkpoints rather than hopeful while-loops.
 difficulty: Hard
+scope: HLD
 tags: [ai, agents, tool-use, orchestration]
 prereqs: [decoding-strategies, idempotency]
 unlocks: Designing agents that finish, cost a bounded amount, and can be debugged.

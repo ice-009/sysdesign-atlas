@@ -2,6 +2,7 @@
 title: SQL vs NoSQL — Choosing a Datastore
 summary: A decision framework that goes beyond "relational vs document," the four NoSQL families and what each is genuinely for, and why the honest default is Postgres.
 difficulty: Medium
+scope: HLD
 tags: [database, nosql, sql, storage]
 prereqs: [consistency-models, cap-pacelc]
 ---

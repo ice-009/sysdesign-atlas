@@ -2,6 +2,7 @@
 title: The Night-Before Checklist
 summary: Rapid-fire recall for both rounds — the sequences, the trigger table, the answers to the six questions you're most likely to be asked, and what to do in the first and last two minutes.
 difficulty: Easy
+scope: Both
 tags: [revision, checklist, interview]
 prereqs: [hld-refresher, rate-limiter-classes]
 unlocks: A last pass that reinforces what you rehearsed instead of adding anything new.

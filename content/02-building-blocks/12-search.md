@@ -2,6 +2,7 @@
 title: Search & Inverted Indexes
 summary: How full-text search works internally, why your database can't do it, relevance ranking, and keeping the index in sync with the source of truth.
 difficulty: Medium
+scope: HLD
 tags: [search, elasticsearch, inverted-index]
 prereqs: [indexing]
 ---

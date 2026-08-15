@@ -2,6 +2,7 @@
 title: Design Splitwise
 summary: The money-modelling problem — expenses, split strategies that must sum exactly, the balance sheet, and simplifying debts with a greedy settlement algorithm.
 difficulty: Medium
+scope: LLD
 tags: [lld-problem, strategy, money, algorithms]
 prereqs: [parking-lot, oop-refresher]
 unlocks: Modelling money and shared state correctly, and handling the rounding question that trips most candidates.

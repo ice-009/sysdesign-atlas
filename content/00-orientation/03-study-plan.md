@@ -2,6 +2,7 @@
 title: Routes Through the Material
 summary: Four concrete paths — a full depth-first curriculum, an AI-infrastructure route, a "just make me competent at work" route, and a three-week interview sprint.
 difficulty: Easy
+scope: Core
 tags: [plan, schedule, orientation]
 unlocks: A specific next page to open, instead of a table of contents to stare at.
 ---

@@ -2,6 +2,7 @@
 title: Database Indexing
 summary: How B-tree indexes actually work, composite index ordering, covering indexes, and why the wrong index is often worse than none at all.
 difficulty: Medium
+scope: HLD
 tags: [index, database, query, b-tree]
 prereqs: [sql-vs-nosql, hardware-numbers]
 ---

@@ -2,6 +2,7 @@
 title: Structured Output & Tool Contracts
 summary: Getting reliable machine-readable output from a probabilistic system — schema design, constrained decoding, validation and repair, and idempotent tool execution.
 difficulty: Medium
+scope: HLD
 tags: [ai, structured-output, json-schema, tools]
 prereqs: [decoding-strategies, idempotency]
 unlocks: A deterministic interface between a probabilistic model and the rest of your system.

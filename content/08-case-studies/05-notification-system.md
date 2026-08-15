@@ -2,6 +2,7 @@
 title: Design a Notification System
 summary: Multi-channel delivery at scale — push, SMS, email — with third-party providers you don't control, deduplication, user preferences, and rate limits that protect users from you.
 difficulty: Medium
+scope: HLD
 tags: [case-study, queue, fanout, idempotency]
 prereqs: [message-queues, idempotency, pub-sub]
 ---

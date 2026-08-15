@@ -2,6 +2,7 @@
 title: WebSockets & Real-Time Delivery
 summary: Polling, long polling, SSE and WebSockets compared; how to scale millions of persistent connections and route a message to the right one.
 difficulty: Medium
+scope: HLD
 tags: [websocket, realtime, sse, push]
 prereqs: [networking, load-balancing]
 ---

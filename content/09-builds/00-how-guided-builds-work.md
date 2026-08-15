@@ -2,6 +2,7 @@
 title: How Guided Builds Work
 summary: The difficulty ladder, what a "build" contains, and how the readiness check tells you when a design will actually make sense to you.
 difficulty: Easy
+scope: HLD
 level: 1
 tags: [orientation, guide]
 unlocks: Knowing which build to start with and how to use the readiness checks.

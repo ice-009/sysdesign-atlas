@@ -2,6 +2,7 @@
 title: CAP, PACELC & the Real Tradeoff
 summary: Why "pick two of three" is wrong, what a partition actually forces you to choose, and the tradeoff that matters far more in practice — the one you make when nothing is broken.
 difficulty: Medium
+scope: Core
 tags: [cap, consistency, availability]
 prereqs: [scalability-basics, networking]
 ---

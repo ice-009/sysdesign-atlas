@@ -2,6 +2,7 @@
 title: Latency, Throughput & the Tail
 summary: The latency numbers worth memorizing, why p99 is the only percentile that matters, and how tail latency amplifies catastrophically as you add services.
 difficulty: Easy
+scope: Core
 tags: [latency, performance, p99]
 prereqs: [scalability-basics, hardware-numbers]
 ---

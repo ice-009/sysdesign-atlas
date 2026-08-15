@@ -2,6 +2,7 @@
 title: Training Data Pipelines
 summary: Crawl, dedup, filter, tokenize, shard, mix — the pipeline that determines model quality more than the architecture does, and the systems problems inside each stage.
 difficulty: Hard
+scope: HLD
 tags: [ai, data, dedup, pipeline, training]
 prereqs: [lakehouse-and-batch, tokenization, bloom-filters]
 unlocks: Building the data infrastructure that a training run actually depends on.

@@ -2,6 +2,7 @@
 title: Build a Fine-Tuning Platform
 summary: Multi-tenant training and serving of customer-specific models — dataset validation, LoRA job scheduling, and serving 500 adapters in the memory of one base model.
 difficulty: Hard
+scope: HLD
 level: 5
 prereqs: [fine-tuning, gpu-cluster-scheduling, model-deployment, evaluation-systems]
 tags: [level-5, ai, fine-tuning, lora, multi-tenant]

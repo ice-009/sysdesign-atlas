@@ -34,6 +34,7 @@ const DIR_TO_SLUG = {
   '09-builds': 'builds',
   '10-appendix': 'appendix',
   '11-lld': 'lld',
+  '12-hld-bridge': 'hld-bridge',
   // Legacy directory names still referenced from older prose.
   '00-start': 'orientation',
   '01-fundamentals': 'fundamentals',
@@ -55,7 +56,10 @@ const CALLOUT_KINDS = new Set([
 
 const VIZ_TYPES = new Set(['flow', 'stack', 'axes', 'ring', 'fanout', 'compare', 'steps']);
 
-const REQUIRED_FRONTMATTER = ['title', 'summary', 'difficulty', 'tags'];
+const REQUIRED_FRONTMATTER = ['title', 'summary', 'difficulty', 'scope', 'tags'];
+
+/* Kept in sync by hand with the Scope type in lib/content.ts. */
+const SCOPES = new Set(['HLD', 'LLD', 'Both', 'Core']);
 
 const errors = [];
 const warnings = [];
@@ -130,6 +134,10 @@ for (const t of topics) {
 
   if (t.data.difficulty && !['Easy', 'Medium', 'Hard'].includes(t.data.difficulty)) {
     errors.push(`${t.rel} — difficulty "${t.data.difficulty}" is not Easy | Medium | Hard`);
+  }
+
+  if (t.data.scope && !SCOPES.has(t.data.scope)) {
+    errors.push(`${t.rel} — scope "${t.data.scope}" is not ${[...SCOPES].join(' | ')}`);
   }
 
   const prereqs = Array.isArray(t.data.prereqs) ? t.data.prereqs : t.data.prereqs ? [t.data.prereqs] : [];

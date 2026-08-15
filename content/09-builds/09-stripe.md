@@ -2,6 +2,7 @@
 title: Build Stripe
 summary: The build where correctness beats availability, latency, and scale. Ledgers, idempotency where duplicates cost money, and reconciliation.
 difficulty: Hard
+scope: HLD
 level: 4
 prereqs: [payment-system, idempotency, transactions-isolation, distributed-transactions]
 tags: [level-4, money, ledger, correctness]

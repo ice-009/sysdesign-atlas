@@ -2,6 +2,7 @@
 title: The 45-Minute LLD Method
 summary: A minute-by-minute structure for an LLD round — requirements, entities, relationships, interfaces, method signatures, a walkthrough, and the extension question — plus what to do when you're stuck.
 difficulty: Medium
+scope: LLD
 tags: [framework, interview, lld, structure]
 prereqs: [design-patterns]
 unlocks: A repeatable sequence that gets you to a complete class design with time left for the follow-ups.

@@ -2,6 +2,7 @@
 title: Mixture of Experts
 summary: Decoupling parameter count from compute per token — how sparse routing works, why it complicates serving far more than dense models, and what expert parallelism costs.
 difficulty: Hard
+scope: Core
 tags: [ai, moe, sparsity, routing]
 prereqs: [transformer-as-a-system, inference-arithmetic]
 unlocks: Understanding why frontier models are sparse, and what that does to your serving infrastructure.

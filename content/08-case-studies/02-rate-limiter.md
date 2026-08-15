@@ -2,6 +2,7 @@
 title: Design a Distributed Rate Limiter
 summary: A deceptively deep question. The algorithm is the easy part; the interview lives in distributed counter accuracy, latency budget, and what happens when the store is down.
 difficulty: Medium
+scope: HLD
 tags: [case-study, rate-limit, redis, latency]
 prereqs: [rate-limiting, caching, distributed-locks]
 ---

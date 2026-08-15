@@ -152,6 +152,13 @@ export const IconLogout = ({ size = 20, className }: P) => (
   </svg>
 );
 
+export const IconLayers = ({ size = 20, className, strokeWidth }: P) => (
+  <svg {...base(size, className, strokeWidth)}>
+    <path d="m12 3 9 5-9 5-9-5 9-5Z" />
+    <path d="m3 13 9 5 9-5" />
+  </svg>
+);
+
 export const IconPause = ({ size = 20, className }: P) => (
   <svg {...base(size, className, 2)}>
     <path d="M9 5v14M15 5v14" />
@@ -218,6 +225,7 @@ const MAP = {
   network: IconNetwork,
   database: IconDatabase,
   blueprint: IconBlueprint,
+  layers: IconLayers,
   target: IconTarget,
   rocket: IconRocket,
   chip: IconChip,

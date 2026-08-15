@@ -2,6 +2,7 @@
 title: Bloom Filters & Probabilistic Structures
 summary: Trading exactness for orders of magnitude less memory — Bloom filters, HyperLogLog, count-min sketch, and when approximation is the correct engineering answer.
 difficulty: Medium
+scope: HLD
 tags: [bloom-filter, hyperloglog, sketch, memory]
 prereqs: [caching, hardware-numbers]
 ---

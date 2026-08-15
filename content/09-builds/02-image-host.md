@@ -2,6 +2,7 @@
 title: Build an Image Host
 summary: Where the write path starts doing real work — direct uploads, async processing, and derivative generation without blocking the user.
 difficulty: Easy
+scope: HLD
 level: 1
 prereqs: [object-storage, cdn, message-queues, back-of-envelope]
 tags: [level-1, media, async]

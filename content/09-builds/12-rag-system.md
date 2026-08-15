@@ -2,6 +2,7 @@
 title: Build a RAG System
 summary: Grounding a model in data it was never trained on — chunking, embeddings, vector search, and why retrieval quality decides everything.
 difficulty: Hard
+scope: HLD
 level: 5
 prereqs: [search, ai-chat-platform, cdc-outbox, caching, sharding]
 tags: [level-5, ai, retrieval, vector-search]

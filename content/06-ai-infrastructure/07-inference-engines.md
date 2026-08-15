@@ -2,6 +2,7 @@
 title: Inference Engines & Continuous Batching
 summary: The scheduler at the heart of every LLM server — why static batching wastes most of a GPU, how iteration-level scheduling fixes it, and the prefill/decode interference nobody warns you about.
 difficulty: Hard
+scope: HLD
 tags: [ai, inference, batching, scheduling, serving]
 prereqs: [attention-and-kv-cache, queueing-theory, backpressure]
 unlocks: Understanding and tuning the component that determines your serving cost.

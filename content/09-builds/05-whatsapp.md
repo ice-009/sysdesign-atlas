@@ -2,6 +2,7 @@
 title: Build WhatsApp
 summary: Stateful connections at scale, the message routing problem, and delivery guarantees where losing a message is unacceptable.
 difficulty: Hard
+scope: HLD
 level: 3
 prereqs: [realtime, chat-system, sharding, idempotency, consistent-hashing]
 tags: [level-3, realtime, messaging, stateful]

@@ -2,6 +2,7 @@
 title: Change Data Capture & the Outbox Pattern
 summary: How to reliably propagate database changes to search indexes, caches, and other services — without dual writes, and without losing events.
 difficulty: Medium
+scope: HLD
 tags: [cdc, outbox, events, consistency]
 prereqs: [transactions-isolation, message-queues, idempotency]
 ---

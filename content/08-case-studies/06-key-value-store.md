@@ -2,6 +2,7 @@
 title: Design a Distributed Key-Value Store
 summary: Building Dynamo from first principles — consistent hashing, quorums, vector clocks, anti-entropy, and the failure handling that makes it stay available.
 difficulty: Hard
+scope: HLD
 tags: [case-study, dynamo, quorum, consistent-hashing]
 prereqs: [consistent-hashing, quorums, replication]
 ---

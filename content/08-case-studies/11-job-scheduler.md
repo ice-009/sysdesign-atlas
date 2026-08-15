@@ -2,6 +2,7 @@
 title: Design a Distributed Job Scheduler
 summary: Running work at the right time, exactly once enough, across a fleet — with retries, dependencies, and the hard problem of not losing jobs when a worker dies.
 difficulty: Medium
+scope: HLD
 tags: [case-study, scheduling, queue, idempotency]
 prereqs: [message-queues, leader-election, idempotency]
 ---

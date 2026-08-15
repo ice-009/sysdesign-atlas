@@ -2,6 +2,7 @@
 title: About This Appendix
 summary: Why the interview material lives at the end, what's actually in it, and how to use it without letting it distort how you study everything else.
 difficulty: Easy
+scope: Both
 tags: [appendix, interview, orientation]
 unlocks: Using the interview material as a translation layer rather than a curriculum.
 ---

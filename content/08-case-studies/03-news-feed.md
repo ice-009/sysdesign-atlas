@@ -2,6 +2,7 @@
 title: Design a News Feed (Twitter / Facebook)
 summary: The definitive fanout question. Push vs pull, the celebrity problem, and why the correct answer is a hybrid with an explicit threshold.
 difficulty: Hard
+scope: HLD
 tags: [case-study, fanout, feed, cache]
 prereqs: [caching, sharding, message-queues]
 ---

@@ -2,6 +2,7 @@
 title: Replication
 summary: Leader-follower, multi-leader and leaderless topologies; sync vs async and the data-loss window; replication lag and the failover problems it creates.
 difficulty: Medium
+scope: HLD
 tags: [replication, availability, consistency]
 prereqs: [consistency-models, cap-pacelc]
 ---

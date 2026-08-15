@@ -2,6 +2,7 @@
 title: Scheduling a GPU Cluster
 summary: Gang scheduling, topology awareness, preemption, and quotas — why a Kubernetes scheduler that works fine for web services does badly at allocating accelerators.
 difficulty: Hard
+scope: HLD
 tags: [ai, scheduling, kubernetes, gpu, capacity]
 prereqs: [training-at-scale, queueing-theory]
 unlocks: Running a shared GPU fleet without either idle capacity or perpetually queued jobs.

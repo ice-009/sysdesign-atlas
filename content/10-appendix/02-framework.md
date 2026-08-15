@@ -2,6 +2,7 @@
 title: The Interview Framework
 summary: A minute-by-minute structure for 45 minutes that keeps you driving, covers what's scored, and never leaves you stranded at minute 30 with nothing deep to say.
 difficulty: Easy
+scope: HLD
 tags: [framework, interview, structure]
 ---
 

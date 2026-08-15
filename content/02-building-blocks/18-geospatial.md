@@ -2,6 +2,7 @@
 title: Geospatial Indexing
 summary: Why B-trees fail on two dimensions, and how geohash, quadtrees, S2 and H3 turn "find things near me" into a one-dimensional range query.
 difficulty: Medium
+scope: HLD
 tags: [geo, geohash, quadtree, proximity]
 prereqs: [indexing, sharding]
 ---

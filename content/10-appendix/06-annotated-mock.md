@@ -2,6 +2,7 @@
 title: An Annotated Mock Interview
 summary: A full 45-minute transcript for "design Instagram," with the interviewer's scoring notes exposed at each moment — including where the candidate nearly lost points.
 difficulty: Medium
+scope: HLD
 tags: [mock, transcript, practice]
 ---
 
