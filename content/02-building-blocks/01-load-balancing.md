@@ -14,17 +14,17 @@ A load balancer sits between clients and a pool of servers and distributes reque
 1. **Horizontal scale** — the pool can grow without clients knowing.
 2. **Availability** — unhealthy servers are removed from rotation automatically.
 3. **Zero-downtime deploys** — drain a server, update it, return it.
-4. **A control point** — TLS termination, rate limiting, routing, observability all live here.
+4. **A control point** — one place to handle HTTPS (**TLS termination**: the load balancer decrypts, so your servers deal in plain HTTP), cap abusive traffic, route requests, and watch what's happening.
 
 It is the first component in nearly every design, and it is routinely drawn without anyone examining what it actually does. The interesting parts are below.
 
 ## L4 vs L7
 
-The most important distinction, and a very common interview question.
+The most important distinction, and a very common interview question. The numbers come from the network layer model: layer 4 is where connections live, layer 7 is where the actual HTTP request lives.
 
-**Layer 4 (transport)** balances TCP/UDP connections. It sees IPs and ports, not content. It picks a backend when the connection opens and every packet in that connection goes to the same place.
+**Layer 4 (transport)** just forwards connections. It can see which machine and port the traffic is going to, but not what's inside it — it has no idea whether you asked for `/login` or `/checkout`. It picks a server when the connection opens, and everything on that connection goes to the same place.
 
-**Layer 7 (application)** terminates the connection, parses HTTP, and can route on path, header, cookie, or method. It opens its own connection to the backend.
+**Layer 7 (application)** opens the envelope. It terminates the connection, reads the HTTP request, and can route on the URL path, a header, or a cookie — then makes its own separate connection to the chosen server.
 
 | | L4 | L7 |
 |---|---|---|
@@ -46,17 +46,17 @@ With HTTP/1.1, many connections meant an L4 balancer spread load reasonably. Wit
 
 ## Algorithms
 
-These are easy to list; the useful part is knowing when the choice matters. The honest answer: **for homogeneous, stateless servers with uniform request costs, round robin is fine and the choice barely matters.** The algorithms earn their keep when those assumptions break.
+These are easy to list; the useful part is knowing when the choice matters. The honest answer: **if your servers are identical and every request costs about the same, round robin is fine and the choice barely matters.** The algorithms earn their keep when one of those two assumptions breaks.
 
 **Round robin** — rotate through servers. Simple, no state. Breaks when request costs vary widely (one request takes 5 ms, another takes 5 s) or servers are heterogeneous.
 
-**Weighted round robin** — proportional to declared capacity. Use when your fleet has mixed instance sizes, or to shift traffic gradually during a canary.
+**Weighted round robin** — the same, but bigger servers get proportionally more. Use it when your machines aren't all the same size, or to move traffic gradually onto a new version (a **canary** — a small slice of real traffic sent to the new build first, so a bad release hurts 1% of users instead of everyone).
 
 **Least connections** — send to the server with fewest active connections. Naturally adapts to varying request duration; a server stuck on slow requests stops receiving new ones. Good default for variable workloads.
 
 **Least response time** — least connections plus measured latency. Best at routing around a degraded ("gray failure") node, since a slow node is penalized automatically.
 
-**Random with two choices (P2C)** — pick two servers at random, send to the less loaded. Nearly as good as global least-connections while requiring no global state, which makes it ideal for distributed/client-side balancing. This is the quiet favorite in modern meshes.
+**Random with two choices (P2C)** — pick two servers at random and send to whichever is less busy. Surprisingly, that tiny amount of choice performs nearly as well as always picking the least busy server, without anyone needing to track the whole fleet. That makes it ideal when the balancing happens inside each client rather than in one central place.
 
 **Hashing (IP hash / consistent hash)** — deterministic mapping from a key to a server. Needed when you have per-server state: a cache tier, a stateful WebSocket session, or sharded in-memory data. Use [consistent hashing](consistent-hashing.html) so adding a server doesn't remap everything.
 
@@ -93,7 +93,7 @@ A single LB instance is a single point of failure. Layered answers, in increasin
 
 2. **DNS round robin to multiple LBs.** Publish several A records. Free horizontal scale, but DNS caching means failover is slow (clients honor TTLs, sometimes badly) — DNS is a poor failure-detection mechanism.
 
-3. **Anycast.** Advertise the *same* IP from many locations via BGP; the network routes each client to the topologically nearest one. Failure removal is a route withdrawal — fast, and it happens in the network rather than in DNS. This is how large CDNs and Google/Cloudflare-scale load balancing actually work.
+3. **Anycast.** Announce the *same* IP address from many locations at once, and let the internet's own routing send each user to the nearest one. Failure removal is a route withdrawal — fast, and it happens in the network rather than in DNS. This is how large CDNs and Google/Cloudflare-scale load balancing actually work.
 
 4. **ECMP + stateless L4 tier.** A router hashes flows across many identical L4 balancers, which forward to L7 balancers, which forward to servers. The L4 tier is stateless and horizontally scalable; losing one just rehashes its flows.
 

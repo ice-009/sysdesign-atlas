@@ -11,9 +11,9 @@ prereqs: [hardware-numbers, latency-throughput]
 
 Caching is the highest-leverage performance technique available, because of the numbers in the [latency ladder](../01-fundamentals/latency-throughput.html): memory is ~1,000× faster than SSD, and a local memory read is ~5,000× faster than a cross-region round trip.
 
-But the real win is usually **load reduction**, not latency. A 95% cache hit rate means your database sees 1/20th of the traffic — which is often the difference between one database and a sharded cluster. Whenever you propose a cache, quantify it: at a 95% hit rate the database handles 5,000 QPS instead of 100,000, which keeps you on a single primary."
+But the real win is usually **load reduction**, not latency. Your **hit rate** is the share of lookups the cache can answer by itself; a 95% hit rate means your database sees one twentieth of the traffic. That is often the difference between one database and a whole cluster. Whenever you propose a cache, quantify it: at a 95% hit rate the database handles 5,000 requests a second instead of 100,000, which keeps you on a single machine.
 
-Caching works because of two empirical regularities: **temporal locality** (recently accessed data is likely accessed again) and **skew** (a small fraction of items get most of the traffic — the classic 80/20, and on social platforms far more extreme).
+Caching works because of two things that are reliably true of real traffic: **temporal locality** (something just read is likely to be read again shortly) and **skew** (a small number of items get most of the requests — the classic 80/20, and on social platforms far more lopsided than that).
 
 ## The layers
 
@@ -88,7 +88,7 @@ Many high-traffic systems use a **two-tier** cache: a small local cache in front
 
 The four patterns. Know the tradeoffs precisely; this is a favorite follow-up.
 
-**Cache-aside (lazy loading)** — the default, and what to name first.
+**Cache-aside (lazy loading)** — the default, and what to name first. "Aside" because the cache sits beside the database rather than in front of it: your code checks the cache, and on a miss goes to the database itself and puts the answer in.
 
 ```diagram
   READ:   check cache → hit? return
@@ -146,7 +146,7 @@ A popular key expires. A thousand concurrent requests all miss simultaneously an
 
 **Fixes:**
 
-- **Request coalescing / single-flight** — only the first request per key goes to the origin; others wait for its result. In-process handles per-server; across the fleet you need a short-lived distributed lock (`SET key NX EX 5`) where the winner refills and losers serve stale or retry.
+- **Request coalescing / single-flight** — let only the first request per key go to the database; everyone else waits for that one answer. Within a single server this is straightforward; across a fleet you need a short-lived lock in the cache itself (`SET key NX EX 5` — set it only if absent, expiring in 5 seconds), where the winner refills and the losers either serve slightly stale data or wait and retry.
 - **Probabilistic early refresh** — as a key nears expiry, each request has a small, rising chance of proactively refreshing it. Refreshes spread out naturally; no lock needed. Elegant and cheap.
 - **TTL jitter** — never use a fixed TTL. `ttl = base + random(0, base × 0.1)` prevents keys written together from expiring together.
 - **Serve stale while revalidating** — return the expired value immediately and refresh in the background. Best user experience; requires tolerating brief staleness.
@@ -156,7 +156,7 @@ A popular key expires. A thousand concurrent requests all miss simultaneously an
 Requests for keys that **don't exist anywhere**. Every one misses the cache, hits the database, finds nothing, caches nothing — so the cache provides zero protection. Trivially weaponized: an attacker requests random nonexistent user IDs.
 
 **Fixes:**
-- **Cache the negative result** with a short TTL (30–60 s). Simple and effective.
+- **Cache the negative result** — store "this doesn't exist" for a short while (a **TTL**, or time to live, of 30–60 s is the expiry stamped on a cache entry). Simple and effective.
 - **[Bloom filter](bloom-filters.html)** of all existing keys in front of the cache. A negative answer is definitive, so you can reject without touching the database at all. Costs ~1.2 GB per billion keys at 1% false-positive rate.
 - **Input validation** — reject malformed IDs before any lookup.
 

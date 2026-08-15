@@ -11,7 +11,7 @@ prereqs: [caching, networking]
 
 Physics. A user in Mumbai fetching from a Virginia datacenter pays ~200 ms round trip *minimum*, before any server does work. TCP handshake plus TLS handshake plus the request is 3–4 round trips — nearly a second before the first byte, and no amount of server optimization touches it.
 
-A CDN is a network of caching servers ("points of presence" / PoPs) distributed globally. Content is served from the PoP nearest the user, turning a 200 ms trip into a 10 ms one.
+A **CDN** — content delivery network — is a fleet of caching servers scattered around the world, each one called a **point of presence** or PoP. Content is served from whichever PoP is nearest the user, turning a 200 ms trip into a 10 ms one. Your own servers, wherever they live, are the **origin**.
 
 Two benefits, and candidates usually name only the first:
 
@@ -22,9 +22,9 @@ Two benefits, and candidates usually name only the first:
 
 Two mechanisms, and knowing the difference is a good depth signal:
 
-**DNS-based.** `cdn.example.com` resolves differently depending on where the query comes from. Simple, works everywhere. Weaknesses: it sees the *resolver's* location, not the user's (someone on a public DNS resolver may be routed poorly — partially fixed by EDNS Client Subnet), and failover is bounded by TTL caching.
+**DNS-based.** When a browser looks up `cdn.example.com`, it gets a different answer depending on where the question came from. Simple, works everywhere. The weakness: it sees the location of the user's *DNS resolver*, not the user — someone using a public resolver can be pointed at the wrong continent — and switching away from a broken PoP is slowed by how long clients cache the old answer.
 
-**Anycast.** The same IP is advertised from every PoP via BGP; internet routing delivers packets to the topologically nearest one. Failover is a route withdrawal — fast, no DNS caching problem. Downside: route changes can move a client mid-connection, which matters for long-lived TCP.
+**Anycast.** The same IP address is announced from every PoP, and the internet's own routing carries each user's packets to the nearest one. Removing a failed PoP is just withdrawing that announcement — fast, with no DNS caching to wait out. Downside: route changes can move a client mid-connection, which matters for long-lived TCP.
 
 Most large CDNs use both — anycast for the entry point, DNS/application logic for finer control.
 
@@ -62,7 +62,7 @@ Cache fragmentation is the most common reason a CDN "isn't helping." One unneces
 
 The hard part, as always. Options in increasing order of preference:
 
-**1. TTL expiry.** Set `Cache-Control: max-age=3600` and accept up to an hour of staleness. Simple, requires no coordination.
+**1. TTL expiry.** Send a `Cache-Control: max-age=3600` header — an instruction to every cache along the way saying "this is good for 3,600 seconds" — and accept up to an hour of staleness. Simple, and nothing has to coordinate with anything.
 
 **2. Purge / invalidate.** Explicitly tell the CDN to drop an object. Propagation takes seconds to minutes across all PoPs, and purging is rate-limited by most providers, so it doesn't scale to high-frequency changes.
 
