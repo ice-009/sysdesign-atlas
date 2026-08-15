@@ -61,7 +61,9 @@ That ratio is why parameter-efficient methods exist, and why a 70B model that se
 
 ## LoRA
 
-The observation behind LoRA: the *update* a fine-tune applies to a weight matrix has low intrinsic rank. You don't need to represent an arbitrary change — you need to represent the kind of change fine-tuning actually produces.
+**LoRA** — low-rank adaptation — rests on one observation. Fine-tuning doesn't scatter arbitrary changes across a weight matrix; the adjustment it makes turns out to be describable by far fewer numbers than the matrix contains. So don't store the change as a full-size matrix. Store it as two thin ones whose product reconstructs it.
+
+The saving is enormous: two 4096×16 matrices hold 131,000 numbers where the full change would need 16.8 million.
 
 ```diagram
    Frozen weight W  (d × d, e.g. 4096 × 4096 = 16.8M params)
@@ -136,7 +138,7 @@ The alternative — **merging** the adapter into the base weights — gives zero
 
 ## Preference optimization
 
-Supervised fine-tuning teaches the model to imitate examples. It cannot teach *preference* — that response A is better than response B — because there's no mechanism to express relative quality.
+**Supervised fine-tuning** — showing the model correct examples and having it imitate them — can only express "this is right". It has no way to say "both of these are plausible, but this one is better", which is exactly the judgement that separates a helpful assistant from a merely accurate one. Teaching that requires comparisons rather than answers.
 
 ```viz
 {

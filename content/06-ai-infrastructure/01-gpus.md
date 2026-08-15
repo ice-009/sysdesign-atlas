@@ -23,15 +23,17 @@ A GPU is optimised for throughput across tens of thousands of threads. It gives 
      ~100-400 GB/s memory bandwidth    ~2-8 TB/s HBM bandwidth
      latency-optimised                 throughput-optimised
 
-   The GPU hides memory latency by having ~2,000 threads per SM
-   ready to run: when one warp stalls on memory, another issues
-   immediately. There is no cache to save you — there is only
-   more parallelism.
+   The GPU hides slow memory by keeping ~2,000 threads per unit
+   ready to go: the instant one group of threads stops to wait
+   for data, another runs. There is no big cache to save you —
+   there is only more parallelism.
 ```
 
 That last sentence is the design philosophy. A CPU avoids memory stalls with caches and prefetching. A GPU accepts them and covers them with concurrency.
 
 ## The memory hierarchy that matters
+
+Two abbreviations run through the rest of this page. An **SM** (streaming multiprocessor) is one of the ~100 independent processing units a GPU is built from — the rough equivalent of a CPU core, except each one runs thousands of threads. **HBM** (high-bandwidth memory) is the GPU's main memory, stacked physically next to the chip; it's where your model weights live, and it's the slowest tier that still counts as "on the GPU".
 
 ```viz
 {
@@ -53,7 +55,7 @@ This is exactly what FlashAttention does: rather than materialising the full `n 
 
 ## Tensor cores
 
-Standard GPU cores do scalar or short-vector FMA operations. Tensor cores do a small matrix multiply-accumulate as a single instruction.
+An ordinary GPU core multiplies and adds a few numbers at a time. A **tensor core** is dedicated hardware that multiplies two small *matrices* and adds a third, all as a single instruction — because that operation is essentially the only thing neural networks do, and doing it in one step rather than hundreds is where the order-of-magnitude speedup comes from.
 
 ```diagram
    CUDA core:    one fused multiply-add per cycle per lane
