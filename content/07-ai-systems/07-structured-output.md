@@ -43,7 +43,9 @@ The moment a model's output feeds a program rather than a human, you need a cont
 | **Constrained decoding** | **Absolute — invalid output is unrepresentable** | Small per-step masking cost |
 | Fine-tuning for format | High, not absolute | Training cost |
 
-**Constrained decoding is the right default** whenever the runtime supports it. From [decoding strategies](../05-ai-foundations/decoding-strategies.html): compile the schema into a state machine, and at each step mask the logits of every token that would make the output invalid. The model cannot emit a malformed token — not "rarely does", cannot.
+**Constrained decoding is the right default** whenever the runtime supports it, and the mechanism is worth understanding because it explains why the guarantee is absolute rather than statistical.
+
+Recall from [decoding strategies](../05-ai-foundations/decoding-strategies.html) that each step produces a score for every possible token, and one is then chosen. Constrained decoding works out which tokens would make the output invalid *given what has been generated so far*, and sets their scores to negative infinity before the choice happens. The malformed option isn't unlikely — it isn't on the menu.
 
 ```diagram
    Schema: { "status": "ok"|"error", "count": integer }

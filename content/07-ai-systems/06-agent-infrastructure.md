@@ -28,7 +28,7 @@ Every row is a platform requirement. An agent running inside a request handler w
 
 ## Durable execution
 
-The core requirement: **the trajectory survives process death.** Persist state before each step, so a crash resumes rather than restarts.
+A **trajectory** is one agent run — the whole sequence of steps it took from goal to result. The core requirement: **the trajectory survives process death.** Because steps have real effects in the world, restarting from the beginning isn't a neutral do-over; it sends the email again. So write down what you're about to do before doing it, and a crash can resume from where it stopped.
 
 ```diagram
    EPHEMERAL                        DURABLE

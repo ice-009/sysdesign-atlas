@@ -65,7 +65,7 @@ The principles that matter, in order of impact:
 |---|---|---|
 | **Chain** | Fixed sequence of steps | Known workflows. Not really an agent, and often the right answer |
 | **Router** | Classify, then dispatch to a specialised handler | Multi-intent products |
-| **ReAct** | Reason → act → observe, repeated | General tool use; the common default |
+| **ReAct** | *Reason* about what to do, *act* by calling a tool, observe the result, repeat | General tool use; the common default |
 | **Plan-and-execute** | Produce a full plan, then execute steps | Complex tasks; plan is inspectable before running |
 | **Reflection** | Generate, critique, revise | Quality-critical output; costs 2–3× |
 | **Multi-agent** | Specialised agents with a coordinator | Genuinely separable subtasks |
@@ -112,7 +112,7 @@ The honest heuristic: **if you can write the workflow down, write it down.** Use
 
 ## Termination
 
-The loop must end. Every one of these needs an explicit limit:
+Nothing in the loop guarantees it stops. The model decides each step, and a model that has misunderstood the task will keep confidently taking steps forever, billing you for every one. Termination has to be imposed from outside, and each of these limits catches a different way of getting stuck:
 
 ```diagram
    · max iterations           (typically 10-50)
