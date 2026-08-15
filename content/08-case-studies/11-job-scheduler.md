@@ -133,11 +133,13 @@ WHERE run_id=:r AND status='pending';
 -- 0 rows affected → someone else claimed it. Move on.
 ```
 
-The database's atomicity provides mutual exclusion. **No distributed lock required** — and explicitly rejecting a Redis lock here (per [Distributed Locks](../02-building-blocks/distributed-locks.html)) is a good move: a lock can't guarantee exclusion under a GC pause, whereas a conditional update is naturally fenced.
+The database does the excluding for you, because that single statement can't be interleaved with another. **No separate lock service required** — and saying why you're *not* reaching for a Redis lock here is a good move: a lock can silently expire while its holder is paused, whereas a conditional update simply fails for the loser. See [Distributed Locks](../02-building-blocks/distributed-locks.html).
 
 **Problem 2: a worker claims a job and dies.**
 
 This is the one that is easiest to miss. The job sits in `running` forever.
+
+A **lease** is a claim with an expiry date. Rather than "this job is mine", a worker says "this job is mine for the next 60 seconds" and has to keep renewing that. A worker that dies stops renewing, and the claim lapses on its own — no one has to detect the death.
 
 ```diagram
    LEASES solve it:

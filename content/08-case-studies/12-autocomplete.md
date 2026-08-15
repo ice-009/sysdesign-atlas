@@ -65,7 +65,9 @@ Everything expensive happens offline. The read path does a hash lookup and retur
 
 ### Trie with precomputed top-k
 
-A plain trie finds a prefix in O(len) but then requires traversing the whole subtree to find the most popular completions — potentially millions of nodes. Unacceptable.
+A **trie** (rhymes with "sky") is a tree where each step down spells out one more character, so everything under the node `ca` is a word starting with "ca". Finding a prefix therefore costs one step per letter typed, regardless of how many words you're storing.
+
+That's the easy half. The hard half: having found the `ca` node, the *most popular* completions could be anywhere beneath it, and searching that whole subtree could mean visiting millions of nodes on every keystroke. Unacceptable.
 
 **Store the answer at each node:**
 

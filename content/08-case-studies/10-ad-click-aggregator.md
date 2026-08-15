@@ -109,10 +109,10 @@ This is the central design decision, and the reasoning matters more than the dia
 :::goat The framing that scores
 "I'd serve the dashboard from a streaming aggregation with about a minute of latency, and compute billing numbers from a batch recomputation over the raw event log. They'll disagree slightly, and that's fine as long as it's *stated* — the dashboard says 'preliminary', and the batch numbers are authoritative. What I won't do is bill from the streaming path, because at-least-once processing means I can't guarantee I haven't counted a click twice, and that's the one error this system can't afford."
 
-This is [lambda architecture](../04-data/olap-columnar.html), and naming its cost — maintaining the same logic in two places — shows you know the tradeoff rather than just the pattern.
+Running a fast approximate path alongside a slow exact one over the same data has a name — **lambda architecture** — and naming its cost shows you know the tradeoff rather than just the pattern: the same counting logic now exists in two codebases, and they can drift apart.
 :::
 
-The modern alternative worth mentioning: **kappa architecture**, where you keep one streaming path and reprocess from the retained Kafka log when logic changes. Simpler to maintain, and viable here because Kafka already holds 7 days of raw events. The catch is that exact deduplication still requires stateful processing over a long window.
+The modern alternative worth mentioning: **kappa architecture** — keep only the streaming path, and when the logic changes, replay the retained event log through the new version rather than maintaining a separate batch implementation. Simpler to maintain, and viable here because Kafka already holds 7 days of raw events. The catch is that exact deduplication still requires stateful processing over a long window.
 
 ## 5. Deep dive — exactly-once and deduplication
 
