@@ -9,7 +9,9 @@ prereqs: [sql-vs-nosql, hardware-numbers]
 
 ## The core idea
 
-Without an index, finding rows matching a predicate means reading every row — a **full table scan**, O(n). With an index, the database consults a sorted structure and jumps straight to the matching rows — O(log n).
+Without an index, finding the rows that match a condition means reading every single row and checking each one — a **full table scan**. With an index, the database consults a sorted structure on the side and jumps straight to the matching rows. It's the difference between reading a book cover to cover and using its index.
+
+In cost terms: a scan is O(n) — work grows in step with the number of rows — while an indexed lookup is O(log n), which barely grows at all.
 
 At 100 million rows that's the difference between reading 100 million entries and reading about 27. This is why "add an index" is frequently a 1000× improvement for a few minutes of work, and why it's the *first* thing to try before any architectural change.
 
@@ -30,7 +32,7 @@ Nearly every relational index is a B+ tree. The properties that matter:
 
 - **All values live in leaves**; internal nodes only route. This keeps internal nodes small so more of them fit in memory.
 - **Leaves are linked**, which makes range scans fast: find the start, then walk sideways. This is why B+ trees serve `WHERE created_at BETWEEN ...` and `ORDER BY` so well.
-- **High fan-out.** With ~100–500 keys per node, a tree of depth 4 addresses billions of rows. That's ~4 disk reads worst case, and the top levels are almost always cached.
+- **High fan-out** — each node points at hundreds of children rather than two, so the tree is wide and shallow. With ~100–500 keys per node, four levels addresses billions of rows. That's ~4 disk reads worst case, and the top levels are almost always cached.
 - **Self-balancing** — depth stays uniform as data changes, so performance is predictable.
 
 **Consequence to remember:** because B-trees are sorted, they support equality, ranges, prefix matching, and ordering. Hash indexes support equality only — faster for exact lookups, useless for anything else, which is why they're rarely the default.
@@ -39,7 +41,7 @@ Nearly every relational index is a B+ tree. The properties that matter:
 
 **Clustered index** — the table *is* the index; rows are physically stored in the index's order. There can be only one. In InnoDB this is the primary key; in Postgres, the heap is separate and there's no true clustered index.
 
-**Secondary index** — a separate structure mapping the indexed column to a row locator.
+**Secondary index** — a separate structure that maps the indexed column to a pointer telling you where the actual row lives. Following that pointer is a second lookup, sometimes called a *bookmark lookup*.
 
 The performance consequence in InnoDB-style engines:
 
@@ -102,7 +104,7 @@ Postgres's `INCLUDE` (and SQL Server's equivalent) stores extra columns in the l
 
 Volunteering these is a good signal because it shows you understand the planner, not just the syntax:
 
-- **Low selectivity.** An index on a boolean where 50% of rows match is worse than a scan — the database would do a random read per row, and random I/O is far slower than sequential. Planners know this and will correctly ignore your index.
+- **Low selectivity** — meaning the condition doesn't narrow things down much. An index on a true/false column where half the rows match is worse than a scan: the database would do one scattered read per matching row, and scattered reads are far slower than reading straight through. Planners know this and will correctly ignore your index.
 - **Functions on the column.** `WHERE LOWER(email) = 'x'` can't use an index on `email`. Fix with an *expression index* on `LOWER(email)`.
 - **Leading wildcards.** `LIKE '%foo'` can't use a B-tree (nothing to seek to). Needs a trigram index or a [search engine](search.html).
 - **Type mismatches** that force implicit casts.

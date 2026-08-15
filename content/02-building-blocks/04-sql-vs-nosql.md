@@ -25,9 +25,9 @@ Postgres, MySQL, and friends. Data in tables with a fixed schema, related by key
 
 **What you actually get, and why it's more than people credit:**
 
-- **ACID transactions across multiple rows and tables.** The killer feature. Moving money between accounts, decrementing inventory while creating an order — these are atomic, and getting that yourself in an eventually-consistent store is genuinely hard.
-- **A query planner.** You describe *what* you want; the database figures out *how*. New query patterns often need no schema change — just an index.
-- **Joins.** Data stays normalized: one fact in one place, so updates can't leave you inconsistent.
+- **ACID transactions across multiple rows and tables.** The killer feature. ACID is four promises about a group of changes: they all happen or none do (**atomic**), they leave the data obeying its rules (**consistent**), they don't see each other half-finished (**isolated**), and once confirmed they survive a crash (**durable**). Moving money between accounts, or reducing stock while creating an order, needs exactly that — and rebuilding it yourself on a store that doesn't offer it is genuinely hard.
+- **A query planner.** You describe *what* you want; the database works out *how* to get it — which index to use, which table to read first. A new kind of question usually needs no redesign, just an index.
+- **Joins** — combining rows from two tables in one query. This is what lets data stay **normalised**: each fact stored in exactly one place, so an update can't leave two copies disagreeing.
 - **Constraints as guarantees** — foreign keys, uniqueness, checks. Correctness enforced by the database rather than hoped for in every application that touches it.
 - **Decades of operational tooling**, and engineers who already know it.
 
@@ -48,9 +48,9 @@ Note also that "SQL doesn't scale" is increasingly outdated: **NewSQL** systems 
 ### Key-value stores
 *Redis, DynamoDB, Memcached, Riak*
 
-A distributed hash map. `get(key)`, `put(key, value)`. The value is opaque.
+A dictionary spread across many machines. `get(key)`, `put(key, value)`. The value is **opaque** — the store treats it as a blob of bytes and can't look inside it, so you can't ask "find me all values where status is active".
 
-**Strengths:** the simplest possible data model, so it partitions perfectly — throughput scales linearly with nodes. Single-digit-millisecond latency at essentially any scale.
+**Strengths:** the simplest possible data model, which means it splits across machines perfectly — double the nodes, double the throughput. Single-digit-millisecond latency at essentially any scale.
 
 **Limits:** you can only fetch by key. No querying by value, no joins, no range scans (unless the store adds sort keys, as DynamoDB does).
 
@@ -72,11 +72,11 @@ Self-describing documents (JSON-ish) in collections. Queryable *inside* the docu
 ### Wide-column stores
 *Cassandra, ScyllaDB, HBase, Bigtable*
 
-Rows keyed by a **partition key** (which node) plus a **clustering key** (sort order within the partition). Think of it as a distributed, sorted, sparse map.
+Every row is addressed by two things: a **partition key**, which decides *which machine* holds it, and a **clustering key**, which decides *what order* rows sit in on that machine. So "all messages in chat 42, newest first" is one partition read in sorted order — which is exactly why these stores are so fast at that shape of question.
 
 **Strengths:** exceptional write throughput ([LSM-based](../04-data/storage-engines.html), so writes are sequential appends), linear scale, no single point of failure (peer-to-peer, no leader), tunable consistency, and outstanding performance for time-ordered range scans within a partition.
 
-**Limits:** **you must know your queries before you design the schema.** There is no query planner and joins don't exist. Ad-hoc queries are impossible; a new access pattern means a new table populated by a new write path. Deletes are tombstones and can hurt.
+**Limits:** **you must know your queries before you design the tables.** Nothing works out a query plan for you, and joins don't exist. A question you didn't design for means a new table, filled by a new write path. Deleting doesn't remove data either — it writes a **tombstone**, a marker saying "this is gone", which is itself data you now have to read past until it's cleaned up.
 
 **Use for:** time series, event logs, message history, IoT telemetry, feeds — anything write-heavy, append-mostly, and queried by a known key with a time range.
 

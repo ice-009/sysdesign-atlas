@@ -47,9 +47,9 @@ Worth knowing, since it drives real behavior:
 
 ## Synchronous vs asynchronous
 
-The most important tradeoff in replication, and a guaranteed follow-up question.
+The most important tradeoff in replication, and a guaranteed follow-up question. It comes down to one thing: **when the leader tells the user "saved", how many copies actually have it?**
 
-**Asynchronous** — leader commits and responds immediately; replication happens in the background.
+**Asynchronous** — the leader saves and replies straight away; copying to the followers happens afterwards, in the background.
 
 - Fast writes; leader unaffected by slow/dead replicas.
 - **If the leader dies, unreplicated writes are lost.** Acknowledged to the user, then gone.
@@ -70,7 +70,7 @@ The most important tradeoff in replication, and a guaranteed follow-up question.
 You get "at least two copies exist" durability without depending on all replicas being healthy. If the sync replica dies, most systems fail over the sync role to another rather than blocking.
 
 :::interview Frame it as RPO
-"Async replication means an RPO of a few seconds — if the leader dies we lose whatever hadn't shipped. For session data that's fine. For payments it isn't, so I'd use semi-sync: acknowledge only after one replica has the write. That costs about a millisecond of write latency in-AZ, and it's the difference between losing transactions and not." Connecting the mechanism to [RPO](../01-fundamentals/availability-slas.html) is the senior framing.
+"Async replication means an RPO — recovery point objective, the amount of recent data you accept losing in a disaster — of a few seconds: if the leader dies we lose whatever hadn't shipped yet. For session data that's fine. For payments it isn't, so I'd use semi-sync: acknowledge only after one replica has the write. That costs about a millisecond of write latency in-AZ, and it's the difference between losing transactions and not." Connecting the mechanism to [RPO](../01-fundamentals/availability-slas.html) is the senior framing.
 :::
 
 ## Replication lag and its symptoms
@@ -96,7 +96,7 @@ When the leader dies: detect failure, choose a new leader, redirect writes. Ever
 
 **Split brain.** The old leader isn't dead, just partitioned. It keeps accepting writes while the new leader does too. Now two divergent histories exist and *someone's writes must be thrown away*.
 
-*Mitigations:* fencing tokens (a monotonically increasing epoch — storage rejects writes from an older epoch); STONITH (forcibly power off the old leader); and quorum-based election so a minority-side leader can't be elected in the first place. Naming **fencing tokens** specifically is a strong depth signal — see [Distributed Locks](distributed-locks.html).
+*Mitigations:* **fencing tokens** — every new leader gets a number one higher than the last, and storage refuses writes stamped with an older number, so a deposed leader that wakes up mid-write is rejected; **STONITH** ("shoot the other node in the head" — forcibly power off the old leader); and requiring a majority to elect a leader, so the smaller side of a split can't crown one at all. Naming **fencing tokens** specifically is a strong depth signal — see [Distributed Locks](distributed-locks.html).
 
 **Lost writes.** With async replication, a promoted follower is missing the leader's most recent writes. Those writes are gone, but they may have already been consumed elsewhere — if an order ID was returned to the user and cached downstream, discarding it creates inconsistency across systems.
 
