@@ -68,6 +68,8 @@ Assume **100M new URLs/day**, read:write of **100:1**, 5-year retention.
 ```
 
 :::goat 301 vs 302 — a real tradeoff
+A redirect is an HTTP response that says "what you want is over there". Which *kind* you send matters more than it looks.
+
 **301 Permanent**: browsers cache it, so subsequent visits never reach your servers. Great for load (potentially removing most of your traffic), terrible if you need analytics or ever want to change the target — and the cached redirect is effectively unrevocable.
 
 **302 Found**: every visit hits you. Costs traffic, preserves analytics and control.
@@ -94,15 +96,17 @@ Shard on `short_code` by hash. It's high-cardinality, uniformly distributed by c
 
 Four approaches. **Compare them; don't just pick one.**
 
-**A. Hash and truncate.** MD5/SHA the URL, base62-encode, take 7 characters.
-*Problem:* the birthday bound means collisions appear far earlier than the keyspace suggests. You need a read-before-write on every insert, and a retry loop. Also makes identical URLs collide deliberately, which may or may not be wanted.
+First, the encoding everything below uses: **base62** just means writing a number using all ten digits plus both cases of the alphabet — 62 symbols instead of 10 — so a big number becomes a short string like `bQ7kx2M`.
+
+**A. Hash and truncate.** Run the URL through a hash function, encode the result in base62, keep 7 characters.
+*Problem:* two different URLs producing the same short code (a **collision**) becomes likely far sooner than the size of the keyspace suggests — the same counter-intuitive maths as the birthday paradox, where 23 people already give even odds of a shared birthday. You need a read-before-write on every insert, and a retry loop. Also makes identical URLs collide deliberately, which may or may not be wanted.
 
 **B. Counter + base62.** A global counter, base62-encoded.
 *Problems:* sequential codes are enumerable (anyone can walk `aaaaaab`, `aaaaaac` and read every link ever created — a genuine privacy leak), and a single counter is a coordination bottleneck.
 
 **C. Counter with range allocation (recommended).** A coordination service hands out **blocks** (e.g. "you own 1,000,000–1,999,999"). Each application server allocates locally with zero coordination and requests a new block when low.
 
-Then fix the enumerability: don't encode the counter directly. **Encrypt it** with a format-preserving cipher (a small Feistel network over the 42-bit space) before base62 encoding. The mapping stays a bijection — so collisions are structurally impossible, no read-before-write needed — but the output is unpredictable.
+Then fix the guessability: don't turn the counter straight into a code. **Scramble it first** with a cipher that maps each number in the range to exactly one other number in the same range. Because that mapping is one-to-one, two counters can never produce the same code — collisions are impossible by construction, with no check needed before writing — yet consecutive counters produce codes that look nothing alike.
 
 ```diagram
    counter 1,000,001 ──► FPE(key, n) ──► 2,847,193,554 ──► "bQ7kx2M"

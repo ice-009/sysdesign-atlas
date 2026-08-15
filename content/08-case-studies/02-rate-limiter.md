@@ -100,7 +100,7 @@ This is the heart of the question.
 
 With 50 gateway instances, `GET` then `SET` is a race — two instances read 99, both allow, both write 100. The check-and-decrement must be **atomic**.
 
-Redis is single-threaded per shard, so a Lua script executes atomically:
+Redis handles one command at a time per shard, and it will run a whole script as if it were a single command — nothing else gets in between. So the read, the arithmetic and the write below happen as one indivisible step:
 
 ```diagram
    -- KEYS[1]=bucket  ARGV: now, rate, capacity, requested

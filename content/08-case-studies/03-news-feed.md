@@ -63,6 +63,8 @@ Use **cursor pagination**, not offset. Offset pagination on a feed that's consta
 
 ## 4. The core decision: fanout
 
+**Fanout** is what happens to one post on its way to many timelines. The only real question in this design is *when* that work happens: at the moment someone posts, or at the moment someone opens the app. Everything else follows from that choice.
+
 ### Fanout on write (push)
 
 When a user posts, immediately write the post ID into every follower's precomputed feed list.
