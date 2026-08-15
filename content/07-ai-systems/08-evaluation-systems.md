@@ -47,7 +47,7 @@ Every one of those is a routine question, and every one is unanswerable by inspe
 
 ## Golden sets
 
-A fixed collection of inputs with known-good outputs — the backbone of offline evaluation.
+A **golden set** is a fixed collection of inputs paired with known-good outputs — the AI equivalent of a test suite, and the backbone of **offline** evaluation, meaning evaluation you run before shipping rather than on live traffic.
 
 **Where the cases come from**, in rough order of value:
 

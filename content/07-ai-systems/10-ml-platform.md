@@ -16,7 +16,7 @@ They also have an infrastructure problem language models don't: **the input is c
 
 ## Training/serving skew
 
-The defining failure mode of classical ML systems.
+A **feature** is one input the model reasons about — "average order value over the last 30 days", say. **Skew** is what happens when that number is computed one way during training and a subtly different way in production: the model was taught on figures it never actually receives. It is the defining failure mode of classical ML systems, and it fails silently, because both pipelines are working exactly as written.
 
 ```diagram
    TRAINING                          SERVING
@@ -114,8 +114,9 @@ Models degrade because the world moves, and nothing errors when they do.
    DATA DRIFT        the input distribution changes
                      new customer segment, a new product line,
                      an upstream schema change
-                     → detect: KS test or PSI on each feature,
-                       serving vs training distribution
+                     → detect: compare the spread of each feature
+                       in production against training, and alert
+                       when the shapes diverge
 
    CONCEPT DRIFT     the relationship between input and label
                      changes — fraud patterns adapt, user

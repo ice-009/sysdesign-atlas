@@ -27,6 +27,8 @@ Everything below is mitigation, not solution. Design accordingly.
 
 ## Prompt injection
 
+**Prompt injection** is text that the model reads as an instruction when you intended it as data. It's the direct consequence of the structural problem above, and it comes in two flavours with very different severity.
+
 ```diagram
    DIRECT — the user attacks their own session
 
@@ -71,9 +73,9 @@ Concretely, this means the tools carry the authorisation, not the prompt:
 - **Authorisation on the user's identity, not the agent's.** Every tool call checks what *this user* may do, enforced server-side. The model's opinion about permission is irrelevant.
 - **Human approval for irreversible or externally-visible actions.**
 - **Egress allowlists.** An agent that cannot reach `evil.com` cannot exfiltrate to it, whatever it's persuaded to do.
-- **Taint tracking.** If untrusted content entered the context, restrict the available tools for the remainder of that trajectory.
+- **Taint tracking.** Mark the run as contaminated the moment untrusted content enters the context, and withdraw the dangerous tools for the rest of it.
 
-That last one is underused and effective: once an agent has read a web page, it moves to a reduced privilege set. It's the same idea as taint tracking in a language runtime.
+That last one is underused and effective: once an agent has read a web page, it can no longer send email, full stop. Nothing has to detect an attack — the capability simply isn't there any more once the risk exists.
 :::
 
 ## The defence layers
