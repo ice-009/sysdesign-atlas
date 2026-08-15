@@ -9,7 +9,9 @@ prereqs: [back-of-envelope, scalability-basics]
 
 ## The nines, in minutes
 
-Availability is uptime over total time. The table is worth internalising because these targets are the shorthand everyone uses for a design constraint.
+**Availability** is the fraction of time your system is actually working: uptime divided by total time. People quote it as a number of nines — "three nines" means 99.9% — and that shorthand is how availability targets get written into contracts and design docs.
+
+The table below is worth internalising, because the interesting column is not the percentage but the downtime it buys you.
 
 | Availability | Downtime/year | Downtime/month | Downtime/week |
 |---|---|---|---|
@@ -19,7 +21,7 @@ Availability is uptime over total time. The table is worth internalising because
 | 99.99% ("four nines") | 52.6 min | 4.4 min | 1.01 min |
 | 99.999% ("five nines") | 5.26 min | 26 s | 6 s |
 
-The key insight: **each nine costs roughly 10× more than the last.** Going from 99% to 99.9% might mean adding a replica and health checks. Going from 99.99% to 99.999% means multi-region active-active, automated failover measured in seconds, no manual steps in any recovery path, and an organization that can deploy without downtime. That's a different company, not a different architecture.
+The key insight: **each nine costs roughly 10× more than the last.** Going from 99% to 99.9% might mean adding a replica and health checks. Going from 99.99% to 99.999% means running in several regions at once with all of them live (**active-active**), switching away from a broken one automatically within seconds (**failover**), no human step anywhere in recovery, and an organisation that can ship changes without taking anything offline. That's a different company, not a different architecture.
 
 :::interview Push back on unrealistic targets
 When a requirement says "it should be highly available," push it into numbers and ask *what the availability is worth*. "Do we need four nines? That implies under five minutes of downtime a month, which rules out any manual failover step and means multi-AZ minimum. Three nines gives us 43 minutes and is dramatically cheaper. Which is right for this product?" Turning a vague adjective into a costed decision is exactly the senior behavior being tested.
@@ -42,7 +44,7 @@ Every component was "highly available." The system is not. **Adding a dependency
 
 Two consequences that make good interview material:
 
-1. **Microservices have an availability tax.** A request touching 10 services each at 99.9% yields 0.999¹⁰ = 99.0% — 3.65 days of downtime a year. This is why mature microservice architectures invest so heavily in fallbacks, caching, and circuit breakers: they're buying back availability that decomposition spent.
+1. **Microservices have an availability tax.** A request touching 10 services each at 99.9% yields 0.999¹⁰ = 99.0% — 3.65 days of downtime a year. This is why mature microservice architectures invest so heavily in fallbacks, caching, and circuit breakers (a switch that stops calling a failing service for a while, instead of piling on requests that will time out anyway): they're buying back the availability that splitting things up spent.
 2. **Make dependencies optional.** If the recommendation service being down means "show popular items instead" rather than "return 500," it's no longer in your serial chain. Converting hard dependencies into soft ones is often the cheapest availability improvement available.
 
 ## Redundancy adds nines

@@ -37,7 +37,7 @@ The classic list of assumptions that are false in distributed systems, and each 
 
 Binary failure is easy: a node dies, health checks fail, traffic reroutes, done.
 
-**Gray failure** is when a node is *technically alive but functionally broken*. It answers health checks with 200 OK while serving requests at 40× normal latency, or returning empty results, or accepting writes and silently dropping them. Disk is failing but not failed. GC pauses last eight seconds. A downstream dependency it needs is down but its own `/health` doesn't check that.
+**Gray failure** is when a node is *technically alive but functionally broken*. It answers health checks with 200 OK while serving real requests at 40× normal latency, or returning empty results, or accepting writes and silently dropping them. The disk is failing but hasn't failed. The runtime's garbage collector — the pause where it reclaims unused memory — is freezing the process for eight seconds at a time. A downstream dependency it needs is down but its own `/health` doesn't check that.
 
 This is worse than a crash because **the system's failure detection actively works against you**: the node is kept in rotation, receives its full share of traffic, and poisons a fraction of every user's requests.
 
@@ -90,7 +90,7 @@ Naive retry: a service returns errors, 10,000 clients retry immediately, offered
 
 Three things make retries safe:
 
-**1. Exponential backoff with jitter.** Without jitter, clients that failed together retry together — synchronized waves of load hitting an already-struggling service. Full jitter is the standard fix:
+**1. Exponential backoff with jitter.** *Backoff* means waiting longer before each successive retry — 1 second, then 2, then 4. *Jitter* means adding a random amount to that wait. Without jitter, clients that failed at the same moment retry at the same moment, in synchronised waves that hit an already-struggling service together. Full jitter is the standard fix:
 
 ```diagram
   no jitter:    delay = base × 2^attempt
@@ -129,7 +129,7 @@ Without deadline propagation, backends routinely complete expensive work for cal
 
 ## Failure detection is a guess
 
-You can never *know* a remote node has failed; you can only observe that it hasn't responded. Timeout too short → you declare healthy nodes dead, causing spurious failovers and possible split brain. Timeout too long → real failures go undetected and users suffer.
+You can never *know* a remote node has failed; you can only observe that it hasn't responded. Timeout too short → you declare healthy nodes dead, causing needless failovers and possibly **split brain**, where two halves of a cluster each decide they're in charge and both accept writes. Timeout too long → real failures go undetected and users suffer.
 
 There's no correct answer, only a tradeoff. Adaptive detectors (phi accrual, used by Cassandra and Akka) improve on fixed thresholds by outputting a *suspicion level* based on the observed distribution of heartbeat intervals, letting callers pick their own confidence threshold. See [Gossip & Failure Detection](../03-distributed/gossip.html).
 

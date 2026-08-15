@@ -9,7 +9,7 @@ prereqs: [cap-pacelc]
 
 ## Why there's a spectrum
 
-A consistency model is a **contract between the storage system and you**: given a set of concurrent operations, which return values are legal?
+Once your data lives on more than one machine, a question appears that never came up with a single database: if I write something here and read it there a millisecond later, am I guaranteed to see it? A **consistency model** is the storage system's answer — a **contract** saying which results a read is allowed to return when writes are happening at the same time.
 
 The stronger the model, the more the system must coordinate, and coordination costs round trips and availability. So this is not a quality ladder where stronger is better — it's a price list. Your job is to buy the weakest model that keeps the product correct.
 
@@ -18,11 +18,11 @@ Most discussions use only two words, "strong" and "eventual" — and the entire 
 ```diagram
   STRONGER / more coordination / slower / less available
      ▲
-     │  Linearizability        single copy, real-time order
-     │  Sequential             single order, no real-time guarantee
-     │  Causal                 causally related ops ordered
-     │  Session guarantees     per-client promises (RYW, monotonic)
-     │  Eventual               converges, eventually, somehow
+     │  Linearizability        looks like one copy; newest write always wins
+     │  Sequential             everyone agrees on an order — just not the clock's
+     │  Causal                 cause always lands before effect
+     │  Session guarantees     promises to one user: you see your own writes
+     │  Eventual               all copies agree in the end, given quiet
      ▼
   WEAKER / cheap / fast / highly available
 ```
@@ -43,7 +43,7 @@ That "real-time" clause is what makes it strong and expensive. It links the orde
                                                     in time)
 ```
 
-**Cost:** every read must confirm it isn't stale — via consensus, a quorum, or a leader lease. Minimum one round trip to a majority. Cross-region, this means 100 ms+ per operation, and during a partition the minority stops serving.
+**Cost:** every read has to prove it isn't out of date — by checking with a majority of the copies (a **quorum**), or by talking to a designated leader that holds a time-limited exclusive right to answer (a **lease**). Minimum one round trip to a majority. Cross-region, this means 100 ms+ per operation, and during a partition the minority stops serving.
 
 **Where it's required:** distributed locks and leader election, uniqueness constraints, inventory decrements on the last unit, account balance before a withdrawal, anything where the read *causes an irreversible action*.
 
