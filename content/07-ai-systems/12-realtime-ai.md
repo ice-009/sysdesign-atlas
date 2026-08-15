@@ -30,6 +30,8 @@ That budget is the constraint that determines every architectural decision below
 
 ## The pipeline
 
+Six stages, and the abbreviations recur below. **VAD** (voice activity detection) decides whether the microphone is picking up speech or just room noise. **WebRTC** is the browser standard for carrying live audio. **STT** turns speech into text, **TTS** turns text back into speech, and a **jitter buffer** holds a fraction of a second of audio so that packets arriving unevenly still play smoothly.
+
 ```viz
 {
   "type": "flow",

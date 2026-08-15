@@ -60,7 +60,7 @@ Real systems run several retrievers in parallel and merge, because each has diff
 | **Recency** | Newest items | Freshness-sensitive feeds |
 | **Follow graph** | Items from followed entities | Social products, and usually the strongest source there |
 
-**The two-tower model** is the workhorse, and its architecture is dictated by the serving constraint:
+**The two-tower model** is the workhorse, and its odd shape exists for one reason: the item side must be computable *in advance*. Two separate networks — one turning a user into a vector, one turning an item into a vector — that only meet at the very end, in a single similarity comparison. Because they never interact before that point, you can embed all 100 million items overnight and, at request time, embed only the user and search.
 
 ```diagram
    TWO-TOWER (dual encoder)
@@ -120,7 +120,7 @@ Now you have 1,000 candidates and a budget of roughly a millisecond each. You ca
 ```
 
 :::goat Optimising click-through rate degrades the product, reliably
-CTR is easy to measure, available immediately, and a poor proxy for value. Optimise it hard enough and you get clickbait, thumbnails that misrepresent, and outrage — because those genuinely maximise clicks.
+Click-through rate — the share of shown items that get clicked — is easy to measure, available immediately, and a poor proxy for value. Optimise it hard enough and you get clickbait, thumbnails that misrepresent, and outrage — because those genuinely maximise clicks.
 
 The industry pattern is consistent: teams that optimise a single engagement metric get short-term gains and long-term retention decline. The corrections are all forms of measuring something harder:
 
