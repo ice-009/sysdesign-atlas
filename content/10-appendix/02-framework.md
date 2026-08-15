@@ -78,7 +78,7 @@ This is the single highest-value sentence in the first ten minutes. It demonstra
 
 | Ask about | Why it changes the design |
 |---|---|
-| Scale (DAU, QPS) | 100K vs 500M users are different systems |
+| Scale — daily active users, and queries per second | 100K vs 500M users are different systems |
 | Read:write ratio | Decides caching and replication strategy |
 | Latency target | Sub-100ms rules out synchronous cross-region |
 | Consistency needs | Strong vs eventual — usually varies **per operation** |

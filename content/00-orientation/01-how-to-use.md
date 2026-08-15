@@ -34,7 +34,7 @@ Interview-specific advice exists, but it's confined to an [appendix](../10-appen
 |---|---|---|
 | **Core Systems** | Orientation, Foundations, Building Blocks, Distributed Systems, Data & Storage | Why anything costs what it costs, the components you assemble, how correctness survives failure, and what happens beneath a query |
 | **AI Systems** | AI Foundations, AI Infrastructure, Applied AI Systems | How models run as systems: tokens and attention, GPUs and interconnects, training and serving at scale, then retrieval, agents, and evaluation |
-| **Applied Design** | Case Studies, Guided Builds | Complete designs — presented finished, or constructed phase by phase |
+| **Applied Design** | Case Studies, Guided Builds, Low-Level Design, HLD Bridge | Complete designs — presented finished, or constructed phase by phase — plus the class-level half of design, and the topics that span both altitudes |
 | **Appendix** | Interviews | The framework, rubrics, mock transcript, question bank |
 
 **The AI group is not a bolt-on.** Its central claim is that inference serving is a queueing problem, KV cache management is a caching problem, distributed training is a coordination problem, and vector search is an indexing problem. If you have done the Core group properly, most of the AI material arrives as "oh — it's that idea again, with different constants." If you skip Core and start there, it will feel like a pile of unrelated jargon.

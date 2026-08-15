@@ -86,7 +86,7 @@ Every interesting decision lives in those arrows. Sync or async? What protocol? 
 
 **The mistake:** "This system is eventually consistent."
 
-Real systems choose per operation. Saying it globally suggests you learned CAP as a slogan.
+Real systems choose per operation — the payment is strict, the view counter isn't. Declaring one setting for the whole system suggests you learned [CAP](../fundamentals/cap-pacelc.html) as a slogan rather than as a decision you make repeatedly.
 
 **The fix:** classify the data. "Inventory and payment need linearizability — a read there drives an irreversible action. Feed and counters are eventual. The user's own posts get read-your-writes, because that's the only staleness anyone actually notices." See [Consistency Models](../01-fundamentals/consistency-models.html).
 

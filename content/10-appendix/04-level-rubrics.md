@@ -62,7 +62,7 @@ At this level the technical design is assumed. What's assessed is whether you se
 
 **What's expected in addition to L5:**
 
-- **Interrogates the requirement itself.** "Is this for latency, disaster recovery, or compliance? If it's DR, a warm standby with a 10-minute RTO is far cheaper than active-active — the answer changes the whole architecture."
+- **Interrogates the requirement itself.** "Is this for latency, disaster recovery, or compliance? If it's disaster recovery, a warm standby we can fail over to in ten minutes is far cheaper than running every region live — the answer changes the whole architecture."
 - **Migration and rollout are part of the design.** Not "here's the system" but "here's how we get from what exists today to this, incrementally, without downtime, with a rollback at each step."
 - **Blast radius thinking.** [Cells](../03-distributed/multi-region.html), staged rollouts, bounded failure domains. Recognizes that [most outages come from change](../01-fundamentals/availability-slas.html), not hardware.
 - **Cost as a first-class constraint.** "Cross-region replication of this volume is a large line item — I'd replicate only the transactional core and regenerate derived data locally."

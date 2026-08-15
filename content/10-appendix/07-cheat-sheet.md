@@ -27,6 +27,8 @@ tags: [reference, numbers, cheatsheet]
 
 ## Estimation shortcuts
 
+Two abbreviations used throughout: **QPS** is queries per second, and **DAU** is daily active users.
+
 ```diagram
    1 day ≈ 10⁵ seconds        (86,400, round it)
    1 month ≈ 2.6 × 10⁶ s
@@ -110,6 +112,8 @@ tags: [reference, numbers, cheatsheet]
 **Default answer: Postgres.** Revisit past ~30K writes/s or when the working set outgrows RAM.
 
 ### Caching
+
+**TTL** — time to live — is the expiry stamped on a cache entry. *Jitter* means randomising it slightly per key, so entries written together don't all expire together.
 
 | Problem | Fix |
 |---|---|
