@@ -37,7 +37,9 @@ The escape is to give up exactness. **Approximate nearest neighbour** search ret
 
 ## HNSW
 
-The dominant algorithm. Build a navigable graph where each vector links to its neighbours, then greedily walk toward the query.
+The dominant algorithm, and its name describes it: **hierarchical navigable small world**. Connect each vector to its nearest neighbours so the whole collection becomes a graph you can walk, then keep stepping toward whichever neighbour is closest to your query.
+
+The "hierarchical" part is the trick. Build several layers — a sparse top layer with long-range links for covering ground quickly, denser layers below for precision — so a search zooms in rather than crawling. It's the same idea as a skip list, in many dimensions.
 
 ```diagram
    HIERARCHICAL NAVIGABLE SMALL WORLD
@@ -101,7 +103,7 @@ The other major family, and the one that scales to memory-constrained deployment
          neighbour sits in an unprobed cluster
 ```
 
-**Product quantization** compresses the vectors themselves, and it's what makes billion-scale indexes fit in memory.
+**Product quantization** compresses the vectors themselves, and it's what makes billion-scale indexes fit in memory. The idea: chop each vector into short pieces, and for each piece keep only "which of these 256 standard pieces does it most resemble?" — one byte instead of thirty-two. You lose the exact values and keep enough to rank by.
 
 :::derive PQ compression
 ```

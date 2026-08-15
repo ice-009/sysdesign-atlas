@@ -97,7 +97,7 @@ Rolling out to 200 replicas means moving 28 TB. Naively, that's 200 concurrent p
 
 ## Warm-up
 
-A freshly loaded model is slow for reasons beyond the weights: CUDA graphs need capturing, kernels need autotuning for the specific shapes, memory pools need allocating, and the prefix cache is empty.
+A freshly loaded model is slow for reasons beyond loading the weights. The GPU library picks and tunes its fastest routines the first time it sees each request shape, memory pools have to be carved out, and the prefix cache is empty. All of that happens on whoever's request arrives first.
 
 ```diagram
    NAIVE                          WITH WARM-UP
@@ -114,7 +114,7 @@ A freshly loaded model is slow for reasons beyond the weights: CUDA graphs need 
                                   THEN mark ready → traffic
 ```
 
-The readiness probe must not pass until warm-up completes. This is a common misconfiguration: Kubernetes sees the process listening, routes traffic, and users get the cold requests. The probe should check "warm", not "up".
+A **readiness probe** is the check an orchestrator uses to decide a new instance can receive traffic. It must not pass until warm-up completes — and this is a common misconfiguration: the process is listening, so Kubernetes declares it ready and sends users straight into the slow cold requests. The probe should test "warm", not "up".
 
 **Pre-populating the prefix cache** with your system prompts is worth doing explicitly — otherwise the first N users of each replica pay a full prefill for content that should have been cached.
 

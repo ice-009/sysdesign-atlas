@@ -54,7 +54,7 @@ Alert on **TTFT and TPOT separately**, and treat total latency as a product metr
 
 ## Layer 2 — tracing
 
-One user action can be twenty model calls, several retrievals, and a handful of tool executions. Without tracing you cannot answer "why did that take 40 seconds?"
+One user action can be twenty model calls, several retrievals, and a handful of tool executions. A **trace** records that whole tree — every step, nested, with its own timing — so you can see where the 40 seconds actually went. Each individual step in it is a **span**. Without one, you have a total and no way to attribute it.
 
 ```diagram
    TRACE: "summarise this repo and fix the failing test"   47.2 s
