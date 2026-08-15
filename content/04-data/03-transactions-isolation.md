@@ -18,7 +18,7 @@ The word to be careful with is **Consistency** — the C in ACID is unrelated to
 
 ## The anomalies
 
-Isolation levels are defined by which anomalies they permit. Learn the anomalies and the levels follow.
+An **anomaly** here is a specific way concurrent transactions can produce a result that no sequence of one-at-a-time transactions could have produced. **Isolation levels** are then defined backwards from these: a level is simply a promise about which anomalies it prevents and which it still allows. So learn the anomalies and the levels come for free.
 
 **Dirty read** — you read data another transaction wrote but hasn't committed. If it rolls back, you acted on data that never existed.
 
@@ -73,9 +73,9 @@ Stated precisely: the default isolation level won't prevent write skew, so for t
 
 ## MVCC
 
-Multi-Version Concurrency Control — how modern databases let readers and writers coexist without blocking each other.
+Multi-Version Concurrency Control — the trick that lets readers and writers stop fighting over the same rows.
 
-Instead of updating in place, each write creates a **new version** of the row tagged with the transaction that created it:
+The insight: if you never overwrite anything, a reader can't be disturbed by a writer. So each write leaves the old row alone and adds a **new version** beside it, stamped with which transaction created it. Every transaction then reads the versions that existed when it started — its own consistent snapshot of the database, unaffected by anything committed since.
 
 ```diagram
    Row 42 versions:
@@ -103,7 +103,7 @@ Each transaction gets a **snapshot** — the set of transactions committed at it
 
 **Two-phase locking (2PL).** Acquire locks (shared for reads, exclusive for writes), hold them all until commit. Correct and pessimistic. Costs: greatly reduced concurrency, deadlocks requiring detection and abort, and unpredictable latency. Range queries need predicate or next-key locks to prevent phantoms.
 
-**Serializable Snapshot Isolation (SSI).** The modern approach (Postgres's `SERIALIZABLE`, and the basis of CockroachDB's). Optimistic: run at snapshot isolation, but *track* read/write dependencies, and abort a transaction if the pattern could produce a non-serializable outcome.
+**Serializable Snapshot Isolation (SSI).** The modern approach (Postgres's `SERIALIZABLE`, and the basis of CockroachDB's). It's **optimistic** — rather than locking things up front in case of a clash, it lets transactions run freely and checks afterwards whether any pair of them interfered in a way that no one-at-a-time ordering could explain. If so, one is aborted and the client retries.
 
 ```diagram
    Detects: "I read something that another transaction

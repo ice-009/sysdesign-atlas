@@ -26,7 +26,7 @@ SQL is declarative: you state what you want, not how to get it. Everything betwe
 }
 ```
 
-The optimizer is where the interesting failures happen, and it fails for one structural reason: **it is guessing.** It has no idea how many rows a predicate will match, so it estimates from statistics. When the estimate is wrong, the plan is wrong, and the plan being wrong is what a "mysteriously slow query" almost always is.
+The optimizer is where the interesting failures happen, and it fails for one structural reason: **it is guessing.** It cannot know how many rows your `WHERE` clause will actually match without running it, so it estimates from statistics it collected earlier — roughly, "how many distinct values does this column have, and how are they spread out". When the estimate is wrong, the plan is wrong, and the plan being wrong is what a "mysteriously slow query" almost always is.
 
 ## The operator tree
 
@@ -128,7 +128,7 @@ Practical consequences: prefer a few well-shaped queries to one enormous one; ma
 
 ## Reading EXPLAIN properly
 
-`EXPLAIN` shows the plan. `EXPLAIN ANALYZE` runs it and shows what actually happened, which is the only version worth looking at.
+`EXPLAIN` asks the database what it *intends* to do. `EXPLAIN ANALYZE` actually runs the query and reports what happened — including the real row counts next to the estimated ones, which is the comparison that finds the problem. It's the only version worth looking at.
 
 What to look for, in order:
 
@@ -189,7 +189,7 @@ Take any table you have with a few million rows and:
 
 ## What to carry forward
 
-- The plan, not the SQL, determines runtime — and the plan hinges on **cardinality estimates**.
+- The plan, not the SQL, determines runtime — and the plan hinges on **cardinality estimates**, the optimizer's guesses about how many rows each step will produce.
 - **Three join algorithms**, each with a regime where it's right and one where it's catastrophic.
 - **Estimation errors multiply up the tree**, which is why deep join trees are fragile.
 - Read `EXPLAIN ANALYZE` for **estimated vs actual rows** first; everything else is downstream of that ratio.

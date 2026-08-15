@@ -17,20 +17,22 @@ The honest range of possibilities:
 ```diagram
    "OK" might mean any of these:
 
-     1. It's in the process's memory buffer          ← survives nothing
-     2. It's been write()n to the OS page cache      ← survives process crash
-     3. It's been fsync()'d to the drive             ← survives OS crash / power loss
-     4. It's fsync()'d AND replicated to a follower  ← survives losing this machine
-     5. It's fsync()'d on a majority in 3 AZs        ← survives losing a datacenter
+     1. It's in the database's own memory             ← survives nothing
+     2. Handed to the operating system, still in RAM  ← survives the process dying
+     3. Forced all the way onto the drive (fsync)     ← survives power loss
+     4. On the drive AND copied to another machine    ← survives losing this machine
+     5. On the drive on a majority, in 3 buildings    ← survives losing a datacenter
 ```
 
-Every one of these is called "durable" by someone. They differ by roughly six orders of magnitude in both safety and cost. **Knowing which one your system provides is the entire content of the durability question**, and most incidents in this area come from a team believing they had level 4 and actually having level 2.
+The distinction at step 3 is the one people miss: writing data doesn't put it on the disk. It hands it to the operating system, which keeps it in memory and writes it out when convenient. Only an explicit **fsync** forces it down to the physical drive — and that's the expensive call everything below is about.
+
+Every one of these five is called "durable" by someone. They differ by roughly six orders of magnitude in both safety and cost. **Knowing which one your system provides is the entire content of the durability question**, and most incidents in this area come from a team believing they had level 4 and actually having level 2.
 
 ## Why a log, rather than just writing the data
 
 The naive approach — update the B-tree page in place and be done — fails on the crash case. A page update touches multiple pages (the leaf, maybe a parent after a split, maybe a free-space map). A crash halfway through leaves the tree structurally corrupt, and there is no way to tell which of the writes landed.
 
-The write-ahead log solves this with one rule:
+The **write-ahead log** — WAL — solves this with one rule. Before touching the real data, write down what you're *about* to do, in a file you only ever append to:
 
 > **Write the intent to a sequential log, and fsync it, *before* modifying the actual data pages.**
 
@@ -89,7 +91,7 @@ Once you see it this way, a lot of apparently separate machinery turns out to be
 ```
 :::
 
-**Group commit** is the standard escape. Rather than fsyncing per transaction, collect all transactions that commit within a small window, write them as one log batch, and fsync once for the group.
+**Group commit** is the standard escape, and the idea is a lift that waits a moment before departing. Rather than forcing a separate disk flush for every transaction, gather everything that commits within a tiny window, write it as one batch, and flush once for the whole group. Each transaction waits marginally longer; the system does a fraction of the expensive operations.
 
 ```diagram
    WITHOUT group commit          WITH group commit
