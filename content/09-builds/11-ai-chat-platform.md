@@ -49,7 +49,7 @@ Shard on `conversation_id` — the entire history loads from one partition, exac
 
 ## Phase 2 — Context window management
 
-**The core product problem.** The model accepts a bounded context. Conversations grow without bound. Something must give.
+**The core product problem.** A model can only look at a fixed amount of text at once — its **context window**, measured in tokens. Everything the model knows about your conversation has to be re-sent inside that window on every single turn, because the model itself remembers nothing between calls. Conversations grow without bound; the window doesn't. Something must give.
 
 ```diagram
    Budget for one turn:
@@ -86,6 +86,8 @@ That's also why prefix caching in the inference layer matters so much here: conv
 :::
 
 ## Phase 3 — Streaming
+
+Replies appear word by word rather than all at once, which matters because a full answer can take twenty seconds to finish. The usual transport is **server-sent events (SSE)** — one HTTP response that the server holds open and keeps writing to, which is simpler than a WebSocket and enough here because the data only flows one way.
 
 ```diagram
    client ──POST /messages──► API

@@ -13,7 +13,7 @@ unlocks: Making a model answer accurately over private or fresh data.
 
 Ask a question about your company's documents, your codebase, or a knowledge base. Get an answer grounded in the actual content, with citations.
 
-**The core insight:** you can't retrain a model every time a document changes. Instead, retrieve the relevant passages at query time and put them in the context. The model does the reasoning; your system does the finding.
+**RAG** stands for retrieval-augmented generation, and the idea is simpler than the name. You can't retrain a model every time a document changes — so instead, when a question arrives, you go and find the handful of passages most likely to answer it and paste them into the prompt. The model does the reasoning; your system does the finding.
 
 **Retrieval quality is the whole game.** A perfect model given wrong passages produces a confident wrong answer. Most RAG systems that "don't work" have a retrieval problem, not a model problem — and saying so early shows you understand where the difficulty actually lives.
 
@@ -63,7 +63,9 @@ Two techniques that consistently help:
 
 ## Phase 2 — Embeddings and the vector index
 
-An embedding maps text to a vector such that semantically similar text lands nearby. Retrieval becomes nearest-neighbour search.
+An **embedding** turns a piece of text into a long list of numbers — a point in space — positioned so that passages meaning similar things land near each other, even with no words in common. "How do I reset my password" sits close to "account recovery steps".
+
+Retrieval then becomes geometry: find the points nearest the question's point.
 
 ```diagram
    Exact nearest neighbour over 100M vectors = scan all 100M
@@ -124,7 +126,7 @@ Reciprocal rank fusion combines by *rank* rather than raw score, which sidesteps
 
 ## Phase 4 — Reranking
 
-Retrieval optimizes for recall — get the right passage *somewhere* in the top 100. Reranking optimizes for precision — get it into the top 5.
+Two words that get used loosely. **Recall** is "did we find the right passage at all?" — retrieval's job, and it only has to land it somewhere in the top hundred. **Precision** is "is what we're about to show actually relevant?" — and since only a handful of passages fit in the prompt, something has to promote the best of that hundred into the top five. That second pass is **reranking**.
 
 ```diagram
    BI-ENCODER (retrieval)

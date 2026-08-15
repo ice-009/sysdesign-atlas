@@ -23,7 +23,9 @@ The architectural principles here are stable; the numbers are not. Model sizes, 
 
 Everything follows from this, so get it right before designing anything.
 
-Generation happens one token at a time, and each token is produced by a full forward pass through the model conditioned on everything before it.
+Two words first. A **token** is the unit a model reads and writes — roughly a word or a fragment of one, so "hashing" might be one token and "consistent" another. A **forward pass** is one complete run of the input through the model's layers, producing one prediction.
+
+Generation happens one token at a time, and each token costs a full forward pass over everything written so far.
 
 ```diagram
    PREFILL — process the whole prompt at once
@@ -49,7 +51,7 @@ Prefill does enormous parallel work and keeps the GPU's compute units busy. Deco
 
 Naively, generating token N would re-process all N−1 previous tokens. That's quadratic and unusable.
 
-The fix is to cache the intermediate attention state (the "keys" and "values") for every token already processed, so each new token only computes its own state and attends over the cache.
+The fix: when the model processes a token, it produces some intermediate values for it that will be needed again by every future token. Keep them. That store is the **KV cache** — "keys and values" being the names those intermediate results carry inside the attention mechanism — and with it each new token computes only its own contribution and reuses everything already worked out.
 
 ```diagram
    Without KV cache:  token N costs O(N)   → total O(N²)
