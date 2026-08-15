@@ -30,7 +30,9 @@ For a cache, that means a near-total cache miss storm: every remapped key is now
 
 ## The ring
 
-Consistent hashing maps **both keys and nodes** onto the same circular hash space (say 0 to 2³²−1). A key belongs to the first node encountered moving clockwise.
+Consistent hashing puts **both the keys and the machines** on the same circle of numbers — imagine a clock face running from 0 to about four billion, with the end joined back to the start. Hash a machine's name to get its position; hash a key to get its position. A key belongs to the first machine you meet walking clockwise from where it landed.
+
+The trick is what that buys you: when a machine leaves the circle, only the keys sitting between it and the previous machine need a new home. Everyone else is unaffected.
 
 ```viz
 {
@@ -61,7 +63,7 @@ Only the keys between B and E move — from C to E. Every other key stays exactl
 
 Plain consistent hashing has a real problem: with few nodes, the ring positions are uneven, so the load is uneven. With 3 randomly placed nodes, one might own 60% of the ring. And when a node dies, **all** of its load goes to exactly one successor — which may then also fail, cascading around the ring.
 
-**Solution:** each physical node is placed at many positions using multiple hashes.
+**Solution:** put each real machine on the ring at many positions instead of one, by hashing its name together with a counter. Those positions are called **virtual nodes** — there's still one machine, it just appears in 150 places around the circle.
 
 ```diagram
    Physical node A → A#1, A#2, A#3, ... A#150
@@ -73,7 +75,7 @@ Plain consistent hashing has a real problem: with few nodes, the ring positions 
 
 With ~100–200 virtual nodes each, load variance drops to a few percent. Critically, when a node fails, its many small arcs are inherited by **many different** successors — the load spreads instead of concentrating, which is what prevents the cascade.
 
-Virtual nodes also let you **weight** heterogeneous hardware: give a machine with twice the RAM twice the virtual nodes.
+Virtual nodes also give you a free way to handle machines of different sizes: give the one with twice the memory twice as many positions, and it naturally receives twice the keys.
 
 :::interview Don't stop at "the ring"
 It is common to describe the ring and stop there. Adding "and I'd use virtual nodes — 150 or so per physical node — because with few nodes the ring is uneven, and more importantly a failure would dump all of one node's load onto a single successor and risk cascading" is the difference between a textbook answer and a working knowledge of the technique.

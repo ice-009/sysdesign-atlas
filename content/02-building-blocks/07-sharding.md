@@ -9,11 +9,13 @@ prereqs: [replication, indexing]
 
 ## When you actually need it
 
-Sharding splits one logical dataset across multiple machines, each owning a subset. It's the **only** technique that scales writes and data volume — replicas give you read capacity, not write capacity.
+**Sharding** means cutting one dataset into pieces and giving each piece to a different machine — so no single machine holds it all, and each one handles only its own slice of the writes. It's the **only** technique that scales writing and total data size. Copies (replicas) give you more capacity to *read*, never to write, because every copy still has to apply every write.
+
+The word for one of those pieces is a **shard** (also called a partition).
 
 It is also the most expensive decision in this curriculum to reverse. So the first thing to say in an interview is *when* you'd do it, not how:
 
-- Working set no longer fits in RAM, so the buffer pool thrashes and reads hit disk.
+- The data you actually read day to day no longer fits in memory, so the database starts evicting pages it needs moments later and every read goes to disk.
 - Write throughput exceeds one primary (~10–50K/s for tuned relational hardware).
 - Data volume makes backups, restores, and schema migrations operationally impossible.
 - A single instance's failure blast radius is unacceptable.
@@ -34,11 +36,11 @@ Split by key ranges: users A–F on shard 1, G–M on shard 2, and so on.
 
 ### Hash partitioning
 
-`shard = hash(key) mod N`.
+Run the key through a hash function — something that turns any input into a scrambled number — and take the remainder when divided by the number of shards: `shard = hash(key) mod N`.
 
-**Good:** excellent distribution, since a good hash destroys any skew in the original key.
+**Good:** excellent spread, because hashing destroys whatever lumpiness the original keys had. "Aaron" and "Aaronson" land nowhere near each other.
 
-**Bad:** range queries must hit **every** shard, because adjacent keys are scattered. And plain `mod N` is catastrophic when N changes — adding one node remaps nearly every key. Which is why:
+**Bad:** that same scrambling means a range query ("everyone whose name starts with A") has to ask **every** shard. And plain `mod N` is catastrophic when N changes — add one machine and almost every key computes to a different shard, so nearly all your data has to move. Which is why:
 
 ### Consistent hashing
 
@@ -64,7 +66,7 @@ Four criteria:
 
 1. **High cardinality** — enough distinct values to spread across shards. `country` for a global app has ~200 values and terrible skew; `user_id` has millions.
 2. **Even distribution** — no single value should dominate.
-3. **Matches your access pattern** — the key must be present in the majority of queries, or every query becomes a scatter-gather.
+3. **Matches your access pattern** — the key must appear in most of your queries. If it doesn't, you don't know which shard has the answer, so you have to ask all of them and merge the results: a **scatter-gather**, which is as slow as your slowest shard and gets worse with every shard you add.
 4. **Keeps related data together** — data you read together should live together.
 
 Criteria 2 and 4 are often in tension, and saying so is worth points.

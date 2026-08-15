@@ -63,14 +63,16 @@ An append-only, partitioned, durable log. Consumers track their own **offset**; 
 
 A guaranteed follow-up question. Be precise.
 
-**At-most-once** — fire and forget. Acknowledge before processing. Messages can be lost, never duplicated. Acceptable only for disposable telemetry.
+These three phrases describe *when the consumer tells the queue "I've got this"* — the **acknowledgement**, or ack. Everything follows from whether that happens before or after the work.
 
-**At-least-once** — acknowledge *after* processing. If the consumer crashes mid-work, the message is redelivered. **Duplicates are guaranteed to happen eventually.** This is the practical default for nearly everything.
+**At-most-once** — ack first, then work. If the consumer dies mid-work the message is already marked done and is gone forever. Never duplicated, sometimes lost. Acceptable only for throwaway telemetry.
+
+**At-least-once** — work first, then ack. If the consumer dies mid-work, no ack arrives and the queue hands the message to someone else. Nothing is lost, but **duplicates are guaranteed to happen eventually**. This is the practical default for nearly everything.
 
 **Exactly-once** — the one to be careful about.
 
 :::trap "Exactly-once delivery"
-True exactly-once *delivery* is impossible over an unreliable network — it's equivalent to the two generals problem. A sender that gets no acknowledgment cannot know whether the message arrived, and must choose between resending (possible duplicate) and not (possible loss).
+True exactly-once *delivery* is impossible over an unreliable network. (It's the two generals problem: two commanders can only coordinate by messenger through hostile territory, and no number of confirmations ever makes both certain, because the last messenger might not have arrived.) A sender that gets no acknowledgement cannot tell whether the message arrived, and has to choose between resending — risking a duplicate — and not, risking a loss.
 
 What systems actually provide is **exactly-once processing**: at-least-once delivery plus idempotent consumers, or a transactional read-process-write within one system (Kafka's transactions do this for Kafka-to-Kafka pipelines only).
 
@@ -127,7 +129,7 @@ An unbounded queue is a trap: it converts a throughput problem into a memory/dis
 
 ## Dead letter queues
 
-Some messages will never succeed: malformed payloads, references to deleted entities, bugs. Without a DLQ, such a message is retried forever — burning capacity and, in a log-based system, **blocking its entire partition**.
+Some messages will never succeed: malformed data, references to things that have been deleted, plain bugs. A **dead letter queue** is where you put them after N failed attempts — a side-queue for messages that need a human, so the main flow can carry on. Without one, such a message is retried forever, burning capacity and, in a log-based system, **blocking everything queued behind it**.
 
 ```diagram
    consume → process → fail → retry (backoff) → fail → ...
