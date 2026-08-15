@@ -9,7 +9,7 @@ prereqs: [caching, hardware-numbers]
 
 ## The core trade
 
-Exact answers to set membership, cardinality, and frequency require storing the data. Probabilistic structures give you *bounded-error* answers in dramatically less space — often 100× to 1000× less.
+Three questions come up constantly: *have I seen this before?* (membership), *how many different things have I seen?* (cardinality), and *how often has this one appeared?* (frequency). Answering any of them exactly means keeping the data. Answering them **approximately, with a known and tunable error rate**, takes dramatically less space — often 100× to 1000× less.
 
 The reason this is an engineering win rather than a compromise: **many questions don't need exactness.** "Roughly how many unique visitors?" and "has this URL definitely never been crawled?" are both perfectly answerable approximately, and the memory saved often decides whether the structure fits in RAM at all — which is the difference between microseconds and milliseconds.
 
@@ -19,9 +19,9 @@ Knowing when approximation is *acceptable* is the judgment being tested.
 
 **Answers:** "Is X in the set?" with two possible outcomes — **definitely not**, or **probably yes**.
 
-No false negatives. Some false positives. That asymmetry is what makes it useful.
+It never says "no" about something that's actually there (no **false negatives**), but it sometimes says "probably" about something that was never added (a **false positive**). That lopsidedness is exactly what makes it useful: a "definitely not" is trustworthy, so you can skip an expensive lookup on the strength of it.
 
-**Structure:** a bit array of size *m*, and *k* independent hash functions.
+**Structure:** a row of *m* bits, all starting at zero, plus *k* different hash functions that each turn an item into a position in that row.
 
 ```diagram
    ADD("apple"):  h1→3, h2→7, h3→11   set those bits to 1

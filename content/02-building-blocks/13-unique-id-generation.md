@@ -12,8 +12,8 @@ prereqs: [sharding]
 Every distributed system needs to mint identifiers. The requirements conflict, which is what makes it an interview question:
 
 1. **Unique** — globally, forever, with no coordination on the hot path.
-2. **Sortable by time** — so range queries work, pagination is natural, and B-tree inserts stay sequential.
-3. **Compact** — 64 bits fits a `BIGINT` and an integer register; 128 bits doesn't.
+2. **Sortable by time** — if newer IDs are always larger, "the 20 most recent" is a range scan, paging through results is natural, and new rows are added at the end of the index rather than poked into the middle.
+3. **Compact** — 64 bits is one ordinary integer column, and fits in a CPU register; 128 bits doesn't.
 4. **High throughput** — millions per second, generated locally.
 5. **Non-guessable** (sometimes) — sequential IDs leak volume and enable enumeration of other users' resources.
 
@@ -31,7 +31,7 @@ A single database's `AUTO_INCREMENT` is perfect until you shard. Then every shar
 
 ## Snowflake IDs
 
-The standard answer, and the one to lead with. A 64-bit integer, coordination-free after startup:
+The standard answer, and the one to lead with. It's a 64-bit number chopped into fields, and once a machine knows its own number at startup it can mint IDs forever without asking anyone anything — that's what "coordination-free" means here.
 
 ```diagram
    ┌─┬───────────────────────┬──────────┬────────────┐
@@ -57,7 +57,7 @@ The standard answer, and the one to lead with. A 64-bit integer, coordination-fr
 2. **Sequence exhaustion.** More than 4,096 IDs in one millisecond on one node means waiting for the next millisecond. Fine in practice, but it's a bounded throughput per node and you should say so.
 
 :::goat The clock-skew answer
-"Snowflake's correctness depends on monotonic clocks per node. If NTP steps the clock backwards, I could reissue timestamps and generate duplicates. I'd track the last timestamp issued and, if the clock goes backwards by a small amount, block until it catches up; if it's a large jump, take the node out of rotation and alert rather than risk duplicates. I'd also use a monotonic clock source where available."
+"Snowflake's correctness depends on each machine's clock only ever moving forwards. Servers sync their clocks over the network (NTP), and that sync can *step the clock backwards* if it had drifted ahead — at which point I'd reissue timestamps I've already used and generate duplicates. I'd track the last timestamp issued and, if the clock goes backwards by a small amount, block until it catches up; if it's a large jump, take the node out of rotation and alert rather than risk duplicates. I'd also use a monotonic clock source where available."
 
 It is easy to overlook, and it is the single most interesting property of the scheme.
 :::

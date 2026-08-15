@@ -23,9 +23,9 @@ An API gateway is a single entry point in front of many backend services. It exi
 
 **What belongs here:**
 - **TLS termination** and certificate management, in one place.
-- **Authentication** — validate the token once, pass a verified identity inward. Backend services then trust the gateway's assertion instead of each re-implementing token parsing.
+- **Authentication** — check the caller's token once, then pass a verified "this is user 42" inward. Backend services trust that rather than each re-implementing token parsing. (Note this is authentication — *who are you* — not authorisation, *what may you do*, which usually stays with the service that owns the data.)
 - **[Rate limiting](rate-limiting.html)** — reject abusive traffic before it costs you anything.
-- **Routing** — path/host to service, plus canary and blue-green by weight.
+- **Routing** — send each path or hostname to the right service, and split traffic by weight for gradual rollouts.
 - **Protocol translation** — public REST/JSON outside, gRPC inside.
 - **Response aggregation** — one client call fanning out to several services.
 - **Observability** — consistent request IDs, latency, and status codes across everything.
@@ -33,7 +33,7 @@ An API gateway is a single entry point in front of many backend services. It exi
 **What does *not* belong here:** business logic. The gateway is the most-shared and highest-risk component you own; every rule you put in it is a change that can break every service at once. The failure mode has a name — the "smart pipe" — and the symptom is that shipping a feature requires a gateway deploy.
 
 :::trap The gateway as a single point of failure
-Everything routes through it, so it must be highly available (multiple instances, health checks, autoscaled) *and* it must not amplify failures. Keep timeouts short, use circuit breakers per backend, and make sure a slow backend can't consume all gateway threads — [bulkheads](../01-fundamentals/failure-modes.html) with separate connection pools per downstream. When asked "what if the gateway fails?", "it's replicated behind an anycast/L4 tier and it isolates each backend with its own pool and breaker" is the complete answer.
+Everything routes through it, so it must be highly available (multiple instances, health checks, autoscaled) *and* it must not amplify failures. Keep timeouts short, give each backend its own circuit breaker, and make sure one slow backend can't tie up every thread in the gateway — that's a **bulkhead**, named after a ship's compartments: separate connection pools per downstream, so one flooding doesn't sink the vessel. See [failure modes](../01-fundamentals/failure-modes.html). When asked "what if the gateway fails?", "it's replicated behind an anycast/L4 tier and it isolates each backend with its own pool and breaker" is the complete answer.
 :::
 
 ## REST vs gRPC vs GraphQL
@@ -50,7 +50,7 @@ Weaknesses: **over-fetching** (the endpoint returns 40 fields, the client needs 
 
 ### gRPC
 
-Protobuf over HTTP/2 with generated clients.
+You write down the shape of your messages once, in a schema file, and a tool generates matching client and server code in every language you use. Messages travel as compact binary (Protobuf) rather than text, over HTTP/2.
 
 **Strengths:** compact binary payloads (often 3–10× smaller than JSON), a strict schema with generated types in every language, HTTP/2 multiplexing (many concurrent requests on one connection), native bidirectional streaming, and low latency.
 
