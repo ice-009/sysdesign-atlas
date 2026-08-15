@@ -85,7 +85,7 @@ Two levels:
 
 **Exact duplicates** are easy in principle: hash every document, group by hash. At 10 billion documents that's a 10-billion-key shuffle — large but a standard batch problem. A Bloom filter as a pre-pass removes most singletons cheaply before the expensive exact check.
 
-**Near-duplicates** are the hard case, and the common one: the same article on twenty sites with different boilerplate, or a page with one word changed.
+**Near-duplicates** are the hard case, and the common one: the same article on twenty sites with different boilerplate, or a page with one word changed. Hashing doesn't help — change one character and the hash is entirely different — so you need a way to ask "are these two documents *mostly* the same?" without comparing every pair, which at 10 billion documents would be 50 quintillion comparisons.
 
 ```diagram
    MinHash + LSH, the standard approach

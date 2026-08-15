@@ -112,7 +112,7 @@ Every iteration, the scheduler must decide:
 | Decision | Considerations |
 |---|---|
 | **Admit a waiting request?** | Is there KV cache for its prompt plus expected generation? Would admitting it starve running requests? |
-| **How much prefill this step?** | Chunk size trades TTFT for decode smoothness |
+| **How much prefill this step?** | Doing more of a new prompt at once gets that user their first token sooner (TTFT — time to first token), but stalls everyone already streaming |
 | **Preempt anyone?** | Under memory pressure: evict a request's KV and re-prefill later, or swap it to host memory |
 | **Which waiting request first?** | FIFO, shortest-first, priority class, or deadline |
 | **Stop this request?** | Stop token, max length, client disconnect, or budget exceeded |
@@ -130,7 +130,7 @@ Most production engines are optimistic with preemption, because preemption is re
 
 ## Preemption
 
-When memory runs out with requests in flight, something must give.
+Requests grow as they generate — each new token adds to that request's KV cache. So a batch that fitted comfortably when admitted can run the GPU out of memory mid-flight, with no request having done anything wrong. **Preemption** is evicting a partly-finished request to make room, and there are two ways to do it.
 
 ```diagram
    Option 1 — RECOMPUTE

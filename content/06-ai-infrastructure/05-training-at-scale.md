@@ -107,7 +107,7 @@ The subtle requirements:
 - **Global batch size should stay constant** across a topology change, or your learning-rate schedule no longer matches the run. Adjust gradient accumulation to compensate for fewer data-parallel ranks.
 
 :::trap Silent data corruption is the failure you'll miss
-GPUs occasionally produce wrong results without any error — a bad HBM cell that ECC doesn't catch, a marginal chip under thermal stress. There is no exception, no log line. The gradients are simply wrong.
+GPUs occasionally produce wrong results without any error at all — a faulty memory cell whose error-correction misses it, a marginal chip running hot. Nothing throws, nothing logs. The gradients are simply wrong, and training quietly absorbs them.
 
 Symptom: the loss spikes, or diverges slowly, or converges to a worse value, and nothing indicates why.
 
@@ -118,7 +118,7 @@ The default assumption should be that at 10,000 GPUs, **some of your hardware is
 
 ## MFU — the number to report
 
-Model FLOPs Utilisation: the useful FLOPs your job performs, divided by what the hardware could theoretically do.
+**Model FLOPs Utilisation** answers one question: of all the arithmetic your GPUs *could* have done, what fraction went into actually training the model? Everything else — waiting for the network, idle pipeline stages, recomputation, stragglers — shows up as the missing percentage. It's the single number that tells you whether a cluster is earning its cost.
 
 :::derive Computing MFU
 ```
