@@ -25,7 +25,7 @@ That last line is the entire value proposition. Keyword search cannot connect "r
 
 ## How they're trained
 
-Nearly all modern text embeddings come from **contrastive learning**: show the model pairs that should be close and pairs that should be far, and optimise the geometry directly.
+Nearly all modern text embeddings come from **contrastive learning**, which trains by comparison rather than by correct answers: show the model pairs that ought to end up close together and pairs that ought to end up far apart, and push the geometry until they do.
 
 ```diagram
    For each anchor a with a known positive p and negatives n₁..nₖ:
@@ -52,6 +52,8 @@ This is why embedding models train with enormous batch sizes, and why batch size
 :::
 
 ## Similarity metrics
+
+"Close together" needs a definition, and there are three in common use. The key distinction: **cosine** measures only the *direction* two vectors point, ignoring how long they are, while dot product and Euclidean distance both take length into account.
 
 | Metric | Formula | Behaviour |
 |---|---|---|

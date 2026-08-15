@@ -10,7 +10,9 @@ unlocks: Controlling output shape and cutting latency without touching the model
 
 ## The last step of every forward pass
 
-A forward pass ends with a vector of logits — one real number per vocabulary entry. Turning that into a token is the decoding strategy, and it's the cheapest place in the entire stack to change model behaviour: no retraining, no redeployment, one config value.
+A forward pass doesn't end with a word. It ends with a score for *every* token in the vocabulary — one number each, maybe 100,000 of them, called **logits**. Something then has to convert those scores into a single chosen token, and that choice is the **decoding strategy**.
+
+It's the cheapest place in the entire stack to change how a model behaves: no retraining, no redeployment, one configuration value.
 
 ```diagram
    hidden state  ──►  unembedding  ──►  logits (one per vocab token)
@@ -24,7 +26,7 @@ A forward pass ends with a vector of logits — one real number per vocabulary e
 
 ## Temperature
 
-Temperature divides the logits before the softmax.
+The scores are turned into probabilities by a step called **softmax**, which squashes them so they're all positive and add up to one. **Temperature** is a single number that divides the scores *before* that step: low temperature exaggerates the gaps between them and makes the top choice near-certain; high temperature flattens them and gives unlikely tokens a real chance.
 
 :::derive What temperature does to a distribution
 ```

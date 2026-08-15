@@ -10,9 +10,9 @@ unlocks: Understanding why frontier models are sparse, and what that does to you
 
 ## The constraint MoE breaks
 
-In a dense transformer, every parameter participates in every token. So capacity and compute are welded together: a model with 10× the parameters costs 10× the FLOPs per token.
+In an ordinary — **dense** — transformer, every one of the model's parameters is used for every token. Knowledge and cost are therefore welded together: ten times the parameters means ten times the work per token.
 
-Mixture of Experts breaks the weld. Replace each feed-forward block with *many* feed-forward blocks — "experts" — and route each token to only a few of them.
+**Mixture of Experts** breaks that weld. Replace each feed-forward block with many parallel copies of it — the **experts** — and add a small **router** that picks two of them for each token. The model can then hold enormous knowledge while any individual token only pays for the fraction it actually used.
 
 ```diagram
    DENSE FFN                        MoE FFN
@@ -91,7 +91,7 @@ Left alone, routing collapses. A slightly better expert gets picked more often, 
    → you paid for 8 experts and trained 1.5
 ```
 
-The standard fix is an **auxiliary load-balancing loss** added to the training objective, penalising the correlation between how often an expert is chosen and how confidently it's chosen. It works, and it trades a little model quality for balance — a genuine cost, since you're optimising for something other than prediction.
+The standard fix: alongside the goal of predicting well, give training a second goal of spreading tokens evenly, and penalise imbalance. That extra objective is an **auxiliary loss** — auxiliary because it isn't what you actually want from the model, just a corrective pressure applied during training. It works, and it trades a little model quality for balance — a genuine cost, since you're optimising for something other than prediction.
 
 **Capacity factor** is the other mechanism: cap how many tokens any single expert may accept per batch. Tokens beyond the cap are *dropped* — they skip the FFN entirely and pass through on the residual connection.
 
