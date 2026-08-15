@@ -17,6 +17,8 @@ Give the assistant a goal. It plans, calls tools — search the web, query a dat
 
 ## Phase 1 — The loop
 
+An **agent** is a model that has been given actions it can take — search a database, send an email, run code — rather than only text it can produce. A **tool** is one such action, described to the model so it knows the name, what it does, and what arguments it takes. The model doesn't execute anything itself: it *asks* for a tool to be run, and your platform decides whether to comply.
+
 ```diagram
    ┌──────────────────────────────────────────┐
    │  1. model receives goal + tool schemas   │
@@ -61,7 +63,7 @@ Simple to state and it needs hard bounds on every axis, because an agent that mi
 
 ## Phase 3 — Permissions, and the confused deputy
 
-**The central security problem, and the one to raise unprompted.**
+**The central security problem, and the one to raise unprompted.** A **confused deputy** is any program that holds more authority than the person asking it for something, and can be talked into using that authority on their behalf. Your agent is the perfect example: it has database credentials, the user doesn't, and the user writes the instructions.
 
 ```diagram
    Agent runs with the USER'S permissions — never its own.
@@ -111,7 +113,7 @@ For stronger isolation than containers give you, microVMs (Firecracker-style) pr
 
 ## Phase 5 — Durable execution
 
-Agent runs are long, stateful, and involve external side effects — which makes them a **workflow** problem, not a request/response problem.
+Agent runs take minutes, accumulate state as they go, and cause real effects in the outside world. That combination makes them a **workflow** problem — something that must survive a process restart halfway through — rather than a request that either completes or doesn't.
 
 ```diagram
    run_id · user_id · goal · status · iteration

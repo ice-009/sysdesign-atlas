@@ -111,6 +111,8 @@ For cross-file understanding, a [retrieval](rag-system.html) index over the repo
 
 ## Phase 5 — Measure acceptance, not availability
 
+Uptime tells you the service answered. It says nothing about whether the answers were any good — and here, a fast wrong suggestion is worse than none, because the developer read it and discarded it. So the metrics are about behaviour, not availability.
+
 ```diagram
    ACCEPTANCE RATE   suggestions accepted / suggestions shown
                      → the single most important metric

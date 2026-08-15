@@ -35,7 +35,9 @@ The version that genuinely works, and that most teams should start with.
 
 ## Phase 2 — Judge orchestration
 
-Add a model that grades. Now you have a distributed system, because 200 cases × 2 systems × 1 judge call each = 600 model calls, and they fail, rate-limit, and cost money.
+Most AI outputs can't be checked with an exact match — there are many good answers to "summarise this ticket". So you use a second model as the marker: show it the input, the output, and a rubric, and ask it to score. That's an **LLM judge**.
+
+Now you have a distributed system, because 200 cases × 2 versions × 1 judge call each is 600 model calls, and they fail, get rate-limited, and cost money.
 
 ```viz
 {
@@ -87,6 +89,8 @@ Design decisions that matter here:
 **What breaks first:** someone ships a change that scored +3 points and it turns out to be noise. You need statistics.
 
 ## Phase 3 — Statistics and honest reporting
+
+Two ideas make the difference. A **confidence interval** is the range the true result plausibly sits in given how few cases you tested — "+4 points, but anywhere from −2 to +10" means you genuinely don't know whether it helped. And the **minimum detectable effect** is how large an improvement would have to be before your suite could distinguish it from luck: with 150 cases, anything under about 12 points is invisible.
 
 ```diagram
    REPORT WITHOUT STATISTICS       REPORT WITH STATISTICS
