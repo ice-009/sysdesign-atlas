@@ -75,9 +75,9 @@ That single fact is the reason [CDNs](../02-building-blocks/cdn.html), edge cach
 | Operation | Time | Relative to L1 | Where it comes from |
 |---|---:|---:|---|
 | L1 cache reference | 1 ns | 1× | ~3 cycles, adjacent to the core |
-| Branch mispredict | 3 ns | 3× | Pipeline flush, ~10–20 cycles |
+| Branch mispredict | 3 ns | 3× | The CPU guessed which way an `if` would go, guessed wrong, and binned the work |
 | L2 cache reference | 4 ns | 4× | ~12 cycles |
-| Mutex lock/unlock (uncontended) | 15 ns | 15× | An atomic operation + cache coherence traffic |
+| Mutex lock/unlock (uncontended) | 15 ns | 15× | Taking a lock nobody else wants — one atomic instruction, plus telling other cores |
 | L3 / last-level cache | 15 ns | 15× | Shared across cores, further away |
 | Main memory reference | 80 ns | 80× | DRAM row activation + bus transfer |
 | Compress 1 KB | 1 µs | 1,000× | Real computation, thousands of cycles |
@@ -102,7 +102,9 @@ This is why "just add a cache" is the most reliable optimisation in systems work
 
 ## Sequential versus random is the other big gap
 
-Latency numbers alone are misleading, because devices are far better at sequential access than random access.
+Latency numbers alone are misleading, because devices are far better at reading data laid out end to end (**sequential**) than at hopping between scattered locations (**random**).
+
+One more unit before the diagram: **IOPS** is input/output operations per second — how many separate small reads or writes a device can do in a second, as opposed to how many bytes it can stream.
 
 ```diagram
    NVMe SSD, same device:
@@ -141,14 +143,14 @@ Latency tells you how long one operation takes. **Bandwidth tells you how many y
 | DRAM | 50–100 GB/s per socket |
 | PCIe 5.0 x16 | ~64 GB/s |
 | NVMe SSD | 3–7 GB/s |
-| Datacenter NIC | 25–400 Gb/s (≈3–50 GB/s) |
-| Internet egress to a user | 1–100 Mb/s, wildly variable |
+| Datacenter network card (NIC) | 25–400 Gb/s (≈3–50 GB/s) |
+| Internet egress — data leaving you, heading to a user | 1–100 Mb/s, wildly variable |
 
 Two things fall out of this table.
 
 **Egress is the narrowest pipe in most products.** A service that comfortably reads 5 GB/s from local NVMe may only be able to ship 3 GB/s to the network and far less to actual users. Bytes-on-the-wire is usually the real constraint — which is why compression, pagination, and field selection matter more than they look.
 
-**GPU work inverts the usual intuition.** GPU memory (HBM) runs at 2–8 TB/s, but a single decode step in a language model has to stream *every weight in the model* through that bus to produce one token. The AI Foundations track works this out in detail; the binding constraint there turns out to be exactly this table applied to different hardware.
+**GPU work inverts the usual intuition.** GPU memory (HBM — the very fast memory stacked next to the chip) runs at 2–8 TB/s, but producing a single word from a language model has to pull *every weight in the model* across that bus. The AI Foundations track works this out in detail; the binding constraint there turns out to be exactly this table applied to different hardware.
 
 ## Failure rates belong in this table too
 

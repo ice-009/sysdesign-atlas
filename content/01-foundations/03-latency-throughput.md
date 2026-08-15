@@ -51,7 +51,7 @@ The right-hand column is the useful one. It makes visceral why a cross-region ca
 
 Average latency is close to useless. Consider ten requests: nine at 10 ms, one at 1,000 ms. The average is 109 ms — a number that describes *no actual request*. It's too slow to represent the nine fast ones and far too fast to represent the slow one.
 
-Use percentiles:
+Use percentiles instead. Sort every request by how long it took; **p99** is the request 99% of the way up that list. So "p99 = 400 ms" means 99 requests in 100 finished faster than 400 ms, and one didn't.
 
 - **p50 (median)** — the typical experience.
 - **p95** — the mild annoyance.
@@ -68,7 +68,9 @@ Worse, slow requests concentrate on your *most valuable* users: the ones with th
 
 This is the concept that separates people who have operated systems from people who have read about them.
 
-When one request fans out to *N* services and must wait for all of them, the slowest response determines your latency. As *N* grows, you are effectively sampling the tail repeatedly.
+**Fan-out** is when one incoming request has to ask several services (or several shards) and wait for all of their answers before it can reply. Building one feed page might mean asking thirty of them.
+
+When a request fans out to *N* services and must wait for all of them, the slowest one decides your latency. And as *N* grows, you're rolling the dice on that slow case *N* times per request.
 
 If each backend has a 1% chance of exceeding 100 ms:
 
@@ -83,7 +85,7 @@ At a fanout of 100, **almost two thirds** of your requests hit a slow backend. Y
 
 **Mitigations, roughly in order of usefulness:**
 
-- **Hedged requests.** Send to a second replica if the first hasn't answered by, say, p95; take whichever returns first, cancel the other. Costs a few percent extra load, dramatically cuts the tail.
+- **Hedged requests.** If the first copy hasn't answered by roughly its usual worst case (p95), quietly ask a second copy as well, take whichever replies first, and cancel the other. Costs a few percent extra load, dramatically cuts the tail.
 - **Reduce fanout.** Aggregate, batch, or precompute so one request touches fewer services.
 - **Return partial results.** A feed that renders with 48 of 50 items beats a feed that renders at 900 ms. Requires the product to tolerate it — negotiate this in requirements.
 - **Timeouts with fallbacks.** Every remote call needs a deadline shorter than your own SLA and a defined behavior when it fires.
@@ -95,7 +97,7 @@ Bringing up tail amplification unprompted is one of the highest-value moves avai
 
 ## Little's Law
 
-The one queueing theory result you should be able to use in a live discussion:
+One formula, and it's the only queueing result you need to be able to use live. It says: **the number of requests inside your system at any moment equals how fast they arrive multiplied by how long each one stays.** Nothing more exotic than that — if 100 people a second walk into a shop and each stays 30 seconds, there are 3,000 people in the shop.
 
 ```diagram
     L  =  λ  ×  W
@@ -130,7 +132,7 @@ Throughput does not rise linearly to a ceiling and plateau. It rises, flattens, 
        linear   knee    overload
 ```
 
-Past the knee, latency grows faster than throughput, queues build, clients time out, retries add *more* load, and the system falls over — congestion collapse. This is why you need [load shedding and backpressure](../03-distributed/backpressure.html): a system that rejects 20% of requests quickly is strictly better than one that accepts 100% and serves none of them in time.
+The **knee** is the point where the curve stops rising and starts bending over. Past it, latency grows faster than throughput, queues build, clients give up waiting, their retries add *more* load, and the whole thing falls over — a **congestion collapse**, where the system is maximally busy and usefully idle at the same time. This is why you need [load shedding and backpressure](../03-distributed/backpressure.html): a system that rejects 20% of requests quickly is strictly better than one that accepts 100% and serves none of them in time.
 
 **Rule of thumb:** target ~60–70% utilization of your bottleneck resource in steady state. The remaining headroom absorbs traffic spikes, failovers, and deploys. Running at 95% "for efficiency" means the first surprise is an outage.
 
