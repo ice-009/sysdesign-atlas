@@ -51,7 +51,7 @@ Every phase transition in these builds is triggered by a concrete number, not a 
 | **2 — Scale** | Fanout, storage tiering, read/write asymmetry. | Instagram, Twitter |
 | **3 — Real-time & Media** | Persistent connections, streaming, bandwidth. | WhatsApp, Netflix |
 | **4 — Hard Constraints** | Geospatial, concurrent mutation, money. | Uber, Google Docs, Stripe |
-| **5 — AI Platforms** | GPU scheduling, token streaming, retrieval, agents. | LLM Serving, Claude-style Chat, RAG, Agents, Code Assistant |
+| **5 — AI Platforms** | GPU scheduling, token streaming, retrieval, agents, training runs. | LLM Serving, Chat Platform, RAG, Agents, Code Assistant, Evals, Fine-tuning, Voice, Pretraining |
 
 Levels 1–4 are the classic interview canon. **Level 5 is the material that's become unavoidable** — AI infrastructure questions now appear in loops at every company building on models, and almost no preparation material covers them properly.
 

@@ -9,7 +9,7 @@ unlocks: A specific next page to open, instead of a table of contents to stare a
 
 ## Pick the one that matches your goal
 
-There are 120-odd topics here. Reading them front to back is a valid plan and a slow one. These four routes exist because "learn system design" usually means one of four different things.
+There are 145 topics here. Reading them front to back is a valid plan and a slow one. These four routes exist because "learn system design" usually means one of four different things.
 
 | Route | For | Rough time |
 |---|---|---|
@@ -34,7 +34,7 @@ The intended path. Depth-first, in prerequisite order, interleaving application 
 
 **Phase 4 — Data & Storage (2–3 weeks).** What actually happens beneath a query. Short track, high density.
 
-**Phase 5 — Applied (4–6 weeks).** All sixteen case studies and the classic builds. **Design each one cold for twenty minutes before reading.** One per session; do not batch them.
+**Phase 5 — Applied (4–6 weeks).** All sixteen case studies and the classic builds. **Design each one cold for twenty minutes before reading.** One per session; do not batch them. If you also want the class-level half of design — objects, interfaces, concurrency inside one process — the [Low-Level Design](../11-lld/three-day-plan.html) track slots in here and is largely independent of the rest.
 
 **Phase 6 — AI Systems (6–8 weeks).** The three AI tracks, then the AI builds. By this point the Core material makes them read as variations rather than new subjects.
 
@@ -98,6 +98,8 @@ Read the [appendix framework](../10-appendix/framework.html) and [cheat sheet](.
 [URL shortener](../08-case-studies/url-shortener.html) → [rate limiter](../08-case-studies/rate-limiter.html) → [news feed](../08-case-studies/news-feed.html) → [chat](../08-case-studies/chat-system.html) → [notifications](../08-case-studies/notification-system.html) → [ride sharing](../08-case-studies/ride-sharing.html) → [ad click aggregator](../08-case-studies/ad-click-aggregator.html) → [job scheduler](../08-case-studies/job-scheduler.html).
 
 Twenty-five minutes designing cold, then read. Backfill concepts **only** when a case study exposes a gap — open the page, read it, come back.
+
+**If your loop includes a low-level design round** — most SDE-2 loops do — swap two of those case studies for the [three-day LLD plan](../11-lld/three-day-plan.html). It's a separate skill with its own structure, and no amount of architecture practice prepares you for "design a parking lot."
 
 **Week 3 — AI questions and mocks.**
 AI system design now appears in loops at most companies building on models. Read [LLM inference serving](../09-builds/llm-inference-serving.html) and [RAG](../09-builds/rag-system.html) at minimum. Then [common mistakes](../10-appendix/common-mistakes.html), the [annotated mock](../10-appendix/annotated-mock.html), and **two live mocks with an actual human**. The mocks are the part that matters; everything else is preparation for them.
