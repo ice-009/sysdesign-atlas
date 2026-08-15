@@ -101,7 +101,7 @@ This framing — index as artifact — simplifies everything. Build in a batch j
 
 ## Updates
 
-Most ANN indexes are built for read-heavy, append-light workloads. Real corpora change constantly.
+Most approximate-nearest-neighbour indexes are built assuming the data mostly sits still: the graph of links between vectors is expensive to build and awkward to modify in place. Real document collections change constantly. The standard resolution is the same one storage engines reached — never edit the big structure, keep changes in a small one beside it, and merge periodically.
 
 ```diagram
    LSM-STYLE, THE STANDARD PATTERN

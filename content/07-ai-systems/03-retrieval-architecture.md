@@ -71,7 +71,9 @@ All three attack the same problem: the thing you should match against and the th
 
 ## Hybrid search
 
-Dense retrieval fails predictably — [embeddings are bad](../05-ai-foundations/embeddings.html) at exact identifiers, rare terms, and negation. Lexical search (BM25) is excellent at exactly those and poor at synonyms and paraphrase.
+Two kinds of search, with complementary blind spots. **Dense** retrieval is the embedding-based kind — it matches meaning, and [it's bad](../05-ai-foundations/embeddings.html) at exact identifiers, rare words, and negation. **Lexical** retrieval is old-fashioned keyword matching — it nails exactly those and fails at synonyms and paraphrase.
+
+**Hybrid** means running both and combining the results, which is why it's the default in serious systems.
 
 ```diagram
    Query: "error E-4471 when saving"
@@ -89,7 +91,7 @@ Dense retrieval fails predictably — [embeddings are bad](../05-ai-foundations/
      both, fused → the exact match AND the paraphrases
 ```
 
-**Reciprocal Rank Fusion** is the standard combiner and it works better than score-based blending:
+Combining them is harder than it sounds, because the two systems produce scores on incomparable scales. **Reciprocal Rank Fusion** sidesteps that entirely by throwing the scores away and using only *positions* — something ranked second by both lists beats something ranked first by one and fiftieth by the other:
 
 :::derive Why RRF beats weighted score fusion
 ```

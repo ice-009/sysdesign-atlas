@@ -84,7 +84,7 @@ The rule: **order by rate of change, most stable first.** It's the same principl
 
 ## Managing conversation history
 
-History grows every turn. Left alone, cost per turn grows linearly and eventually the window overflows.
+History grows every turn, and remember that the whole of it is re-sent on every request — the model retains nothing by itself. So cost per turn climbs steadily, and eventually the conversation simply won't fit. **Compaction** is the general name for shrinking it, and the options differ in what they throw away.
 
 | Strategy | Mechanism | Cost |
 |---|---|---|
