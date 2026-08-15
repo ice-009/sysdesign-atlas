@@ -14,6 +14,8 @@ Architecture diagrams draw services as boxes and network calls as arrows. The bo
 
 Understanding what happens inside an arrow tells you why the fix for slow systems is so often "make fewer calls" rather than "make each call faster."
 
+One unit runs through this whole page: **RTT**, the round trip time — how long a message takes to reach the other machine *and* the reply to come back. Everything below is counted in round trips, because that's what actually costs you.
+
 ## What one HTTPS request actually costs
 
 ```viz
@@ -59,7 +61,7 @@ That reframing leads directly to connection reuse, batching, pipelining, and col
 
 ## TCP: congestion control and slow start
 
-TCP does not start sending at full speed. It has no idea what the network can carry, so it probes — starting small and doubling until something is lost.
+TCP does not start sending at full speed. It has no idea what the network between you can carry, so it feels its way — sending a little, and doubling each round trip until something gets dropped. That ramp-up is called **slow start**, and it's why small responses feel instant while large ones feel sluggish even on a fast connection.
 
 ```diagram
    TCP SLOW START (initial window = 10 segments ≈ 14 KB)
@@ -97,7 +99,9 @@ This is why long-distance bulk transfer needs window scaling, parallel streams, 
 
 ## Head-of-line blocking, three times over
 
-The same failure mode appears at three layers, and knowing which one you have determines the fix.
+**Head-of-line blocking** is a queue where the item at the front is stuck, so everything behind it waits — even though those items are perfectly ready to go. One shopper arguing at the till holds up ten people with a single item each.
+
+The same failure appears at three layers, and knowing which one you have determines the fix.
 
 ```viz
 {
@@ -124,10 +128,10 @@ The same failure mode appears at three layers, and knowing which one you have de
 }
 ```
 
-The third case is the one that bites in backend systems: **head-of-line blocking in a message queue partition**. A single poison message at the head of a Kafka partition blocks every message behind it, no matter how many consumers you add. The fix is not parallelism; it's a dead-letter queue and a bounded retry policy. See [message queues](../02-building-blocks/message-queues.html).
+The third case is the one that bites in backend systems: **head-of-line blocking in a message queue partition**. A single *poison message* — one that fails every time it's processed — sits at the front of the queue and blocks every message behind it, no matter how many consumers you add. The fix is not parallelism; it's a dead-letter queue and a bounded retry policy. See [message queues](../02-building-blocks/message-queues.html).
 
 :::trap "HTTP/2 solved head-of-line blocking"
-It solved it at the HTTP layer and *concentrated* it at the TCP layer. Multiplexing 100 requests onto one TCP connection means one dropped packet stalls all 100 until retransmission.
+It solved it at the HTTP layer and *concentrated* it at the TCP layer. Multiplexing — running many requests down a single connection at once — means one dropped packet stalls all 100 of them until it's re-sent.
 
 On a clean datacenter network this is a good trade. On a lossy mobile network it can be worse than HTTP/1.1's six connections. HTTP/3 fixes it properly by running over QUIC (UDP), where each stream recovers independently.
 :::

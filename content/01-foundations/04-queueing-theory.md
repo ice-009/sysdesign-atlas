@@ -10,7 +10,7 @@ unlocks: Predicting where a system will fall over, and why adding capacity somet
 
 ## The observation that needs explaining
 
-A service handles 700 requests per second with a p99 of 40 ms. Traffic grows 20%. Now it handles 840 requests per second — well under the 1,000/s the team measured as its ceiling — and p99 is 1.2 second.
+A service handles 700 requests per second with a p99 of 40 ms — meaning 99 requests in 100 finish within 40 ms, and the slowest 1% are what we're measuring. Traffic grows 20%. Now it handles 840 requests per second — well under the 1,000/s the team measured as its ceiling — and p99 is 1.2 seconds.
 
 Nothing broke. No code changed. Load went up 20% and tail latency went up 30×.
 
@@ -39,7 +39,7 @@ That generality is what makes it useful. Three quantities, and knowing any two g
 
 - A service handles 2,000 req/s with an average latency of 50 ms. Concurrency is `2000 × 0.05 = 100` requests in flight. If your thread pool has 80 threads, you are already the bottleneck.
 - You want 10,000 req/s and each request takes 200 ms because it waits on a slow downstream. You need `10000 × 0.2 = 2000` concurrent operations in flight. With one OS thread per request that's 2,000 threads — which is why this workload wants an event loop or async runtime, not threads. See [concurrency and the OS](concurrency-and-the-os.html).
-- A queue holds 50,000 messages and consumers drain 5,000/s. Messages wait `50000 / 5000 = 10` seconds. If your SLA is 2 seconds, you need 5× the consumers — and Little's Law told you that in one line.
+- A queue holds 50,000 messages and consumers drain 5,000/s. Messages wait `50000 / 5000 = 10` seconds. If you've promised customers 2 seconds (an SLA — a service level agreement, the response time you're contractually on the hook for), you need 5× the consumers, and Little's Law told you that in one line.
 
 :::goat Use it backwards
 Little's Law is most powerful read in reverse. **Latency is not a property you tune; it is a consequence of concurrency divided by throughput.**
@@ -51,7 +51,9 @@ If you want lower latency and throughput is fixed by demand, the only lever is r
 
 Little's Law tells you the relationship between the three quantities. It does not tell you why 84% utilization is dangerous. For that you need one more result.
 
-For a simple queue with random (Poisson) arrivals and a single server — the M/M/1 model — the average time in the system is:
+**Utilization** is the fraction of the time your server is busy rather than idle: arrivals divided by how many it could handle. 84% utilization means it's working 84 minutes of every 100.
+
+For the simplest possible case — requests turning up at random moments, one server handling them one at a time — there's a standard formula. (It's called the **M/M/1 model**: arrivals are random, service times are random, one server. "Random" here means **Poisson** arrivals, which just means each arrival is independent of the last, like raindrops hitting a window rather than a metronome.) The average time in the system is:
 
 :::derive The M/M/1 response time
 ```
@@ -107,7 +109,9 @@ Saying this out loud — "we were at 70% and moved to 84%, which nearly doubles 
 
 M/M/1 assumes exponentially distributed service times. Real workloads are far more variable than that: a request that hits cache takes 2 ms, one that misses and does three database queries takes 200 ms.
 
-The general result (Kingman's formula) says queue wait scales with the **square** of variability:
+**Variability** here means how much request times differ from each other, not how long they are on average. A service where every request takes exactly 50 ms has no variability; one where they range from 2 ms to 2 seconds has a lot — even if both average the same.
+
+The general result (Kingman's formula) says queue wait scales with the **square** of that variability:
 
 :::derive Kingman's approximation
 ```
@@ -115,9 +119,11 @@ The general result (Kingman's formula) says queue wait scales with the **square*
    Wq  ≈   S × ───── × ───────────
                 1−ρ         2
 
-   c²ₐ = squared coefficient of variation of arrivals
-   c²ₛ = squared coefficient of variation of service times
-        (variance / mean², so c² = 1 for exponential)
+   c²ₐ = how spread out the arrival times are
+   c²ₛ = how spread out the service times are
+        (both are variance / mean², a unitless measure of
+         "how uneven"; c² = 0 means perfectly regular, c² = 1
+         is the ordinary random case)
 ```
 
 Halving service-time variability roughly halves queue wait at any given
