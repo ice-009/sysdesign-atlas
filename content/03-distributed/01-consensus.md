@@ -17,7 +17,9 @@ The guarantees a consensus protocol provides:
 - **Validity** — the decided value was proposed by someone.
 - **Termination** — nodes eventually decide (given enough working nodes).
 
-**FLP impossibility** proves that in a fully asynchronous system with even one possible crash failure, no deterministic algorithm guarantees all three. Real protocols sidestep this by assuming *partial synchrony* — the network is eventually well-behaved for long enough to make progress. They guarantee **safety always** (never disagree) and **liveness eventually** (make progress when the network cooperates). Stating that tradeoff is a strong signal.
+**FLP impossibility** (named after Fischer, Lynch and Paterson, who proved it in 1985) says you cannot have all three at once — not "nobody has managed it yet", but *provably never*, in a network where messages can be arbitrarily delayed and even one machine might crash. The reason is that you can never distinguish a dead machine from a very slow one, so any algorithm must either risk waiting forever or risk deciding wrongly.
+
+Real protocols get around it by assuming the network is *eventually* well-behaved for long enough to finish a decision. They promise **safety always** — two nodes never disagree — and **liveness eventually** — progress happens once the network cooperates. Stating that trade is a strong signal.
 
 ## Why it matters
 
@@ -26,7 +28,7 @@ Consensus is the foundation under everything that must be unambiguous:
 - **Leader election** — who is the primary?
 - **Configuration and membership** — which nodes are in the cluster?
 - **Distributed locks** with real safety.
-- **Replicated state machines** — the general form. If every replica applies the same commands in the same order, they end in the same state. That's how a fault-tolerant database is built.
+- **Replicated state machines** — the general form, and the one worth understanding. Start several copies of the same program from the same starting point, feed them the identical list of commands in the identical order, and they must all end up in the identical state. So agreeing on *the order of a list* is enough to keep a whole cluster in step.
 
 The last one is the key insight: **consensus on an ordered log gives you a fault-tolerant version of any deterministic service.**
 
@@ -36,7 +38,7 @@ Designed for understandability, and it succeeded — Raft is what etcd, Consul, 
 
 ### Leader election
 
-Each node is a **follower**, **candidate**, or **leader**. Time is divided into **terms** — logical, monotonically increasing epochs.
+Each node is a **follower**, a **candidate**, or the **leader**. Time is divided into **terms**: not clock time, just a counter that goes up by one every time an election is held. Terms are how a node recognises stale information — anything stamped with an older term than the one it knows about is out of date and gets ignored.
 
 ```diagram
    follower ──timeout, no heartbeat──► candidate

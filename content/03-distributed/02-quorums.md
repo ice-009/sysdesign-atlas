@@ -9,7 +9,9 @@ prereqs: [replication, consistency-models]
 
 ## The idea
 
-In a leaderless system ([Dynamo-style](../02-building-blocks/replication.html)), there's no primary to ask for the truth. Instead, clients contact multiple replicas and rely on **overlap**.
+A **quorum** is simply "enough of them" — the minimum number of copies that must take part for an operation to count.
+
+In a leaderless system ([Dynamo-style](../02-building-blocks/replication.html)) there is no primary holding the official version, so a client asks several copies and relies on **overlap**: if the group it writes to and the group it reads from must share at least one member, the read cannot miss the write.
 
 ```diagram
    N = number of replicas holding each key
@@ -64,7 +66,7 @@ The most important part, and the part that is usually rushed.
 
 ## Sloppy quorums and hinted handoff
 
-Strict quorums require W of the **designated home replicas** for a key. If enough of them are unreachable, the write fails — you've chosen consistency over availability.
+Every key has a set of machines that are *supposed* to hold it — its **home replicas**, picked by hashing the key. A strict quorum insists that W of those specific machines accept the write. If too many of them are unreachable, the write fails: you've chosen consistency over availability.
 
 **Sloppy quorum** takes availability instead: accept the write on *any* W reachable nodes, even ones that don't normally own the key.
 

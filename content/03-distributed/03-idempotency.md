@@ -103,11 +103,13 @@ UPDATE accounts SET balance = balance - 50, version = 8
 WHERE id = 42 AND version = 7;      -- second run: 0 rows
 ```
 
-Also: `INSERT ... ON CONFLICT DO NOTHING`, upserts keyed by a business identifier, and set membership (adding an existing element is a no-op).
+The trick is that the second attempt finds nothing matching `version = 7` and changes zero rows — a harmless no-op rather than a second deduction.
+
+Others in the same family: `INSERT ... ON CONFLICT DO NOTHING`; an **upsert** (insert it, or update it if it's already there) keyed on something meaningful like an order number; and adding to a set, since adding an element that's already present changes nothing.
 
 ### 3. Deduplication table
 
-The consumer-side equivalent for message queues: record processed message IDs and skip repeats.
+The consumer-side equivalent for message queues: keep a table of the message IDs you've already handled, and skip anything you've seen before. **Deduplication** — dedupe — is just that: recognising a repeat and doing nothing.
 
 ```diagram
    BEGIN;
