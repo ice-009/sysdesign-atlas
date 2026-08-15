@@ -11,13 +11,15 @@ prereqs: [scalability-basics, networking]
 
 CAP is the most-cited and most-misquoted idea in system design. The pop version — *"pick two of Consistency, Availability, Partition tolerance"* — is wrong in a way that leads to real design errors.
 
+A **network partition** is the situation this whole theorem is about: two groups of your machines are each alive and working, but can't reach each other. Not "a server crashed" — both halves are running, and each one cannot tell whether the other is dead or merely unreachable.
+
 The actual statement:
 
 > In the presence of a **network partition**, a distributed system must choose between **consistency** and **availability**.
 
 The terms, precisely:
 
-- **C (Consistency)** — here meaning *linearizability*: every read sees the most recent completed write, as if there were a single copy of the data. Note this is **not** the C in ACID, which is about invariants. Same letter, different concept, and conflating them produces genuinely wrong designs.
+- **C (Consistency)** — here meaning *linearizability*: every read sees the most recent completed write, so the whole system behaves as though there were only ever one copy of the data, no matter how many machines actually hold it. Note this is **not** the C in ACID (the database transaction guarantees), which is about database rules staying satisfied. Same letter, different concept, and conflating them produces genuinely wrong designs.
 - **A (Availability)** — every request to a *non-failed* node receives a non-error response. Note: it says nothing about latency. A response after 90 seconds is "available" by this definition, which is one reason CAP is less practically useful than it appears.
 - **P (Partition tolerance)** — the system continues operating when the network drops or delays messages between nodes.
 
@@ -84,7 +86,7 @@ CAP only says anything about partitions, which are rare. PACELC (Abadi, 2010) ex
 > **If Partition** → choose **A**vailability or **C**onsistency.
 > **Else** → choose **L**atency or **C**onsistency.
 
-The `ELC` half is the one that shapes your architecture day to day. Even with a perfect network, strong consistency requires **coordination**, and coordination requires **round trips**. A linearizable write across three replicas in three availability zones costs at least one cross-AZ round trip. Across regions, it costs tens to hundreds of milliseconds — irreducibly.
+The `ELC` half is the one that shapes your architecture day to day. Even with a perfect network, keeping copies in agreement means the machines have to **talk to each other before answering** — and every one of those conversations is a round trip you pay for in latency. A strongly consistent write across three copies in three availability zones (separate buildings in the same region, so they don't fail together) costs at least one trip between buildings. Across regions, it costs tens to hundreds of milliseconds — irreducibly.
 
 So the everyday tradeoff is: **do you pay latency on every single operation to guarantee freshness?**
 

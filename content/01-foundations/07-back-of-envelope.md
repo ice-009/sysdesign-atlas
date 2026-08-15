@@ -11,7 +11,7 @@ prereqs: [latency-throughput, hardware-numbers]
 
 Not precision. **Estimation exists to make architectural decisions.**
 
-If your calculation says 500 GB of data, that's one database. If it says 500 TB, that's a sharded cluster with a completely different design. The estimate is only worth doing when it flips a decision: size the storage because it determines whether you shard; skip precise CPU numbers because they don't change the architecture."
+If your calculation says 500 GB of data, that's one database. If it says 500 TB, that's a sharded cluster with a completely different design. The estimate is only worth doing when it flips a decision: size the storage because it determines whether you shard; skip precise CPU numbers because they don't change the architecture.
 
 :::trap Estimation theater
 The failure mode is spending eight minutes computing memory bandwidth to three significant figures, then never referencing the number again. That's pure clock burn and it reads as poor prioritization. Estimate what you'll *use*. State that's what you're doing.
@@ -48,7 +48,7 @@ The failure mode is spending eight minutes computing memory bandwidth to three s
 | 1 min of 1080p video | ~30 MB |
 | 1 hour of 1080p video | ~2 GB |
 
-**Machine capacities (single commodity server, order of magnitude):**
+**Machine capacities.** These are for one ordinary rented server — "commodity" meaning nothing special, the kind you get by the hour — and they're order-of-magnitude figures:
 
 | Resource | Capacity |
 |---|---|
@@ -62,7 +62,7 @@ The failure mode is spending eight minutes computing memory bandwidth to three s
 
 ## The four-step method
 
-**1. Traffic.** DAU → actions per user per day → QPS.
+**1. Traffic.** Start from **DAU** — daily active users, how many distinct people use the product in a day — multiply by how often each one acts, and divide by the seconds in a day to get **QPS**, queries per second.
 
 ```diagram
      QPS_avg  =  DAU × actions_per_user / 86,400

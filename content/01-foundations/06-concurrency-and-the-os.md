@@ -12,7 +12,9 @@ unlocks: Choosing a concurrency model on evidence instead of fashion, and knowin
 
 "How many concurrent requests can one server handle?"
 
-The honest answer is: *it depends entirely on what those requests are doing while they're concurrent.* A server handling 100,000 idle WebSocket connections and a server handling 100 CPU-bound requests are both at their limit, for completely different reasons, and confusing the two is the most common source of bad capacity decisions.
+The honest answer is: *it depends entirely on what those requests are doing while they're concurrent.* A server holding 100,000 open connections that are mostly idle, and a server chewing through 100 requests that are all doing real computation, are both at their limit — for completely different reasons. Confusing the two is the most common source of bad capacity decisions.
+
+Two terms for that split, used throughout this page. **CPU-bound** work is limited by how fast the processor can compute: resizing images, parsing, encryption. **I/O-bound** work is limited by waiting on something else: a database, a disk, another service. The first is limited by cores, the second by how many things you can wait on at once — and those need opposite designs.
 
 ## Two kinds of work
 
@@ -87,7 +89,9 @@ This is why **more threads than cores makes CPU-bound work slower**, and why thr
 
 ## How waiting actually works
 
-The mechanism underneath every async runtime is the same: ask the kernel to watch many file descriptors and tell you which ones are ready.
+The mechanism underneath every async runtime is the same: ask the operating system to watch many connections at once and tell you which ones have data ready.
+
+(A **file descriptor**, or fd, is just the number the OS gives you to refer to an open thing — a file, a socket, a pipe. "Watching 10,000 fds" means watching 10,000 open connections.)
 
 ```diagram
    BLOCKING (one thread per connection)
@@ -123,7 +127,7 @@ Async wins specifically when you need many thousands of simultaneous waits. Choo
 
 ## Syscalls, and why they got expensive
 
-A syscall is a transition into the kernel: switch stacks, switch privilege level, and — since Spectre and Meltdown mitigations — flush or tag parts of the CPU's speculative state.
+A **syscall** is your program asking the operating system to do something it isn't allowed to do itself — read a file, send a packet, allocate memory. It's a controlled hop from your code into the kernel and back, and each hop costs: switching stacks, switching privilege level, and — since the Spectre and Meltdown security fixes of 2018 — throwing away some of the CPU's carefully built-up predictions.
 
 ```
    Syscall cost:
@@ -146,7 +150,9 @@ You will rarely reach for the last two. You should recognise them when you see t
 
 ## Shared state is where it goes wrong
 
-Concurrency is manageable. Concurrency plus mutable shared state is where the bugs live.
+Concurrency is manageable. Concurrency plus data that several threads can change is where the bugs live.
+
+Two words in the table below. **Uncontended** means nobody else wanted it at that moment — you took the lock and carried on. **Contended** means someone else already held it, so you had to wait. The gap between those two columns is the entire performance story of locking.
 
 | Mechanism | Uncontended cost | Behaviour under contention |
 |---|---|---|
