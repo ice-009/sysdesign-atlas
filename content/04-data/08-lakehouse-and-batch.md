@@ -12,7 +12,7 @@ unlocks: Designing the storage layer that every analytics and ML training pipeli
 
 An analytical warehouse works well until one of three things happens:
 
-1. **The data outgrows what you'll pay for.** Warehouses couple storage and compute; storing a petabyte you query once a quarter costs the same per byte as the hot table.
+1. **The data outgrows what you'll pay for.** In a traditional warehouse, the machines that store your data are the same machines that query it, so you pay for both together. A petabyte you touch once a quarter costs the same per byte as the table you hit every second.
 2. **The data isn't tabular.** Images, audio, model checkpoints, raw JSON, logs. A warehouse will take these grudgingly and expensively.
 3. **Many engines need the same data.** SQL, Spark, a training pipeline, and a notebook all want the same table without copying it four times.
 
@@ -107,9 +107,9 @@ This is a small-sounding change that removed an entire class of "why is my query
 
 ## Table formats: giving a pile of files ACID
 
-A directory of Parquet files is not a table. It has no atomic commits, no schema evolution, no way to know which files are current, and no way to read a consistent view while a writer is appending.
+A folder full of data files is not a table. Nothing says which files are current, nothing lets you add and remove files as one indivisible change, nothing gives a reader a stable view while a writer is midway through appending, and nothing tracks how the columns have changed over time.
 
-Table formats add a metadata layer:
+A **table format** adds a thin layer of bookkeeping on top of those files that supplies exactly those missing pieces — a list of which files make up the table right now, and a rule for swapping that list atomically:
 
 ```diagram
    ICEBERG

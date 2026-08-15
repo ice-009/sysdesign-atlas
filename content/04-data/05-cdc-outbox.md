@@ -37,7 +37,9 @@ The insight: **you don't need two atomic writes. You need one write, and a relia
 
 ## The outbox pattern
 
-Write the event into the *same database*, in the *same transaction*, as the business change. Then a separate process publishes it.
+The fix is to stop making two writes. Put the event in an ordinary table — the **outbox** — in the *same database* and the *same transaction* as the business change, so the database's own atomicity guarantees they both land or neither does. A separate process then reads that table and does the publishing.
+
+The outbox is just a mailbox: the transaction drops a letter in it, and someone else posts it.
 
 ```diagram
    BEGIN;
@@ -73,7 +75,9 @@ Fixes: poll by "unpublished" status rather than by a monotonic cursor (so nothin
 
 ## Change Data Capture
 
-CDC reads the database's own replication log — the WAL in Postgres, the binlog in MySQL — and turns every committed change into a stream of events.
+**Change Data Capture** takes a different route to the same goal. Every database already keeps an ordered log of what it changed, because that's how it does crash recovery and how it feeds its replicas. CDC simply reads that log and turns each committed change into an event.
+
+The appeal: your application code doesn't change at all. It writes rows as it always did, and the events fall out of the database's own record of those writes.
 
 ```diagram
    ┌────────────┐   WAL / binlog    ┌─────────┐

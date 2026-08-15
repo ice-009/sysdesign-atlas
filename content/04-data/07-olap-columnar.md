@@ -51,11 +51,11 @@ The structural reason OLAP databases are so much faster at analytics.
 
 Three more advantages compound it:
 
-**Compression is dramatically better.** A column holds values of one type with similar distributions — `city` might contain 200 distinct values across a billion rows. Dictionary encoding, run-length encoding, and delta encoding routinely achieve 10:1 on columnar data versus ~2:1 on rows. Less data on disk means less I/O, and I/O is the bottleneck.
+**Compression is dramatically better.** A column holds one kind of value, over and over — `city` might have 200 distinct values across a billion rows. That repetition is exactly what compression feeds on: store each city name once and refer to it by number (*dictionary encoding*), or record "Pune, 40,000 times" instead of writing it 40,000 times (*run-length encoding*). Columnar data routinely compresses 10:1 where row data manages about 2:1. Less data on disk means less I/O, and I/O is the bottleneck.
 
-**Vectorized execution.** Processing a contiguous array of one type lets the CPU use SIMD instructions and stay cache-friendly — often 10× faster per byte than row-at-a-time processing.
+**Vectorised execution.** When a million values of the same type sit side by side, the CPU can apply one instruction to a batch of them at once instead of looping one at a time — often 10× faster per byte.
 
-**Late materialization.** Filter on compressed columns first, and only assemble full rows for the few that survive.
+**Late materialisation.** Do the filtering against the compressed columns first, and only bother assembling complete rows for the handful that survive.
 
 **The cost:** writing or updating a single row means touching every column file. Columnar stores are therefore append-and-batch oriented — most don't support efficient single-row updates at all, which is exactly why they're unsuitable for OLTP.
 

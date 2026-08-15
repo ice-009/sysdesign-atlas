@@ -65,7 +65,7 @@ A watermark is an assertion the system makes to itself:
 
 > "I believe I have now seen all events with timestamp ≤ T."
 
-It is a heuristic, not a fact. It's how the system decides a window is complete enough to emit.
+It is a guess, not a fact — nothing can prove no more events are coming. But a stream never ends, so without some rule for declaring "enough", you could never publish a result at all. The watermark is that rule: the point at which a time window is considered complete enough to report on.
 
 ```diagram
    Records arriving (event times, out of order):
@@ -152,7 +152,7 @@ The most misunderstood phrase in streaming. Let's be precise, because the imprec
 
 **You cannot have exactly-once *delivery*.** It's impossible in an asynchronous network with failures — the sender can never know whether a lost acknowledgement means the message arrived or didn't, so it must either risk losing it or risk duplicating it. This is a theorem, not a limitation of current tools.
 
-**You can have exactly-once *state semantics*:** the effect on the job's internal state is as if each record were processed once, even though records may physically be delivered and processed multiple times.
+**You can have exactly-once *effects*:** a record may physically arrive and be processed several times, but the job's stored results look exactly as though it happened once. The delivery is messy; the outcome isn't. That distinction — between how many times something ran and how many times it counted — is the whole of what the machinery below buys you.
 
 ```diagram
    What the machinery gives you:
