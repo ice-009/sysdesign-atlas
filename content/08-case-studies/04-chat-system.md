@@ -103,9 +103,9 @@ Step 3b before 3c is the whole ballgame. If you deliver first and persist second
 
 ## 5. Deep dive — the routing problem
 
-Bob's socket is on gateway G7. Alice's message arrives at G1. How does it get there?
+Here's the problem in one line. Every connected user is holding an open connection to *one specific gateway server*, chosen more or less at random when they connected. Bob happens to be on G7. Alice's message lands on G1. G1 has no connection to Bob at all — so how does the message get across?
 
-**Option A — session registry + direct forward.** Redis maps `user_id → gateway_id`, refreshed by heartbeat with a TTL. G1 looks it up and sends an RPC to G7.
+**Option A — a directory of who is where.** Keep a map in Redis from user to the gateway holding their connection, kept fresh by each gateway repeatedly re-asserting its entries (so a crashed gateway's entries expire on their own). G1 looks Bob up and forwards the message to G7 directly.
 
 *Efficient:* one lookup, one hop. *Requires:* a fast, highly available registry, and stale entries must be handled (forward to a gateway that no longer owns the socket → it responds "not mine," fall back to offline delivery).
 
@@ -139,7 +139,7 @@ Bob's socket is on gateway G7. Alice's message arrives at G1. How does it get th
 
 This is why message IDs must be **monotonically ordered per conversation** — you need "everything after X" to be a well-defined query. [Snowflake IDs](../02-building-blocks/unique-id-generation.html) give you this, and they're time-sortable for free.
 
-**Offline users:** the registry lookup returns nothing → the message stays persisted, and a push notification goes to APNs/FCM. Note that on mobile, **the OS owns background delivery** — your WebSocket is dead when the app is backgrounded, so push notification services are mandatory, not an add-on.
+**Offline users:** the lookup finds no gateway → the message just stays in the database, and a push notification goes out through Apple's or Google's push service. This part is not optional: on a phone, the operating system closes your connection as soon as the app goes to the background, and only the platform's own push service is allowed to wake it. Those services are part of the design, not an extra.
 
 ## 7. Deep dive — storage and sharding
 

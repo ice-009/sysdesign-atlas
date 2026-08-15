@@ -26,7 +26,7 @@ It's a queue-and-worker design where all the interesting problems come from **th
 - Handle bursts — a broadcast to 50M users shouldn't delay someone's login code.
 - Third-party provider failures must not lose notifications.
 
-**Clarifying questions:** Are there hard-latency categories (OTP)? Do we own the templates or do callers? Broadcast/campaign support, or only per-user triggers? Is delivery-status tracking required?
+**Clarifying questions:** Are there categories with a hard deadline — a one-time passcode (OTP) for logging in is useless if it arrives after the user gives up? Do we own the message templates, or do the calling services? Broadcast/campaign support, or only per-user triggers? Is delivery-status tracking required?
 
 ## 2. Estimation
 
@@ -74,7 +74,7 @@ It's a queue-and-worker design where all the interesting problems come from **th
                   delivery status → DB + analytics
 ```
 
-**Priority lanes are separate topics with separately-scaled worker pools.** Critical workers are always over-provisioned relative to their load, so an OTP never queues behind a campaign. This is [load shedding](../03-distributed/backpressure.html) applied by priority rather than by volume.
+**Priority lanes are separate queues with their own dedicated workers** — not one queue that workers pick through cleverly. That distinction matters: with a single queue, a login code sits behind whatever was enqueued before it, no matter how it's labelled. With separate queues and workers who only serve the critical one, and deliberately more of them than that lane ever needs, an OTP never waits behind a marketing campaign. This is [load shedding](../03-distributed/backpressure.html) applied by priority rather than by volume.
 
 ## 4. Request flow
 

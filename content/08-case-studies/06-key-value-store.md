@@ -103,7 +103,7 @@ Two clients write concurrently to the same key. Both succeed on different quorum
 
 **Last-write-wins by timestamp is wrong** — [clock skew](../03-distributed/clocks.html) means the write that really happened last may have a lower timestamp, so you silently lose data.
 
-**Vector clocks** detect concurrency instead of guessing:
+**Vector clocks** sidestep the guessing entirely. Instead of asking "which came later?", they record *what each writer had seen* when it wrote. If A's version already includes everything B knew, A genuinely came after B and wins outright. If neither includes the other, the two writes truly happened without knowledge of each other — and the system says so instead of picking one.
 
 ```diagram
    Each write carries a version vector: [(node, counter), ...]
@@ -138,7 +138,7 @@ This is a **sloppy quorum** — it keeps writes succeeding during failures, at t
 
 **Read repair — passive, ongoing.** During a read, the coordinator sees divergent versions, returns the newest to the client, and writes it back to stale replicas. Free repair for *hot* data — but cold data is never read, so never repaired. Which motivates:
 
-**Merkle trees — permanent failure and cold data.**
+**Merkle trees — permanent failure and cold data.** The problem: two replicas hold a million keys each and need to find the handful that differ, without shipping a million keys to each other. A **Merkle tree** solves it by hashing the data in chunks, then hashing those hashes, and so on up to a single root value. Two replicas compare one number; if it matches, everything below it matches too.
 
 ```diagram
               root hash
