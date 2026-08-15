@@ -11,7 +11,9 @@ prereqs: [indexing, hardware-numbers]
 
 "Should I use Postgres or Cassandra?" is really a question about storage engines. The read/write asymmetry of your workload maps almost directly onto B-tree versus LSM, and being able to explain *why* an LSM tree suits write-heavy workloads means reasoning one level below where most explanations stop.
 
-The fundamental constraint driving both designs: **sequential disk I/O is dramatically faster than random I/O.** On spinning disks it was ~100×. On SSDs the gap is smaller but still real, and random writes additionally cause write amplification in the flash translation layer. Every storage engine is a strategy for turning random writes into sequential ones — or deciding not to.
+A **storage engine** is the part of a database that actually puts bytes on disk and finds them again. Everything above it — SQL, query planning, transactions — eventually calls down into it.
+
+The one constraint driving every design below: **writing data in a continuous stream is dramatically faster than writing it in scattered pieces.** On spinning disks the gap was around 100×. On SSDs it's smaller but still real, and scattered writes make an SSD do extra internal shuffling on top (**write amplification** — the disk physically writes more bytes than you asked it to). So every storage engine is a strategy for turning scattered writes into sequential ones, or a considered decision not to.
 
 ## B-trees
 
@@ -47,7 +49,9 @@ Data lives in fixed-size **pages** (typically 4–16 KB) arranged in a balanced 
 
 Log-Structured Merge trees. Used by Cassandra, RocksDB, LevelDB, HBase, ScyllaDB, InfluxDB — and increasingly as an option inside traditional databases.
 
-The core idea: **never write randomly. Only append.**
+The core idea: **never go back and edit something on disk. Only ever add to the end.**
+
+Three terms carry the whole design. The **memtable** is a sorted table of recent writes held in memory. An **SSTable** is what that becomes when it's full and gets written out — a sorted file that is never modified again. **Compaction** is the background job that merges those files together, discarding superseded values, so reads don't have to consult an ever-growing pile of them.
 
 ```diagram
    WRITE PATH

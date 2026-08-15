@@ -17,7 +17,7 @@ Four distinct motivations, and they demand different architectures. Establishing
 4. **Scale** — rare, but some workloads exceed what one region can provide.
 
 :::interview Push back before agreeing
-Multi-region roughly doubles cost and multiplies complexity by considerably more. "Is this for latency, disaster recovery, or compliance? If it's DR, a warm standby with a 10-minute RTO is far cheaper than active-active. If it's latency, a CDN plus read replicas gets most of the benefit without distributing writes. I'd only go active-active for writes if we genuinely need sub-100ms writes globally or region-level availability." Interrogating the requirement is the senior move.
+Multi-region roughly doubles cost and multiplies complexity by considerably more. "Is this for latency, disaster recovery, or compliance? If it's disaster recovery, a **warm standby** — a second region kept running and up to date, but serving no traffic until needed — with a ten-minute recovery time is far cheaper than **active-active**, where every region serves live traffic all the time. If it's latency, a CDN plus read replicas gets most of the benefit without distributing writes. I'd only go active-active for writes if we genuinely need sub-100ms writes globally or region-level availability." Interrogating the requirement is the senior move.
 :::
 
 ## The latency floor
@@ -56,7 +56,7 @@ The detail most designs miss: **an untested failover doesn't work.** Run regular
 
 ### Active–active, partitioned writes (the sweet spot)
 
-Both regions serve traffic, but each **entity has a home region** that owns its writes.
+Both regions serve traffic, but every user (or account, or tenant) is assigned a **home region** that owns their writes. Reads can be served anywhere; changes always go home. That single rule removes conflicts entirely, because two regions never write the same record.
 
 ```diagram
    EU users → EU region (owns EU user data, writes locally)

@@ -31,7 +31,7 @@ So "we have integration tests" is not a claim about correctness. Three technique
 
 ## 1. Model checking: verify the design, not the code
 
-Write the *protocol* in a specification language, state what must always be true, and let a tool explore every reachable state.
+**Model checking** means describing your protocol in a small formal language, stating the rules that must never be broken, and letting a tool mechanically try *every* state the system can reach — every interleaving, every crash point — looking for one where a rule breaks. Where testing samples the space, this exhausts it.
 
 TLA+ is the dominant tool. You describe the system as a state machine — variables, an initial state, and the transitions allowed — then assert invariants and temporal properties.
 
@@ -70,7 +70,7 @@ Model checking a 200-line spec of just the tricky protocol — the part where no
 
 ## 2. Jepsen: break a real system and check what it promised
 
-Jepsen takes the opposite approach: run the real database on a real cluster, hammer it with concurrent clients, inflict network partitions and clock skew and process kills, record every operation's invocation and completion — then check whether the resulting history is *possible* under the consistency model the vendor claims.
+Jepsen takes the opposite approach: run the real database on a real cluster, hammer it with many clients at once, then deliberately break things — cut the network between nodes, skew their clocks, kill processes. It records when every operation started and finished, and afterwards asks a precise question: *is this recorded history even possible* if the database really provided what it advertises? If no valid ordering explains what was observed, the promise was broken.
 
 ```viz
 {
@@ -110,7 +110,9 @@ Have your integration tests log every operation with invocation and completion t
 
 The most practical technique for a team building its own system, and the least widely known.
 
-Run the entire distributed system — every node — in a single process, on a single thread, with **every source of nondeterminism replaced by a seeded pseudorandom generator**: time, network delivery order, thread scheduling, disk latency, random numbers, failure injection.
+Run the entire cluster — every node — inside one process on one thread, and replace **everything that could vary between runs** with a random generator driven by a single seed: the clock, the order messages arrive in, which node runs next, how slow the disk is, when failures happen.
+
+The payoff is in that word *seed*. The same seed replays exactly the same run, so a bug found on run 4,318,201 can be reproduced on demand — which is the thing that makes distributed bugs fixable rather than merely observable.
 
 ```diagram
    REAL SYSTEM                    SIMULATED SYSTEM
