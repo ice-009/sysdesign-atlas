@@ -17,7 +17,10 @@ Cost per token is derivable from three quantities you already know how to comput
    INPUTS
      H  = hourly cost of the serving node
      T  = sustained output tokens/second at full batch
-     U  = average utilisation (0 to 1)
+     U  = average utilisation (0 to 1) — the fraction of the
+          time the GPU is actually generating. You rent it by
+          the hour whether or not anyone is using it, so this
+          term is what turns idle capacity into cost per token.
 
    cost per output token = H / (3600 × T × U)
 

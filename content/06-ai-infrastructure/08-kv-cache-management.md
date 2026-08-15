@@ -30,7 +30,9 @@ Lever 1 belongs to the model architecture. This page is levers 2 and 3, which ar
 
 ## Prefix caching as a radix tree
 
-Identical prefixes produce bit-identical K and V. A flat cache keyed by "the whole prompt" captures only exact repeats. A **radix tree** captures every shared prefix, at every length.
+Here's the fact that makes this work: because each token's cached values depend only on the tokens *before* it, two requests that start with the same words produce byte-for-byte identical cache entries for that shared opening — no matter how differently they continue.
+
+A simple cache keyed on the whole prompt only catches exact repeats. A **radix tree** — a tree where each branch point is a place two prompts diverged — catches every shared beginning, at every length.
 
 ```diagram
    Requests arriving:
@@ -157,7 +159,7 @@ The crossover is a real calculation, not a heuristic, and it depends on your mod
 
 ## Prefill/decode disaggregation
 
-Prefill and decode want different things. Running them on the same GPUs forces a compromise on both.
+**Disaggregation** here means splitting one job across two separate pools of machines rather than doing both on the same ones. It's worth doing because prefill and decode want opposite hardware: prefill saturates the compute units, decode sits waiting on memory. Run them together and every GPU is a compromise between the two.
 
 ```diagram
    COLOCATED                     DISAGGREGATED

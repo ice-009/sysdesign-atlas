@@ -28,7 +28,7 @@ Scheduling four of a job's sixty-four GPUs is not 6% progress — it is zero pro
 
 ## Gang scheduling
 
-Allocate all of a job's resources atomically, or none of them.
+A **gang** is a set of workers that are useless individually — a 64-GPU training job can't start with 63. **Gang scheduling** therefore allocates all of a job's resources together or none at all, rather than handing them out as they free up.
 
 ```diagram
    WITHOUT GANG SCHEDULING — resource deadlock
