@@ -19,9 +19,11 @@ The naive implementation looks trivial:
    DEL lock:job42                         ← release
 ```
 
-`NX` means "only if not exists," making acquisition atomic. `EX 30` means it auto-expires, so a crashed holder doesn't deadlock the system forever.
+`NX` means "only set this if nobody else already has," so exactly one caller can win even if a thousand try at once. `EX 30` puts a 30-second expiry on it — a **lease** rather than a lock — so if the holder crashes, the lock doesn't stay held forever and block everyone.
 
-This is correct for **efficiency** — preventing duplicate work that's merely wasteful. It is **not** correct for **correctness** — preventing two writers from corrupting data. The distinction is the entire subject.
+That expiry is also the source of every problem below. A lock that can time out is a lock you might not still hold while you think you do.
+
+So this design is fine for **efficiency** — stopping duplicate work that would merely waste effort. It is *not* sufficient for **correctness** — stopping two writers from corrupting each other. That distinction is the entire subject.
 
 ## Why locks aren't safe
 
@@ -52,7 +54,7 @@ The question to sit with is "how do you prevent two workers from processing the 
 
 The actual fix, and it requires cooperation from the **resource**, not just the lock service.
 
-Every lock grant includes a monotonically increasing token. The resource remembers the highest token it has seen and **rejects anything older**.
+Every time the lock is handed out, it comes with a number one higher than last time. Whatever you're writing to remembers the highest number it has seen and **refuses anything with a lower one**. A stale holder can still try to write — it just can't succeed.
 
 ```diagram
    A acquires lock  → token 33

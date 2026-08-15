@@ -24,7 +24,9 @@ Two separate indexes aren't better: the database intersects two large result set
 
 ## Geohash
 
-Recursively subdivide the world, encoding the choices as bits, and render as base32.
+A **geohash** turns a latitude and longitude into a short string like `tdr1v2q`, where the string *is* a box on the map: the longer the string, the smaller the box.
+
+It works by playing twenty questions with the planet. Cut the world in half, note which side you're on, cut that half in half, note again — encoding each answer as a bit, then writing the result as text.
 
 ```diagram
    Split longitude [-180,180] in half:  east → 1, west → 0
@@ -52,7 +54,7 @@ SELECT * FROM places WHERE geohash LIKE 'tdr1v%';
 2. **Non-uniform cell size.** Cells shrink toward the poles because longitude lines converge. A "5 km" cell is 5 km at the equator and much narrower in Norway.
 
 :::interview The full geohash answer
-"I'd store a geohash prefix and query the cell plus its eight neighbours, then compute exact haversine distance and filter — the neighbour query is necessary because two nearby points can fall on opposite sides of a cell boundary and share no prefix. I'd pick precision based on the search radius: 6 characters for a ~1 km search."
+"I'd store a geohash prefix and query the cell plus its eight neighbours, then work out the true distance to each candidate (the haversine formula, which measures distance across the curved surface of the earth rather than on a flat map) and filter — the neighbour query is necessary because two nearby points can fall on opposite sides of a cell boundary and share no prefix. I'd pick precision based on the search radius: 6 characters for a ~1 km search."
 
 Naming the boundary problem *and* the 8-neighbour fix is the whole test here. Candidates who describe geohash without it have read about it but not used it.
 :::

@@ -11,10 +11,12 @@ prereqs: [replication, cdn]
 
 **Never store large binary files in your relational database.** This comes up in nearly every media-related design, and stating it early with reasons is quick, easy signal.
 
-Why not:
-- **Backups become impossible.** A 5 TB database of photos takes hours to back up and longer to restore. Your RTO is now measured in hours for reasons unrelated to your actual data.
-- **Replication cost.** Every byte ships to every replica.
-- **Buffer pool pollution.** Blobs evict the index pages and hot rows that actually needed to be in RAM, so your *unrelated* queries get slower.
+First, the term: **object storage** is a service that holds whole files — photos, video, backups — under a key, and hands them back over HTTP. S3 is the canonical example. It doesn't do queries or updates-in-place; you put a file, you get a file.
+
+Why not keep them in the database:
+- **Backups become impossible.** A 5 TB database of photos takes hours to back up and longer to restore. Your recovery time is now measured in hours for reasons that have nothing to do with your actual data.
+- **Replication cost.** Every byte gets shipped to every copy.
+- **It poisons your cache.** Databases keep hot pages in memory; giant files push out the index pages and popular rows that genuinely needed to be there, so *unrelated* queries slow down.
 - **It's the wrong price.** Object storage costs roughly an order of magnitude less per GB than provisioned database storage, and scales without your involvement.
 - **Serving.** You cannot put a CDN in front of a database row, but object storage integrates with CDNs natively.
 
@@ -50,7 +52,9 @@ A flat key-value store for immutable blobs, addressed by key, accessed over HTTP
 
 ## Upload: use presigned URLs
 
-The naive design routes uploads through your application servers. Don't.
+A **presigned URL** is a link your server generates that grants permission to upload (or download) one specific file, for a short window. The client uploads straight to the storage service using it, so the bytes never pass through your servers — but you still control who gets a link.
+
+The naive design routes uploads through your application servers instead. Don't.
 
 ```diagram
    NAIVE (bad)
@@ -88,7 +92,7 @@ For large files, a single HTTP PUT is fragile — a dropped connection at 90% me
 
 Benefits: parallel uploads saturate available bandwidth, failures retry one part instead of the whole file, and you can upload while still generating data.
 
-**Operational detail worth knowing:** incomplete multipart uploads consume storage and are billed even though the object doesn't exist. Always set a lifecycle rule to abort incomplete uploads after a few days — a genuinely common source of surprise cost.
+**Operational detail worth knowing:** the parts of an abandoned upload sit there costing money even though no finished file ever appeared, and they're invisible in a normal file listing. Set a rule that automatically bins incomplete uploads after a few days — a genuinely common source of surprise bills.
 
 ## Storage tiers
 

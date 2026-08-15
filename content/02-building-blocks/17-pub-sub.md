@@ -73,7 +73,7 @@ The event log **is** the source of truth. Current state is derived by replaying 
 
 ## CQRS
 
-Command Query Responsibility Segregation: separate the write model from the read model.
+Command Query Responsibility Segregation — an ugly name for a simple idea: **stop using one model for both writing and reading.** Store writes in whatever shape keeps the data correct, and separately maintain read-shaped copies built from those writes.
 
 ```diagram
    commands ──► write model ──► events ──┬──► read model A (SQL)
@@ -101,7 +101,7 @@ Everything from [message queues](message-queues.html) applies, with fanout multi
 
 Event-driven architecture removes *runtime* coupling and replaces it with *schema* coupling, plus new operational problems. Be explicit about these. Knowing the limits of your own design is the difference between a considered choice and a lucky one.
 
-**Schema evolution.** Once five services consume `OrderPlaced`, its shape is a contract you can't change unilaterally. You need additive-only changes, versioning, and a schema registry with compatibility checks.
+**Schema evolution.** Once five services consume `OrderPlaced`, its shape is a promise you can't change on your own. You need to only ever *add* fields, to version the event, and to keep a **schema registry** — a shared record of every event's agreed shape, which rejects a change that would break existing consumers before it ships.
 
 **No global view.** A request that spans six services asynchronously has no stack trace. Distributed tracing with a correlation ID propagated through every event is mandatory, not optional.
 
