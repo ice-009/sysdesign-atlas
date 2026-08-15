@@ -73,7 +73,9 @@ Shard by `event_id` — everything about one event stays together, so a booking 
 
 ## 4. The core: reserve-then-confirm
 
-Never hold a database transaction open while the user types their card details. Instead, model the hold explicitly:
+The whole design turns on one rule: **never keep a database transaction open while a human is doing something.** A transaction holds locks, and a user typing their card details takes minutes — during which those seats, and often neighbouring rows, are frozen for everyone else.
+
+So instead of one long transaction, use two short ones with a *hold* in between. The hold is an ordinary column on the row saying "reserved for this person until this time" — data, not a lock — so the database is free the entire time the user is paying.
 
 ```diagram
    1. HOLD  (fast, transactional)
@@ -111,7 +113,7 @@ This is the reserve-with-TTL pattern from [Distributed Transactions](../03-distr
 
 Multiple layers, and a strong answer names more than one:
 
-**Layer 1 — row locking.** `SELECT ... FOR UPDATE` serializes concurrent attempts on the same seat. The second transaction blocks, then sees `status != 'AVAILABLE'` and fails cleanly.
+**Layer 1 — row locking.** Adding `FOR UPDATE` to a `SELECT` tells the database "I intend to change these rows, don't let anyone else touch them until I'm done". Two people going for the same seat are therefore forced into single file: the second one waits, then sees the seat is no longer available and fails cleanly.
 
 **Layer 2 — conditional update.** Even better, make the update itself the check:
 

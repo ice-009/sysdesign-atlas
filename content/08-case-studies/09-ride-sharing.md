@@ -104,7 +104,7 @@ The current position lives in memory. The *history* goes to Kafka for asynchrono
 
 **Further reductions worth naming:**
 - **Adaptive frequency** — a stationary driver doesn't need 4-second updates; a driver on a highway does. This alone can halve the write volume.
-- **Only update the index on cell change.** If a driver hasn't left their geohash cell, update the stored value but skip the index write.
+- **Only update the index on cell change.** The map is divided into small cells, and the index answers "who is in this cell". A driver moving a few metres is usually still in the same cell — so record their new coordinates, but skip rewriting the index, because the answer it gives hasn't changed.
 - **Batch updates** from the connection tier rather than one write per driver per tick.
 
 **Sharding:** by geographic region (city). Locations in Pune never need to be queried alongside locations in Berlin. Geographic sharding gives perfect locality here — the query and the data are both inherently local. Cross-region queries essentially don't exist, which is a rare and pleasant property.

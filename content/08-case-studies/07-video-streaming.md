@@ -104,6 +104,8 @@ Note the asymmetry: the upload path touches your services heavily and runs rarel
 
 ## 4. Deep dive — the transcoding pipeline
 
+**Transcoding** is converting the uploaded file into the various versions players actually need. Three words run through this whole section: a **rendition** is one quality level (1080p, 720p, 360p); a **segment** is a few seconds of video in its own small file; and a **manifest** is the index listing every rendition and every segment, which the player downloads first so it knows what exists.
+
 A single source file must become many renditions, each chopped into segments.
 
 ```diagram
@@ -126,7 +128,7 @@ A single source file must become many renditions, each chopped into segments.
         └─ 6. THUMBNAILS, preview sprites, subtitles
 ```
 
-**Why chunk-level parallelism matters:** a 2-hour film encoded serially takes hours. Split into 500 chunks encoded across 500 workers, it takes minutes. The split must happen at **keyframes** so each chunk decodes independently.
+**Why chunk-level parallelism matters:** a 2-hour film encoded start to finish takes hours. Split into 500 chunks across 500 workers, it takes minutes. The cuts have to fall on **keyframes** — the occasional complete picture in a video stream, as opposed to the frames in between, which only describe what changed since the last one. Cut anywhere else and the chunk can't be decoded on its own.
 
 **Design properties to call out:**
 - **The pipeline is a DAG**, with steps depending on others. A workflow engine (or a [job scheduler](job-scheduler.html)) tracks state per task.
@@ -141,7 +143,9 @@ At this scale, cost is a first-order design constraint rather than an afterthoug
 
 ## 5. Deep dive — adaptive bitrate streaming
 
-The playback mechanism, and the reason the CDN works so well.
+**Adaptive bitrate** is why video degrades to blurry instead of freezing when your connection dips. The server doesn't decide anything — the *player* does, one segment at a time, choosing the next quality level based on how fast the last few segments arrived and how much buffer it has left.
+
+That design is also the reason the CDN works so well: every quality level of every segment is just a static file, identical for every viewer, so it caches perfectly.
 
 ```diagram
    master.m3u8
