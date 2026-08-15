@@ -50,7 +50,7 @@ The promise is the key: after voting yes, a participant **must** be able to comm
 
 **Availability multiplies down.** All participants must be up for the duration. Three services at 99.9% give the transaction 99.7%.
 
-**3PC** adds a pre-commit phase to make it non-blocking, at the cost of an extra round trip — and it's still unsafe under network partitions, so it's rarely used. Modern systems that need atomic cross-shard commits (Spanner, CockroachDB) use 2PC *over Paxos/Raft groups*, so the coordinator itself is fault-tolerant and can't disappear. That's the fix that makes 2PC viable, and it's worth naming.
+**3PC** adds a third phase to stop that blocking, at the cost of another round trip — and it's still unsafe when the network splits, so it's rarely used. The fix that actually works, used by systems like Spanner and CockroachDB: make the coordinator itself a small replicated cluster agreeing by consensus, so it cannot simply vanish mid-decision. A crashed machine no longer strands anyone, because its peers know what was decided. That's the fix that makes 2PC viable, and it's worth naming.
 
 :::interview When 2PC is acceptable
 "2PC is reasonable inside a single trust and latency domain — cross-shard transactions in one database cluster, where the coordinator is itself replicated by consensus so it can't block indefinitely. It's a poor fit across independently-operated services over the internet, where the coordinator is a single point of failure and locks are held across unbounded latency."
@@ -58,7 +58,9 @@ The promise is the key: after voting yes, a participant **must** be able to comm
 
 ## Sagas
 
-Break the distributed transaction into a sequence of **local** transactions, each with a **compensating action** that semantically undoes it.
+A **saga** gives up on one big all-or-nothing transaction and instead runs a sequence of small local ones — each committed for real, immediately — where every step has a matching **compensating action** that undoes its effect if a later step fails.
+
+"Semantically undoes" matters: you can't roll back a committed transaction, so compensation is a *new* action with the opposite meaning. You don't un-charge a card; you issue a refund, and both appear in the history.
 
 ```diagram
    T1 reserve flight   →  C1 cancel flight

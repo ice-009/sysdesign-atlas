@@ -11,7 +11,7 @@ prereqs: [consistency-models, networking]
 
 Ordering events by wall-clock time seems obvious and is quietly wrong.
 
-**Clock skew.** Two servers' clocks differ. NTP typically keeps them within a few milliseconds on a good network, tens to hundreds of milliseconds on a bad one. That's an eternity — thousands of operations can occur inside the uncertainty window.
+**Clock skew** — two servers simply disagree about what time it is. Machines correct themselves against time servers over the network (NTP, the Network Time Protocol), which typically holds them within a few milliseconds of each other on a good network, and tens to hundreds of milliseconds on a bad one. That's an eternity — thousands of operations can occur inside the uncertainty window.
 
 **Clocks jump.** NTP corrections can step the clock *backwards*. A VM migration or a leap second adjustment can produce discontinuities. Code that assumes monotonically increasing time breaks in ways that are extremely hard to debug.
 
@@ -38,7 +38,7 @@ Measuring an elapsed duration with a wall clock can yield a **negative** number 
 
 ## Happens-before
 
-Since physical time is unreliable, define ordering **logically**. Event A *happens-before* B (written A → B) if:
+Since physical time is unreliable, stop asking "when did this happen?" and ask "could this one have caused that one?" That's ordering by **cause** rather than by clock. Event A *happens-before* B (written A → B) if:
 
 1. A and B are in the same process and A came first, or
 2. A is sending a message and B is receiving it, or
@@ -58,7 +58,7 @@ A counter per process, with one rule for messages:
 
 **Guarantee:** if A → B then `L(A) < L(B)`.
 
-**The crucial limitation:** the converse is false. `L(A) < L(B)` does **not** mean A → B — they might be concurrent. Lamport clocks give you a total order that's *consistent with* causality, but they can't detect concurrency, so they can't detect conflicts.
+**The crucial limitation:** it only works in one direction. If A caused B, A's number is smaller — but a smaller number does *not* prove causation. The two events may have been entirely unrelated and simply counted differently. So a Lamport clock can put everything in *an* order that never contradicts cause and effect, but it cannot tell you which pairs were genuinely simultaneous — which is exactly where conflicts hide.
 
 Useful for producing a deterministic tiebreak ordering everyone agrees on (append the process ID to break ties). Not useful for conflict detection.
 

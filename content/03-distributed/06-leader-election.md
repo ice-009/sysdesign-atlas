@@ -16,7 +16,7 @@ A leader is a designated node that performs a role no one else may perform simul
 - **Owning a partition** — one consumer per Kafka partition, one worker per shard.
 - **Coordinating** — assigning work, driving a rebalance, managing cluster membership.
 
-The leader's real value is **serialization**. A single decision-maker turns a distributed coordination problem into a local one: no locks, no conflicts, no consensus per operation. That's a large simplification, and it's why the pattern is everywhere.
+The leader's real value is **serialisation** — forcing things into a single order. Once one node makes all the decisions, a hard distributed problem becomes an ordinary single-machine one: no locks between machines, no conflicting versions, no agreement needed per operation. That's an enormous simplification, and it's why the pattern is everywhere.
 
 The cost is equally clear: the leader is a bottleneck for throughput, a single point of failure, and an availability gap during every election.
 
@@ -35,9 +35,9 @@ The standard production answer. Candidates race to create a key with a lease; ex
             others compete for it
 ```
 
-ZooKeeper's idiom uses **ephemeral sequential nodes**: each candidate creates a node, lowest sequence wins, and each watches only its *immediate predecessor* — watching all of them causes a herd on every change. The node is ephemeral, so it vanishes automatically when the session dies. No TTL guessing required.
+ZooKeeper does it slightly differently. Each candidate creates an entry that is **sequential** (automatically numbered in arrival order) and **ephemeral** (deleted the moment that candidate's connection drops). Lowest number wins. Each loser watches only the entry immediately ahead of it, rather than all of them — otherwise every change wakes the entire fleet at once. Because the entry disappears on disconnect, there's no expiry time to guess at.
 
-This is correct because the underlying store is linearizable — two nodes cannot both believe they hold the key.
+Either version is safe for the same reason: the underlying store answers as if it were a single copy, so two nodes cannot both be told they won.
 
 ### 2. Built into the protocol (Raft)
 
