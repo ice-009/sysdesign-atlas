@@ -1,27 +1,33 @@
-/* Highlights, ink and sketch cards on topic pages — Apple Pencil first.
+/* Scribble boxes and the text highlighter — Apple Pencil first.
 
-   How marks survive reflow (text size, typeface, spacing, width, rotation,
-   window size) and content edits:
+   Two things only, each with its own place:
 
-     Highlight   saved as the words themselves: position + exact quote + ~32
-                 characters of context either side. Re-found in four steps:
-                 exact position → same quote elsewhere (context picks the
-                 right one) → close match → "Needs a new home" tray.
-     Ink         every stroke belongs to a group (strokes drawn close together
-                 in time and space). A group is anchored to the WORD under its
-                 centre, or to the paragraph beside it when drawn in the
-                 margin, and its points are stored in em relative to that
-                 anchor — so it follows the word and scales with the text.
-     Sketch card a drawing pad after a paragraph; its strokes are in units of
-                 the card's width, so it scales as a whole and never distorts.
+     Highlighter   With it on, a Pencil swipe over the article text highlights
+                   those words (snapped to whole words). Swipes that miss the
+                   text do nothing; the page scrolls as usual.
+     Scribble box  A Notes-like writing area you drop in after any paragraph.
+                   The Pencil writes in it; fingers scroll past it.
 
-   Stored points are never rewritten by layout; placement is recomputed every
-   time the page is drawn. The stroke being drawn is checkpointed every 250 ms
-   so iOS closing the app can't lose more than that.
+   Nothing else on the page is drawn on, and the app takes over a touch only
+   when the Pencil lands inside a scribble box or on text with the highlighter
+   on. Everywhere else the page is plain Safari scrolling — the earlier
+   version intercepted touches page-wide, and that is what froze it.
 
-   Text positions come from one canonical walk over the article's text nodes
-   that skips everything this file injects ([data-atlas-ui]), so cards, trays
-   and markers never shift the offsets. */
+   How marks stay put:
+     Highlights are saved as the words themselves (quote + context) and are
+     re-found in four steps after a topic edit: exact → moved → close match →
+     "needs a new home" tray.
+     A box is saved against the paragraph it follows (by a fingerprint of its
+     text) and its strokes are stored in units of the box's own width, so text
+     size, rotation and theme only scale it as a whole. It never distorts.
+
+   Every finished stroke is written to IndexedDB on pen-up and the stroke in
+   progress is checkpointed every 250 ms. A stroke whose lift never arrives is
+   closed and saved by a safety timer.
+
+   Text positions come from one walk over the article's text nodes that skips
+   everything injected here ([data-atlas-ui]), so boxes and markers never shift
+   highlight offsets. */
 
 (function () {
   'use strict';
@@ -39,25 +45,42 @@
 
   const HL = ['yellow', 'green', 'blue', 'pink'];
   const PENS = ['ink', 'red', 'blue', 'green', 'marker'];
-  const MARKER_WIDTH = 2.8; // a marker stroke is this many times the pen width
-  // Page parts outside the article body that ink can hang on, by class name.
-  const REGION_KEYS = ['crumbs', 'topic-title', 'topic-summary', 'badges', 'prereq', 'finish', 'notes', 'pn'];
-  const SIZES = { fine: 0.075, medium: 0.12, bold: 0.2 }; // stroke width, em
+  const SIZES = { fine: 3, medium: 5, bold: 8.5 }; // box units (1000 = box width)
+  const MARKER = 2.6; // marker strokes are this much wider
+  const PAPERS = ['dots', 'lines', 'blank'];
   const MARK_KINDS = new Set(['highlight', 'stroke', 'card']);
-  const GROUP_GAP_MS = 1600;
-  const GROUP_DIST_EM = 4;
   const CTX = 32;
   const KEEP_DELETED_DAYS = 30;
+  const BOX_START = 0.42; // new box height / width
+  const BOX_MAX = 4;
+  const STROKE_IDLE_MS = 1500; // safety timer
 
   /* ---------- tool state (per device) ---------- */
 
   const TOOL_KEY = 'atlas.ink';
-  const tool = { mode: 'read', hl: 'yellow', pen: 'ink', size: 'medium', open: false, finger: false, lastTool: 'pen', margin: false };
+  const tool = {
+    hl: false, // highlighter on
+    hlColor: 'yellow',
+    pen: 'ink',
+    size: 'medium',
+    paper: 'dots',
+    finger: false, // fingers draw in boxes too
+    collapsed: false, // boxes start collapsed
+    diag: false, // touch diagnostics overlay
+  };
   try {
-    Object.assign(tool, JSON.parse(localStorage.getItem(TOOL_KEY) || '{}'));
+    const saved = JSON.parse(localStorage.getItem(TOOL_KEY) || '{}') || {};
+    const legacy = typeof saved.hl === 'string'; // the previous version kept the highlight colour here
+    for (const k of Object.keys(tool)) if (k in saved && typeof saved[k] === typeof tool[k]) tool[k] = saved[k];
+    if (legacy && HL.includes(saved.hl)) tool.hlColor = saved.hl;
+    if (!PENS.includes(tool.pen)) tool.pen = 'ink';
+    if (!HL.includes(tool.hlColor)) tool.hlColor = 'yellow';
+    if (!PAPERS.includes(tool.paper)) tool.paper = 'dots';
+    if (!SIZES[tool.size]) tool.size = 'medium';
   } catch {
     /* defaults */
   }
+  let eraser = false; // session only: an eraser left on by accident shouldn't greet you tomorrow
   const saveTool = () => {
     try {
       localStorage.setItem(TOOL_KEY, JSON.stringify(tool));
@@ -70,8 +93,7 @@
 
   const now = () => Date.now();
   const clone = (r) => (r ? JSON.parse(JSON.stringify(r)) : r);
-  const prefSig = (p) => `${p.size}|${p.font}|${p.leading}|${p.width}`;
-  const deleted = (r) => ({ ...r, deleted: true, data: { ...r.data, del: now() } });
+  const deleted = (r, extra = {}) => ({ ...r, deleted: true, data: { ...r.data, del: now(), ...extra } });
   const restored = (r) => {
     const data = { ...r.data };
     delete data.del;
@@ -113,17 +135,17 @@
     const B = clip(b);
     return 1 - levenshtein(A, B) / Math.max(A.length, B.length, 1);
   }
+  const normText = (el) => el.textContent.replace(/\s+/g, ' ').trim();
 
   /* ---------- per-topic state ---------- */
 
-  let T = null; // the topic currently on screen
+  let T = null; // the topic on screen
   const prepared = new Map(); // slug → records preloaded during the topic fetch
   let undoStack = [];
   let redoStack = [];
-  let lastGroup = null; // for joining strokes into one group
   let pendingReplace = null; // highlight id waiting to be re-attached
-  let pendingPlace = null; // ink group id waiting to be placed
-  let previewing = false; // "Show as drawn" active
+  let pendingPlace = null; // box id waiting for a new paragraph
+  let insertMode = false; // ＋ markers showing
 
   Atlas.preparers.push(async (topic) => {
     prepared.set(topic.slug, await Store.byTopic(topic.slug));
@@ -133,13 +155,13 @@
   Atlas.on('close', closeMenus);
   Atlas.on('paint', ({ topic }) => {
     if (topic) setup(topic);
-    syncTray();
+    syncDock();
   });
   Atlas.on('render', ({ route, topic, opts }) => {
     if (topic && T && opts && opts.mark) jumpToMark(opts.mark);
     if (route.name === 'library') paintLibrary();
     if (route.name === 'settings') paintPencilSettings();
-    syncTray();
+    syncDock();
   });
   Atlas.on('prefs', () => scheduleLayout());
 
@@ -195,7 +217,6 @@
       const i = ix.pos.get(node);
       return i == null ? -1 : ix.starts[i] + offset;
     }
-    // An element position: the first indexed text at or after it.
     const probe = node.childNodes[offset] || node;
     for (let i = 0; i < ix.nodes.length; i++) {
       const rel = probe.compareDocumentPosition(ix.nodes[i]);
@@ -240,19 +261,7 @@
 
   const WORD = /[\p{L}\p{N}_'’]/u;
 
-  function wordAt(text, at) {
-    let s = at;
-    if (!WORD.test(text[s] || '')) {
-      if (WORD.test(text[s - 1] || '')) s = at - 1;
-      else return null;
-    }
-    let e = s;
-    while (s > 0 && WORD.test(text[s - 1])) s--;
-    while (e < text.length && WORD.test(text[e])) e++;
-    return [s, e];
-  }
-
-  /* Grow a pen swipe to whole words and drop surrounding whitespace. */
+  /* Grow a swipe to whole words and drop surrounding whitespace. */
   function snap(text, a, b) {
     let s = Math.min(a, b);
     let e = Math.max(a, b);
@@ -263,7 +272,13 @@
     return [s, e];
   }
 
-  /* ---------- text anchors ---------- */
+  function trimSpan(text, [s, e]) {
+    while (s < e && /\s/.test(text[s])) s++;
+    while (e > s && /\s/.test(text[e - 1])) e--;
+    return e > s ? [s, e] : null;
+  }
+
+  /* ---------- text anchors (highlights) ---------- */
 
   function textAnchor(s, e) {
     const text = index().text;
@@ -274,12 +289,6 @@
     return commonSuffix(text.slice(Math.max(0, s - CTX), s), a.pre || '') + commonPrefix(text.slice(e, e + CTX), a.suf || '');
   }
 
-  function trimSpan(text, [s, e]) {
-    while (s < e && /\s/.test(text[s])) s++;
-    while (e > s && /\s/.test(text[e - 1])) e--;
-    return e > s ? [s, e] : null;
-  }
-
   /* The four-step re-attach. Returns [start, end] or null (→ tray). */
   function resolveText(a) {
     if (!a || !a.q) return null;
@@ -287,10 +296,9 @@
     // 1. Exact: same words at the same place.
     if (text.slice(a.s, a.e) === a.q) return [a.s, a.e];
     // 2. Same words elsewhere; the surrounding context picks the occurrence.
+    //    A short quote must bring some of its surroundings, or it would jump
+    //    to the same word in another paragraph.
     const len = a.q.length;
-    // A single word (what ink hangs on) occurs all over a page, so a short
-    // quote only counts as found if some of its surroundings came with it —
-    // otherwise a circle would jump to the same word in another paragraph.
     const short = len < 12;
     let best = null;
     let bestScore = -Infinity;
@@ -312,7 +320,6 @@
   function fuzzy(text, a) {
     const q = a.q;
     const len = q.length;
-    if (len < 6) return null; // a single short word is too ambiguous to guess
     const k = Math.min(16, Math.max(4, Math.floor(len / 3)));
     const head = q.slice(0, k);
     const tail = q.slice(-k);
@@ -345,14 +352,14 @@
     return best && bestSim >= 0.72 ? trimSpan(text, best) : null;
   }
 
-  /* ---------- block anchors (margin ink, sketch cards) ---------- */
+  /* ---------- paragraphs (what boxes follow) ---------- */
 
   function blocks() {
     if (!T.blocks) {
       T.blocks = Array.from(T.prose.children)
         .filter((el) => !el.hasAttribute('data-atlas-ui'))
         .map((el) => {
-          const t = el.textContent.replace(/\s+/g, ' ').trim();
+          const t = normText(el);
           return { el, t, h: hash(t) };
         });
     }
@@ -387,42 +394,12 @@
     return null;
   }
 
-  /* Everything on the page ink can hang on, top to bottom: the header parts,
-     every block of the article body, and the end-of-topic sections. */
-  function regions() {
-    const out = [];
-    for (const el of T.article.children) {
-      if (el === T.prose) {
-        for (const b of blocks()) out.push({ el: b.el, block: true });
-        continue;
-      }
-      const key = REGION_KEYS.find((k) => el.classList.contains(k));
-      if (key) out.push({ el, key });
-    }
-    return out;
-  }
-
-  function regionAtY(y) {
-    let best = null;
-    let dist = Infinity;
-    for (const r of regions()) {
-      const rect = r.el.getBoundingClientRect();
-      if (y >= rect.top && y <= rect.bottom) return r;
-      const d = Math.min(Math.abs(y - rect.top), Math.abs(y - rect.bottom));
-      if (d < dist) {
-        dist = d;
-        best = r;
-      }
-    }
-    return best;
-  }
-
-  function resolveTarget(a) {
+  // Box anchors: a paragraph, or the very top / very end of the article.
+  function resolveBoxAnchor(a) {
     if (!a) return null;
-    if (a.t === 'w') return resolveText(a);
-    if (a.t === 'b') return resolveBlock(a);
-    if (a.t === 'e') return REGION_KEYS.includes(a.k) ? T.article.querySelector(`:scope > .${a.k}`) : null;
-    return null;
+    if (a.top) return 'top';
+    if (a.end) return 'end';
+    return resolveBlock(a);
   }
 
   function blockAtY(y) {
@@ -440,6 +417,19 @@
     return best;
   }
 
+  function topBlockOf(node) {
+    let el = node.nodeType === 1 ? node : node.parentElement;
+    while (el && el.parentElement !== T.prose) el = el.parentElement;
+    return el && !el.hasAttribute('data-atlas-ui') ? el : null;
+  }
+
+  function sectionTitleBefore(el) {
+    for (let n = el; n; n = n.previousElementSibling) {
+      if (n.tagName === 'H2') return normText(n).replace(/^#\s*/, '');
+    }
+    return '';
+  }
+
   /* ---------- setup / teardown ---------- */
 
   function setup(topic) {
@@ -448,7 +438,7 @@
     const prose = article && article.querySelector('.prose');
     if (!prose) return;
 
-    T = { topic, slug: topic.slug, article, prose, recs: new Map(), res: new Map(), hits: [], ix: null, blocks: null };
+    T = { topic, slug: topic.slug, article, prose, recs: new Map(), res: new Map(), orphans: [], ix: null, blocks: null };
     for (const r of prepared.get(topic.slug) || []) if (MARK_KINDS.has(r.kind)) T.recs.set(r.id, r);
     prepared.delete(topic.slug);
 
@@ -457,34 +447,27 @@
     T.top.setAttribute('data-atlas-ui', '');
     article.insertBefore(T.top, prose);
 
-    T.layer = document.createElementNS(SVGNS, 'svg');
-    T.layer.setAttribute('class', 'atlas-ink-layer');
-    T.layer.setAttribute('data-atlas-ui', '');
-    T.layer.setAttribute('aria-hidden', 'true');
-    article.appendChild(T.layer);
-
     T.markers = document.createElement('div');
     T.markers.className = 'atlas-markers';
     T.markers.setAttribute('data-atlas-ui', '');
     article.appendChild(T.markers);
 
     resolveAll();
-    renderCards();
+    renderBoxes();
     paintHighlights();
     layout();
 
     T.ro = new ResizeObserver(() => scheduleLayout());
     T.ro.observe(prose);
-    applyModeClass();
+
+    // Ink written straight onto the page by the previous version moves into
+    // boxes the first time its topic opens.
+    if ([...T.recs.values()].some(isPageInk)) migratePageInk();
   }
 
   function teardown() {
     finishGesture(true);
     closeMenus();
-    if (previewing) {
-      previewing = false;
-      Atlas.previewPrefs(null);
-    }
     if (HAS_HIGHLIGHTS) {
       for (const c of HL) CSS.highlights.delete(`atlas-hl-${c}`);
       CSS.highlights.delete('atlas-hl-preview');
@@ -494,28 +477,18 @@
     T = null;
     undoStack = [];
     redoStack = [];
-    lastGroup = null;
     pendingPlace = null;
     pendingReplace = null;
+    insertMode = false;
     root.classList.remove('ink-placing');
   }
 
   /* ---------- resolving and drawing ---------- */
 
   const live = (kind) => [...T.recs.values()].filter((r) => r.kind === kind && !r.deleted);
+  const isPageInk = (r) => r.kind === 'stroke' && !r.deleted && r.data && r.data.a && r.data.a.t !== 'c';
+  const boxStrokes = (boxId) => live('stroke').filter((s) => s.data.a && s.data.a.t === 'c' && s.data.a.c === boxId);
 
-  function groupsOf(strokes) {
-    const groups = new Map();
-    for (const s of strokes) {
-      const g = s.data.g || s.id;
-      if (!groups.has(g)) groups.set(g, []);
-      groups.get(g).push(s);
-    }
-    return groups;
-  }
-
-  /* Work out where every mark belongs in the current text. Run when the page
-     is set up and when marks change; layout() then turns that into pixels. */
   function resolveAll() {
     T.res.clear();
     T.orphans = [];
@@ -524,42 +497,66 @@
       T.res.set(h.id, span);
       if (!span) T.orphans.push({ kind: 'highlight', rec: h });
     }
-    const pageStrokes = live('stroke').filter((s) => s.data.a && s.data.a.t !== 'c');
-    for (const [g, strokes] of groupsOf(pageStrokes)) {
-      const target = resolveTarget(strokes[0].data.a);
-      T.res.set(`g:${g}`, target);
-      if (!target) T.orphans.push({ kind: 'ink', g, strokes });
-    }
     for (const c of live('card')) {
-      const el = resolveBlock(c.data.a);
-      T.res.set(c.id, el);
-      if (!el) T.orphans.push({ kind: 'card', rec: c });
+      const target = resolveBoxAnchor(c.data.a);
+      T.res.set(c.id, target);
+      if (!target) T.orphans.push({ kind: 'box', rec: c });
     }
   }
 
-  function emPx() {
-    return parseFloat(getComputedStyle(T.prose).fontSize) || 17.5;
+  let layoutQueued = false;
+  function scheduleLayout() {
+    if (layoutQueued || !T) return;
+    layoutQueued = true;
+    requestAnimationFrame(() => {
+      layoutQueued = false;
+      if (T) layout();
+    });
   }
 
-  /* Pixel origin (article coordinates) and unit for an anchor right now. */
-  function originOf(a, target, art, em) {
-    if (a.t === 'w') {
-      if (!target) return null;
-      const r = rangeOf(target[0], target[1]);
-      const rect = r.getClientRects()[0] || r.getBoundingClientRect();
-      return { x: rect.left - art.left, y: rect.top - art.top, unit: em };
-    }
-    if (a.t === 'b' || a.t === 'e') {
-      if (!target) return null;
-      const rect = target.getBoundingClientRect();
-      if (a.u === 'w') return { x: rect.left - art.left, y: rect.top - art.top, unit: rect.width };
-      // Margin ink is measured from the nearer edge of the text column, so it
-      // stays in the margin however wide or narrow the column becomes.
-      const pr = T.prose.getBoundingClientRect();
-      return { x: (a.side === 'r' ? pr.right : pr.left) - art.left, y: rect.top - art.top, unit: em };
-    }
-    return null;
+  function layout() {
+    if (!T) return;
+    paintMarkers(T.article.getBoundingClientRect());
+    paintTop();
   }
+
+  function paintHighlights() {
+    if (!T || !HAS_HIGHLIGHTS) return;
+    const by = { yellow: [], green: [], blue: [], pink: [] };
+    for (const h of live('highlight')) {
+      const span = T.res.get(h.id);
+      if (span) (by[h.data.c] || by.yellow).push(rangeOf(span[0], span[1]));
+    }
+    for (const c of HL) {
+      if (by[c].length) CSS.highlights.set(`atlas-hl-${c}`, new Highlight(...by[c]));
+      else CSS.highlights.delete(`atlas-hl-${c}`);
+    }
+  }
+
+  /* A small note marker in the right margin beside every highlight that has
+     a note — tap it to read or edit the note. */
+  function paintMarkers(art) {
+    T.markers.replaceChildren();
+    const pr = T.prose.getBoundingClientRect();
+    for (const h of live('highlight')) {
+      if (!(h.data.n || '').trim()) continue;
+      const span = T.res.get(h.id);
+      if (!span) continue;
+      const rect = rangeOf(span[0], span[1]).getClientRects()[0];
+      if (!rect) continue;
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = `atlas-marker hl-${h.data.c}`;
+      b.dataset.hl = h.id;
+      b.setAttribute('aria-label', 'Highlight note');
+      b.style.left = `${Math.min(pr.right - art.left + 6, window.innerWidth - art.left - 30)}px`;
+      b.style.top = `${rect.top - art.top + rect.height / 2 - 13}px`;
+      b.innerHTML = icon('note', 15, 1.8);
+      T.markers.appendChild(b);
+    }
+  }
+
+  /* ---------- stroke geometry ---------- */
 
   function decode(p) {
     const out = [];
@@ -592,8 +589,13 @@
     return out;
   }
 
-  /* Variable-width ink outline (pressure, with a light taper at both ends).
-     points: [[x, y, pressure 0..1]] in px; size: nominal width in px. */
+  // Box strokes are stored in tenths of a box unit; these convert to and from
+  // box units (0–1000 across the box).
+  const boxPoints = (s) => decode(s.data.p || []).map(([x, y, q]) => [x * 10, y * 10, q]);
+  const packBox = (pts) => encode(pts.map(([x, y, q]) => [x / 10, y / 10, q]));
+
+  /* Variable-width ink outline (pressure, light taper at both ends).
+     points: [[x, y, pressure 0..1]]; size: nominal width, same units. */
   function outline(points, size, flat = false) {
     if (!points.length) return '';
     const pts = [points[0]];
@@ -601,11 +603,9 @@
       const prev = pts[pts.length - 1];
       const p = points[i];
       if (Math.hypot(p[0] - prev[0], p[1] - prev[1]) < 0.35 && i < points.length - 1) continue;
-      // light smoothing so 240 Hz jitter doesn't show
       pts.push([prev[0] + (p[0] - prev[0]) * 0.65, prev[1] + (p[1] - prev[1]) * 0.65, p[2]]);
     }
-    const last = points[points.length - 1];
-    pts.push(last);
+    pts.push(points[points.length - 1]);
     const pressures = pts.map((p) => p[2]);
     const varies = !flat && Math.max(...pressures) - Math.min(...pressures) > 0.08;
     const n = pts.length;
@@ -653,228 +653,292 @@
     );
   }
 
+  const penClass = (c) => `pen-${PENS.includes(c) ? c : 'ink'}`;
+
   function pathEl(d, pen, id) {
     const p = document.createElementNS(SVGNS, 'path');
     p.setAttribute('d', d);
-    p.setAttribute('class', `pen-${PENS.includes(pen) ? pen : 'ink'}`);
+    p.setAttribute('class', penClass(pen));
     if (id) p.dataset.id = id;
     return p;
   }
 
-  let layoutQueued = false;
-  function scheduleLayout() {
-    if (layoutQueued || !T) return;
-    layoutQueued = true;
-    requestAnimationFrame(() => {
-      layoutQueued = false;
-      if (T) layout();
-    });
-  }
-
-  /* Turn resolved anchors into pixels. Cheap enough to run on every resize. */
-  function layout() {
-    if (!T) return;
-    const art = T.article.getBoundingClientRect();
-    const em = emPx();
-    T.em = em;
-    T.layer.replaceChildren();
-    T.hits = [];
-
-    const strokes = live('stroke');
-    for (const [g, group] of groupsOf(strokes.filter((s) => s.data.a && s.data.a.t !== 'c'))) {
-      const a = group[0].data.a;
-      const o = originOf(a, T.res.get(`g:${g}`), art, em);
-      if (!o) continue;
-      for (const s of group) {
-        const pts = decode(s.data.p || []).map(([x, y, q]) => [o.x + x * o.unit, o.y + y * o.unit, q]);
-        const width = (s.data.w || SIZES.medium) * em;
-        T.layer.appendChild(pathEl(outline(pts, width, s.data.c === 'marker'), s.data.c, s.id));
-        T.hits.push(hitBox(s.id, pts, width));
-      }
-    }
-
-    // Notes written with Margin on can run past the screen edge without it.
-    T.offscreen = !tool.margin && T.hits.some((h) => art.left + h.box[2] > window.innerWidth - 4);
-
-    paintCardStrokes();
-    paintMarkers(art);
-    paintTop();
-  }
-
-  function hitBox(id, pts, width) {
-    let x0 = Infinity;
-    let y0 = Infinity;
-    let x1 = -Infinity;
-    let y1 = -Infinity;
-    for (const [x, y] of pts) {
-      if (x < x0) x0 = x;
-      if (y < y0) y0 = y;
-      if (x > x1) x1 = x;
-      if (y > y1) y1 = y;
-    }
-    return { id, pts, w: width, box: [x0, y0, x1, y1] };
-  }
-
-  function paintHighlights() {
-    if (!T || !HAS_HIGHLIGHTS) return;
-    const by = { yellow: [], green: [], blue: [], pink: [] };
-    for (const h of live('highlight')) {
-      const span = T.res.get(h.id);
-      if (span) (by[h.data.c] || by.yellow).push(rangeOf(span[0], span[1]));
-    }
-    for (const c of HL) {
-      if (by[c].length) CSS.highlights.set(`atlas-hl-${c}`, new Highlight(...by[c]));
-      else CSS.highlights.delete(`atlas-hl-${c}`);
-    }
-  }
-
-  /* A small note marker in the right margin beside every highlight that has
-     a note — tap it to read or edit the note. */
-  function paintMarkers(art) {
-    T.markers.replaceChildren();
-    const pr = T.prose.getBoundingClientRect();
-    for (const h of live('highlight')) {
-      if (!(h.data.n || '').trim()) continue;
-      const span = T.res.get(h.id);
-      if (!span) continue;
-      const rect = rangeOf(span[0], span[1]).getClientRects()[0];
-      if (!rect) continue;
-      const b = document.createElement('button');
-      b.type = 'button';
-      b.className = `atlas-marker hl-${h.data.c}`;
-      b.dataset.hl = h.id;
-      b.setAttribute('aria-label', 'Highlight note');
-      b.style.left = `${pr.right - art.left + 6}px`;
-      b.style.top = `${rect.top - art.top + rect.height / 2 - 13}px`;
-      b.innerHTML = icon('note', 15, 1.8);
-      T.markers.appendChild(b);
-    }
-  }
-
-  /* ---------- sketch cards ---------- */
-
-  function renderCards() {
-    for (const el of T.prose.querySelectorAll('.atlas-card')) el.remove();
-    const cards = live('card').sort((a, b) => (a.data.at || 0) - (b.data.at || 0));
-    for (const c of cards) {
-      const after = T.res.get(c.id);
-      if (!after) continue;
-      const h = c.data.h || 0.5;
-      const el = document.createElement('div');
-      el.className = 'atlas-card';
-      el.setAttribute('data-atlas-ui', '');
-      el.dataset.card = c.id;
-      el.innerHTML = `<div class="atlas-card-head"><span>${icon('note', 14)} Writing space</span>
-          <button type="button" data-card-act="size" aria-label="Change height">${h >= 0.85 ? 'Shorter' : 'Taller'}</button>
-          <button type="button" data-card-act="delete" aria-label="Delete sketch">Delete</button></div>
-        <svg class="atlas-card-pad" viewBox="0 0 1000 ${Math.round(h * 1000)}" preserveAspectRatio="xMidYMid meet"></svg>`;
-      // Several cards after one paragraph keep their creation order.
-      let ref = after.nextSibling;
-      while (ref && ref.nodeType === 1 && ref.classList.contains('atlas-card')) ref = ref.nextSibling;
-      T.prose.insertBefore(el, ref);
-    }
-  }
-
-  function paintCardStrokes() {
-    T.cardHits = [];
-    for (const el of T.prose.querySelectorAll('.atlas-card')) {
-      const pad = el.querySelector('.atlas-card-pad');
-      pad.replaceChildren();
-      const id = el.dataset.card;
-      for (const s of live('stroke')) {
-        if (!s.data.a || s.data.a.t !== 'c' || s.data.a.c !== id) continue;
-        const pts = decode(s.data.p || []).map(([x, y, q]) => [x * 10, y * 10, q]); // tenths → card units
-        pad.appendChild(pathEl(outline(pts, s.data.w || 4, s.data.c === 'marker'), s.data.c, s.id));
-        T.cardHits.push({ card: id, ...hitBox(s.id, pts, s.data.w || 4) });
-      }
-    }
-  }
-
-  async function addCard() {
-    if (!T) return;
-    const el = blockAtY(window.innerHeight * 0.45);
-    if (!el) return;
-    const rec = { id: Store.newId('c'), kind: 'card', topic: T.slug, data: { a: blockAnchor(el), h: 0.5, at: now() } };
-    await commit([rec], [null]);
-    setMode('pen');
-    const card = T.prose.querySelector(`.atlas-card[data-card="${rec.id}"]`);
-    if (card) card.scrollIntoView({ block: 'center', behavior: 'smooth' });
-    Atlas.toast('Space added — write in it with the Pencil. It grows as you reach the bottom.');
-  }
-
-  /* ---------- the strip above the article: tray, show-as-drawn ---------- */
-
-  function thumb(strokes) {
-    const all = strokes.flatMap((s) => decode(s.data.p || []));
-    if (!all.length) return '';
+  /* A small preview of a box's strokes, scaled to fit. */
+  function thumb(strokes, maxW = 120, maxH = 44) {
+    const all = strokes.flatMap(boxPoints);
+    if (!all.length) return '<svg class="atlas-thumb" viewBox="0 0 10 10" aria-hidden="true"></svg>';
     const xs = all.map((p) => p[0]);
     const ys = all.map((p) => p[1]);
     const x0 = Math.min(...xs);
     const y0 = Math.min(...ys);
     const w = Math.max(1, Math.max(...xs) - x0);
     const h = Math.max(1, Math.max(...ys) - y0);
-    const scale = Math.min(110 / w, 44 / h);
+    const scale = Math.min(maxW / w, maxH / h);
     const paths = strokes
       .map((s) => {
-        const pts = decode(s.data.p || []).map(([x, y, q]) => [(x - x0) * scale + 3, (y - y0) * scale + 3, q]);
-        return `<path class="pen-${esc(s.data.c || 'ink')}" d="${outline(pts, Math.max(1.4, (s.data.w || 0.12) * scale))}"/>`;
+        const pts = boxPoints(s).map(([x, y, q]) => [(x - x0) * scale + 3, (y - y0) * scale + 3, q]);
+        return `<path class="${penClass(s.data.c)}" d="${outline(pts, Math.max(1.2, (s.data.w || 5) * scale), s.data.c === 'marker')}"/>`;
       })
       .join('');
     return `<svg class="atlas-thumb" viewBox="0 0 ${Math.ceil(w * scale) + 6} ${Math.ceil(h * scale) + 6}" aria-hidden="true">${paths}</svg>`;
   }
 
-  function paintTop() {
-    const parts = [];
-    const cw = Math.round(T.prose.getBoundingClientRect().width);
-    const sig = prefSig(Atlas.prefs());
+  /* ---------- scribble boxes ---------- */
 
-    if (previewing) {
-      parts.push(`<div class="atlas-chip">${icon('layers', 16)}<span>Showing ink with the text settings it was drawn in.</span>
-        <button type="button" class="btn small" data-ink-act="unpreview">Back to my settings</button></div>`);
-    } else {
-      const groups = groupsOf(live('stroke').filter((s) => s.data.a && s.data.a.t !== 'c'));
-      let differs = null;
-      for (const [g, strokes] of groups) {
-        const c = strokes[0].data.ctx;
-        if (!c || !T.res.get(`g:${g}`)) continue;
-        if (c.pr !== sig || Math.abs(c.cw - cw) / c.cw > 0.08) {
-          if (!differs || (strokes[0].data.at || 0) > (differs.at || 0)) differs = { ...c, at: strokes[0].data.at };
+  function boxLabel(c) {
+    if ((c.data.label || '').trim()) return c.data.label.trim();
+    const a = c.data.a || {};
+    if (a.top) return 'Scribble · top of the topic';
+    if (a.end) return 'Scribble · end of the topic';
+    const q = (a.q || '').replace(/^#\s*/, '');
+    return `Scribble · after “${q.slice(0, 42)}${q.length > 42 ? '…' : ''}”`;
+  }
+
+  const PEN_LABEL = { ink: 'Ink', red: 'Red', blue: 'Blue', green: 'Green', marker: 'Marker' };
+
+  function boxToolsHtml() {
+    return `<div class="sb-tools" role="toolbar" aria-label="Scribble tools">
+        <div class="sb-pens">${PENS.map(
+          (c) => `<button type="button" class="swatch pen-${c}${tool.pen === c && !eraser ? ' on' : ''}" data-sb="pen" data-v="${c}" aria-label="${PEN_LABEL[c]} pen"></button>`
+        ).join('')}</div>
+        <div class="sb-sizes">${Object.keys(SIZES)
+          .map((s) => `<button type="button" class="size-${s}${tool.size === s ? ' on' : ''}" data-sb="size" data-v="${s}" aria-label="${s} line"><i></i></button>`)
+          .join('')}</div>
+        <button type="button" class="sb-btn${eraser ? ' on' : ''}" data-sb="eraser" aria-pressed="${eraser}" aria-label="Eraser">${svgIcon('eraser', 18)}</button>
+        <button type="button" class="sb-btn" data-sb="undo" ${undoStack.length ? '' : 'disabled'} aria-label="Undo">${svgIcon('undo', 18)}</button>
+        <button type="button" class="sb-btn" data-sb="redo" ${redoStack.length ? '' : 'disabled'} aria-label="Redo">${svgIcon('redo', 18)}</button>
+      </div>`;
+  }
+
+  function renderBoxes() {
+    for (const el of T.prose.querySelectorAll('.scribble')) el.remove();
+    const cards = live('card').sort((a, b) => (a.data.at || 0) - (b.data.at || 0));
+    for (const c of cards) {
+      const target = T.res.get(c.id);
+      if (!target) continue;
+      const el = document.createElement('section');
+      el.className = 'scribble';
+      el.setAttribute('data-atlas-ui', '');
+      el.dataset.card = c.id;
+      paintBox(el, c);
+      if (target === 'top') {
+        const first = blocks()[0];
+        T.prose.insertBefore(el, first ? first.el : T.prose.firstChild);
+      } else if (target === 'end') {
+        T.prose.appendChild(el);
+      } else {
+        // after its paragraph, and after boxes already placed there
+        let ref = target.nextSibling;
+        while (ref && ref.nodeType === 1 && ref.classList.contains('scribble')) ref = ref.nextSibling;
+        T.prose.insertBefore(el, ref);
+      }
+    }
+    if (insertMode) renderPlus();
+  }
+
+  function paintBox(el, c) {
+    const collapsed = c.data.collapsed != null ? c.data.collapsed : tool.collapsed;
+    const h = Math.max(0.2, Math.min(BOX_MAX, c.data.h || BOX_START));
+    const paper = PAPERS.includes(c.data.paper) ? c.data.paper : 'dots';
+    const strokes = boxStrokes(c.id);
+    el.classList.toggle('collapsed', !!collapsed);
+    el.dataset.paper = paper;
+    const pid = `pp-${c.id}`;
+    const pattern =
+      paper === 'dots'
+        ? `<pattern id="${pid}" width="25" height="25" patternUnits="userSpaceOnUse"><circle class="paper-mark" cx="12.5" cy="12.5" r="1.7"/></pattern>`
+        : paper === 'lines'
+          ? `<pattern id="${pid}" width="1000" height="40" patternUnits="userSpaceOnUse"><rect class="paper-mark" x="0" y="39" width="1000" height="1.4"/></pattern>`
+          : '';
+    el.innerHTML = `
+      <header class="sb-head">
+        <button type="button" class="sb-title" data-sb="collapse" aria-expanded="${!collapsed}">
+          <span class="sb-chev">${svgIcon('chev', 16)}</span><span class="sb-label">${esc(boxLabel(c))}</span>
+        </button>
+        ${collapsed ? '' : boxToolsHtml()}
+        <button type="button" class="sb-btn" data-sb="more" aria-label="Box options">${svgIcon('more', 18)}</button>
+      </header>
+      ${
+        collapsed
+          ? `<button type="button" class="sb-peek" data-sb="collapse">${thumb(strokes, 200, 46)}<span>${strokes.length ? `${strokes.length} stroke${strokes.length === 1 ? '' : 's'} · tap to open` : 'Empty · tap to open'}</span></button>`
+          : `<div class="sb-body">
+              <svg class="scribble-pad" viewBox="0 0 1000 ${Math.round(h * 1000)}" preserveAspectRatio="xMidYMid meet" aria-label="Scribble area">
+                <defs>${pattern}</defs>
+                ${pattern ? `<rect class="paper" x="0" y="0" width="1000" height="${Math.round(h * 1000)}" fill="url(#${pid})"/>` : ''}
+                <g class="strokes"></g>
+              </svg>
+              ${h >= BOX_MAX - 0.01 ? `<button type="button" class="sb-another" data-sb="another">${svgIcon('plus', 16)} Another box below</button>` : ''}
+            </div>`
+      }`;
+    if (!collapsed) {
+      const g = el.querySelector('.strokes');
+      for (const s of strokes) g.appendChild(pathEl(outline(boxPoints(s), s.data.w || SIZES.medium, s.data.c === 'marker'), s.data.c, s.id));
+    }
+  }
+
+  function repaintBox(id) {
+    const el = T && T.prose.querySelector(`.scribble[data-card="${id}"]`);
+    const c = T && T.recs.get(id);
+    if (el && c && !c.deleted) paintBox(el, c);
+  }
+
+  function refreshToolbars() {
+    if (!T) return;
+    for (const el of T.prose.querySelectorAll('.scribble:not(.collapsed)')) {
+      const tools = el.querySelector('.sb-tools');
+      if (tools) tools.outerHTML = boxToolsHtml();
+    }
+  }
+
+  async function addBox(anchor, { open = true } = {}) {
+    if (!T) return null;
+    const rec = {
+      id: Store.newId('c'),
+      kind: 'card',
+      topic: T.slug,
+      data: { a: anchor, h: BOX_START, paper: tool.paper, collapsed: false, at: now() },
+    };
+    await commit([rec], [null]);
+    if (open) {
+      const el = T.prose.querySelector(`.scribble[data-card="${rec.id}"]`);
+      if (el) {
+        const r = el.getBoundingClientRect();
+        if (r.top < 80 || r.bottom > window.innerHeight - 40) {
+          window.scrollTo({ top: Math.max(0, window.scrollY + r.top - window.innerHeight * 0.25), behavior: 'smooth' });
         }
-      }
-      if (differs) {
-        T.drawnCtx = differs;
-        parts.push(`<div class="atlas-chip">${icon('layers', 16)}<span>Some ink was drawn with different text settings, so it may sit slightly differently now.</span>
-          <button type="button" class="btn small" data-ink-act="preview">Show as drawn</button></div>`);
+        el.classList.add('fresh');
+        setTimeout(() => el.classList.remove('fresh'), 1400);
       }
     }
+    return rec;
+  }
 
-    if (T.offscreen && !previewing) {
-      parts.push(`<div class="atlas-chip">${icon('layers', 16)}<span>Some of your margin notes run past the edge of the screen.</span>
-        <button type="button" class="btn small" data-ink-act="margin-on">Show margin</button></div>`);
+  /* ＋ markers between blocks while adding a box. */
+  function setInsertMode(on) {
+    if (!T) return;
+    insertMode = !!on;
+    closeMenus();
+    renderPlus();
+    syncDock();
+    if (insertMode) Atlas.toast('Tap ＋ where you want to write.', { ms: 2400 });
+  }
+
+  function renderPlus() {
+    for (const el of T.prose.querySelectorAll('.scribble-plus')) el.remove();
+    if (!insertMode) return;
+    const list = blocks();
+    list.forEach((b, i) => {
+      if (/^H[1-6]$/.test(b.el.tagName)) return; // never between a heading and its text
+      const next = list[i + 1];
+      const end = !next || next.el.tagName === 'H2';
+      const title = sectionTitleBefore(b.el);
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = `scribble-plus${end ? ' end' : ''}`;
+      btn.setAttribute('data-atlas-ui', '');
+      btn.dataset.after = String(i);
+      btn.innerHTML = `<span>${svgIcon('plus', 15)}${end ? (next ? `Scribble at the end of “${esc(title || 'this section')}”` : 'Scribble at the end of the topic') : 'Scribble here'}</span>`;
+      let ref = b.el.nextSibling;
+      while (ref && ref.nodeType === 1 && ref.classList.contains('scribble')) ref = ref.nextSibling;
+      T.prose.insertBefore(btn, ref);
+    });
+  }
+
+  /* ---------- moving page ink from the previous version into boxes ---------- */
+
+  async function migratePageInk() {
+    const old = [...T.recs.values()].filter(isPageInk);
+    if (!old.length) return;
+    const groups = new Map();
+    for (const s of old) {
+      const g = s.data.g || s.id;
+      if (!groups.has(g)) groups.set(g, []);
+      groups.get(g).push(s);
     }
+    const em = parseFloat(getComputedStyle(T.prose).fontSize) || 17.5;
+    const widthEm = T.prose.getBoundingClientRect().width / em;
+    const HEAD = ['crumbs', 'topic-title', 'topic-summary', 'badges', 'prereq'];
+    const out = [];
+    const before = [];
+    for (const [g, strokes] of groups) {
+      const a = strokes[0].data.a;
+      let anchor = null;
+      let unitPx = em; // what one stored unit is in px
+      if (a.t === 'w') {
+        const span = resolveText(a);
+        const node = span && locate(index(), span[0])[0];
+        const block = node && topBlockOf(node);
+        if (block) anchor = blockAnchor(block);
+      } else if (a.t === 'b') {
+        const block = resolveBlock(a);
+        if (block) {
+          anchor = blockAnchor(block);
+          if (a.u === 'w') unitPx = block.getBoundingClientRect().width;
+        }
+      } else if (a.t === 'e') {
+        anchor = HEAD.includes(a.k) ? { top: true } : { end: true };
+      }
+      if (!anchor) {
+        const list = blocks();
+        anchor = list.length ? blockAnchor(list[list.length - 1].el) : { end: true };
+      }
+      // Lay the group into a box at the same size, keeping its shape.
+      const ptsEm = strokes.map((s) => decode(s.data.p || []).map(([x, y, q]) => [(x * unitPx) / em, (y * unitPx) / em, q]));
+      const flat = ptsEm.flat();
+      if (!flat.length) continue;
+      const x0 = Math.min(...flat.map((p) => p[0]));
+      const y0 = Math.min(...flat.map((p) => p[1]));
+      const x1 = Math.max(...flat.map((p) => p[0]));
+      const y1 = Math.max(...flat.map((p) => p[1]));
+      const padEm = 1.2;
+      const scale = Math.min(1, (widthEm - padEm * 2) / Math.max(0.1, x1 - x0));
+      const k = (1000 / widthEm) * scale; // em → box units
+      const padU = padEm * (1000 / widthEm);
+      const boxId = `c_m_${g}`;
+      const h = Math.max(0.22, Math.min(BOX_MAX, ((y1 - y0) * k + padU * 2) / 1000));
+      out.push({ id: boxId, kind: 'card', topic: T.slug, data: { a: anchor, h, paper: 'blank', collapsed: false, at: strokes[0].data.at || now(), migrated: true } });
+      before.push(null);
+      strokes.forEach((s, i) => {
+        const pts = ptsEm[i].map(([x, y, q]) => [(x - x0) * k + padU, (y - y0) * k + padU, q]);
+        const wEm = ((s.data.w || 0.12) * unitPx) / em;
+        out.push({
+          id: `s_m_${s.id}`,
+          kind: 'stroke',
+          topic: T.slug,
+          data: { g: boxId, a: { t: 'c', c: boxId }, c: s.data.c || 'ink', w: Math.max(1.5, wEm * k), p: packBox(pts), at: s.data.at || now() },
+        });
+        before.push(null);
+        out.push(deleted(s, { migrated: true }));
+        before.push(s);
+      });
+    }
+    if (!out.length) return;
+    await commit(out, before, { undoable: false });
+    Atlas.toast('Your ink on this page now lives in scribble boxes, right after the paragraphs you wrote on.', { ms: 5000 });
+  }
 
-    if (T.orphans.length) {
-      const items = T.orphans
-        .map((o) => {
-          if (o.kind === 'highlight') {
-            return `<li><span class="dot hl-${esc(o.rec.data.c)}"></span><q>${esc((o.rec.data.a.q || '').slice(0, 160))}</q>
-              <span class="acts"><button type="button" class="btn small" data-orphan="replace" data-id="${o.rec.id}">Place again</button>
-              <button type="button" class="btn small danger" data-orphan="delete" data-id="${o.rec.id}">Delete</button></span></li>`;
-          }
-          if (o.kind === 'ink') {
-            return `<li>${thumb(o.strokes)}<span class="what">Ink${o.strokes[0].data.a.q ? ` near “${esc(o.strokes[0].data.a.q)}”` : ''}</span>
-              <span class="acts"><button type="button" class="btn small" data-orphan="place" data-id="${esc(o.g)}">Place here</button>
-              <button type="button" class="btn small danger" data-orphan="delete-ink" data-id="${esc(o.g)}">Delete</button></span></li>`;
-          }
-          return `<li><span class="what">A sketch card after “${esc((o.rec.data.a.q || '').slice(0, 60))}”</span>
-            <span class="acts"><button type="button" class="btn small" data-orphan="card-here" data-id="${o.rec.id}">Put it here</button>
+  /* ---------- the strip above the article: orphans ---------- */
+
+  function paintTop() {
+    if (!T.orphans.length) {
+      T.top.innerHTML = '';
+      return;
+    }
+    const items = T.orphans
+      .map((o) => {
+        if (o.kind === 'highlight') {
+          return `<li><span class="dot hl-${esc(o.rec.data.c)}"></span><q>${esc((o.rec.data.a.q || '').slice(0, 160))}</q>
+            <span class="acts"><button type="button" class="btn small" data-orphan="replace" data-id="${o.rec.id}">Place again</button>
             <button type="button" class="btn small danger" data-orphan="delete" data-id="${o.rec.id}">Delete</button></span></li>`;
-        })
-        .join('');
-      parts.push(`<details class="atlas-orphans" open><summary>${T.orphans.length} mark${T.orphans.length === 1 ? '' : 's'} need${T.orphans.length === 1 ? 's' : ''} a new home</summary>
-        <p>The text these were attached to has changed. Nothing was deleted — place each one again or remove it.</p><ul>${items}</ul></details>`);
-    }
-    T.top.innerHTML = parts.join('');
+        }
+        return `<li>${thumb(boxStrokes(o.rec.id))}<span class="what">${esc(boxLabel(o.rec))}</span>
+          <span class="acts"><button type="button" class="btn small" data-orphan="place" data-id="${o.rec.id}">Put it here</button>
+          <button type="button" class="btn small danger" data-orphan="delete-box" data-id="${o.rec.id}">Delete</button></span></li>`;
+      })
+      .join('');
+    const n = T.orphans.length;
+    T.top.innerHTML = `<details class="atlas-orphans" open><summary>${n} mark${n === 1 ? '' : 's'} need${n === 1 ? 's' : ''} a new home</summary>
+      <p>The text these were attached to has changed. Nothing was deleted — place each one again or remove it.</p><ul>${items}</ul></details>`;
   }
 
   /* ---------- changes, undo, redo ---------- */
@@ -887,22 +951,24 @@
       if (undoStack.length > 200) undoStack.shift();
       redoStack = [];
     }
-    syncTray();
+    refreshToolbars();
     return saved;
   }
 
-  /* Fold records (local or from sync) into what's on screen. */
+  /* Fold records (local or from sync) into what's on screen. Only what
+     changed is redrawn: a new stroke repaints its own box, nothing else. */
   function absorb(records) {
     if (!T) return;
-    let touched = false;
-    for (const r of records) {
-      if (r.topic !== T.slug || !MARK_KINDS.has(r.kind)) continue;
-      T.recs.set(r.id, r);
-      touched = true;
+    const mine = records.filter((r) => r.topic === T.slug && MARK_KINDS.has(r.kind));
+    if (!mine.length) return;
+    for (const r of mine) T.recs.set(r.id, r);
+    const onlyStrokes = mine.every((r) => r.kind === 'stroke' && r.data && r.data.a && r.data.a.t === 'c');
+    if (onlyStrokes) {
+      for (const id of new Set(mine.map((r) => r.data.a.c))) repaintBox(id);
+      return;
     }
-    if (!touched) return;
     resolveAll();
-    renderCards();
+    renderBoxes();
     paintHighlights();
     layout();
   }
@@ -918,7 +984,7 @@
     const back = step.before.map((b, i) => (b ? b : deleted(step.after[i])));
     absorb(await Store.put(back));
     redoStack.push(step);
-    syncTray();
+    refreshToolbars();
   }
 
   async function redo() {
@@ -926,97 +992,115 @@
     if (!step) return;
     absorb(await Store.put(step.after));
     undoStack.push(step);
-    syncTray();
+    refreshToolbars();
   }
 
-  /* ---------- pointer input ---------- */
+  /* ---------- touch and pointer input ---------- */
 
   let gesture = null;
   let draftTimer = 0;
+  let watchdog = 0;
   let suppressClick = false; // the one click a mouse drag generates
 
-  const drawsWith = (e) =>
-    e.pointerType === 'pen' || e.pointerType === 'mouse' || (tool.finger && e.pointerType === 'touch');
+  const drawsWith = (e) => e.pointerType === 'pen' || e.pointerType === 'mouse' || (tool.finger && e.pointerType === 'touch');
+  const inUi = (t) => !!t.closest('button, input, textarea, select, label, a.btn, [contenteditable], [data-atlas-menu], #atlas-dock');
 
-  /* The whole page takes ink — text, title, margins, the space below — except
-     real controls, and the notes box, where the Pencil should Scribble. */
-  function blockedTarget(t) {
-    return !!t.closest(
-      'button, input, textarea, select, label, [contenteditable], .atlas-ink-top, .atlas-card-head, [data-atlas-menu], #atlas-tray'
-    );
+  function armWatchdog() {
+    clearTimeout(watchdog);
+    watchdog = setTimeout(() => {
+      if (gesture) finishGesture(false);
+    }, STROKE_IDLE_MS);
   }
 
-  const marking = () => !!T && (tool.mode !== 'read' || !!pendingPlace);
-
-  // While a tool is on: the Pencil never scrolls, nothing scrolls while it is
-  // down (not even a resting palm), and palm-sized touches are ignored.
+  /* The only touches ever cancelled: a Pencil (or, if enabled, a finger) in a
+     box, a Pencil on text with the highlighter on, and anything while a stroke
+     is in progress. A finger outside a box always scrolls. */
   view.addEventListener(
     'touchstart',
     (e) => {
-      if (!marking()) return;
+      if (!T) return;
       const touches = Array.from(e.changedTouches);
-      const stylus = touches.some((t) => t.touchType === 'stylus');
-      const palm = touches.some((t) => t.touchType !== 'stylus' && (t.radiusX || 0) > 30);
-      if (gesture || palm || ((stylus || tool.finger) && !blockedTarget(e.target))) e.preventDefault();
+      const stylus = touches.find((t) => t.touchType === 'stylus');
+      const pad = e.target.closest && e.target.closest('.scribble-pad');
+      if (gesture || (pad && (stylus || tool.finger))) {
+        e.preventDefault();
+        return;
+      }
+      if (stylus && tool.hl && e.target.closest('.prose') && !e.target.closest('[data-atlas-ui]') && caretAt(stylus.clientX, stylus.clientY) >= 0) {
+        e.preventDefault();
+      }
     },
     { passive: false }
   );
   view.addEventListener(
     'touchmove',
     (e) => {
-      if (gesture || (tool.finger && marking())) e.preventDefault();
+      if (gesture) e.preventDefault();
     },
     { passive: false }
   );
 
-  // Text selection would fight the Pencil. This used to be done with
-  // user-select:none, but Safari then refuses to paint highlights at all.
-  document.addEventListener('selectstart', (e) => {
-    if (!marking()) return;
-    const el = e.target && (e.target.nodeType === 1 ? e.target : e.target.parentElement);
-    if (el && T.article.contains(el) && !el.closest('textarea, input')) e.preventDefault();
-  });
-
   view.addEventListener('pointerdown', (e) => {
     suppressClick = false;
-    if (!T) return;
+    if (!T || e.button > 0) return;
+    if (gesture) finishGesture(false); // a stroke whose lift never came is saved, not lost
     if (pendingPlace) {
-      if (blockedTarget(e.target)) return;
+      if (inUi(e.target)) return;
       e.preventDefault();
-      placeGroupAt(e.clientX, e.clientY);
+      placeBoxAt(e.clientY);
       return;
     }
-    if (tool.mode === 'read' || !drawsWith(e) || e.button > 0 || blockedTarget(e.target)) return;
+    const pad = e.target.closest('.scribble-pad');
+    if (pad) {
+      if (!drawsWith(e)) return; // a finger scrolls past the box
+      e.preventDefault();
+      capture(e);
+      closeMenus();
+      if (eraser) startErase(e, pad);
+      else startInk(e, pad);
+      gesture.mouse = e.pointerType === 'mouse';
+      armWatchdog();
+      return;
+    }
+    if (tool.hl && (e.pointerType === 'pen' || e.pointerType === 'mouse') && e.target.closest('.prose') && !inUi(e.target) && !e.target.closest('[data-atlas-ui]')) {
+      const at = caretAt(e.clientX, e.clientY);
+      if (at < 0) return;
+      e.preventDefault();
+      capture(e);
+      closeMenus();
+      startHighlight(e, at);
+      gesture.mouse = e.pointerType === 'mouse';
+      armWatchdog();
+    }
+  });
 
-    e.preventDefault();
-    // A previous stroke whose lift never arrived is saved, not lost.
-    if (gesture) finishGesture(false);
+  function capture(e) {
     try {
       view.setPointerCapture(e.pointerId);
     } catch {
       /* synthetic or already released */
     }
-    closeMenus();
-    const byMouse = e.pointerType === 'mouse';
-    if (tool.mode === 'highlight') startHighlight(e);
-    else if (tool.mode === 'pen') startStroke(e);
-    else if (tool.mode === 'eraser') {
-      gesture = { type: 'erase', id: e.pointerId, ids: new Set() };
-      eraseAt(e);
-    }
-    if (gesture) gesture.mouse = byMouse;
-  });
+  }
 
   view.addEventListener('pointermove', (e) => {
-    if (!gesture || e.pointerId !== gesture.id) return;
+    if (!gesture) {
+      // The safety timer ended a stroke while the Pencil rested; carry on.
+      const pad = e.buttons === 1 && drawsWith(e) && !eraser && e.target.closest && e.target.closest('.scribble-pad');
+      if (pad && T) {
+        startInk(e, pad);
+        armWatchdog();
+      }
+      return;
+    }
+    if (e.pointerId !== gesture.id) return;
     e.preventDefault();
+    armWatchdog();
     if (gesture.type === 'hl') moveHighlight(e);
-    else if (gesture.type === 'stroke') moveStroke(e);
+    else if (gesture.type === 'ink') moveInk(e);
     else if (gesture.type === 'erase') eraseAt(e);
   });
 
-  // Listened for on the whole window: wherever the Pencil lifts — over the
-  // tray, the sidebar, off the edge — the stroke ends and is saved.
+  // On the whole window: wherever the Pencil lifts, the stroke ends.
   const end = (e) => {
     if (!gesture || e.pointerId !== gesture.id) return;
     finishGesture(e.type === 'pointercancel');
@@ -1024,8 +1108,6 @@
   window.addEventListener('pointerup', end, true);
   window.addEventListener('pointercancel', end, true);
 
-  // A mouse drag that drew something mustn't also follow a link underneath.
-  // (The Pencil never produces that click: its touches are cancelled above.)
   view.addEventListener(
     'click',
     (e) => {
@@ -1042,59 +1124,103 @@
     const g = gesture;
     if (!g) return;
     gesture = null;
+    clearTimeout(watchdog);
     if (g.mouse && !cancelled) suppressClick = true;
     if (g.type === 'hl') endHighlight(g, cancelled);
-    else if (g.type === 'stroke') endStroke(g, cancelled);
+    else if (g.type === 'ink') endInk(g, cancelled);
     else if (g.type === 'erase') endErase(g);
   }
 
-  /* ---------- highlighting with the Pencil ---------- */
+  /* Two-finger tap inside a box: eraser on/off. Touch events on the iPad
+     (pointer events get cancelled when iOS suspects a pinch); pointer events
+     elsewhere. */
+  let twoTap = null;
+  const TAP_MS = 350;
+  const TAP_SLOP = 14;
+  if ('ontouchstart' in window) {
+    view.addEventListener(
+      'touchstart',
+      (e) => {
+        if (!e.target.closest || !e.target.closest('.scribble')) return;
+        const fingers = Array.from(e.touches).filter((t) => t.touchType !== 'stylus');
+        if (fingers.length === 2 && !twoTap) twoTap = { at: now(), n: 2, start: new Map(fingers.map((f) => [f.identifier, [f.clientX, f.clientY]])), moved: false };
+        else if (twoTap && fingers.length > 2) twoTap.n = fingers.length;
+      },
+      { passive: true }
+    );
+    view.addEventListener(
+      'touchmove',
+      (e) => {
+        if (!twoTap) return;
+        for (const t of e.changedTouches) {
+          const s0 = twoTap.start.get(t.identifier);
+          if (s0 && Math.hypot(t.clientX - s0[0], t.clientY - s0[1]) > TAP_SLOP) twoTap.moved = true;
+        }
+      },
+      { passive: true }
+    );
+    view.addEventListener(
+      'touchend',
+      (e) => {
+        if (!twoTap || e.touches.length) return;
+        const t = twoTap;
+        twoTap = null;
+        if (t.n === 2 && !t.moved && now() - t.at < TAP_MS) toggleEraser();
+      },
+      { passive: true }
+    );
+    view.addEventListener('touchcancel', () => (twoTap = null), { passive: true });
+  } else {
+    const fingers = new Map();
+    view.addEventListener(
+      'pointerdown',
+      (e) => {
+        if (e.pointerType !== 'touch' || !e.target.closest('.scribble')) return;
+        if (!fingers.size) twoTap = { at: now(), n: 0, moved: false };
+        fingers.set(e.pointerId, [e.clientX, e.clientY]);
+        twoTap.n = Math.max(twoTap.n, fingers.size);
+      },
+      true
+    );
+    view.addEventListener(
+      'pointermove',
+      (e) => {
+        const f = fingers.get(e.pointerId);
+        if (f && twoTap && Math.hypot(e.clientX - f[0], e.clientY - f[1]) > TAP_SLOP) twoTap.moved = true;
+      },
+      true
+    );
+    view.addEventListener(
+      'pointerup',
+      (e) => {
+        if (!fingers.delete(e.pointerId) || fingers.size || !twoTap) return;
+        const t = twoTap;
+        twoTap = null;
+        if (t.n === 2 && !t.moved && now() - t.at < TAP_MS) toggleEraser();
+      },
+      true
+    );
+    view.addEventListener('pointercancel', (e) => fingers.delete(e.pointerId), true);
+  }
 
-  /* Over text a swipe highlights the words. Anywhere else — the title, a
-     margin, a figure — it lays down translucent marker ink instead, the way
-     a highlighter works on a PDF. */
-  function startHighlight(e) {
-    const at = caretAt(e.clientX, e.clientY);
-    root.style.setProperty('--hl-preview', `var(--hl-${tool.hl})`);
-    const art = T.article.getBoundingClientRect();
-    gesture = {
-      type: 'hl',
-      id: e.pointerId,
-      start: at,
-      end: at,
-      x: e.clientX,
-      y: e.clientY,
-      moved: false,
-      art,
-      pts: [articlePoint(e, art)],
-      startedAt: now(),
-      rid: Store.newId('s'),
-    };
+  function toggleEraser() {
+    eraser = !eraser;
+    refreshToolbars();
+    Atlas.toast(eraser ? 'Eraser on — swipe over strokes to remove them.' : 'Pen on.', { ms: 1200 });
+  }
+
+  /* ---------- highlighting ---------- */
+
+  function startHighlight(e, at) {
+    root.style.setProperty('--hl-preview', `var(--hl-${tool.hlColor})`);
+    gesture = { type: 'hl', id: e.pointerId, start: at, end: at, x: e.clientX, y: e.clientY, moved: false };
   }
 
   function moveHighlight(e) {
     const g = gesture;
     if (Math.hypot(e.clientX - g.x, e.clientY - g.y) > 6) g.moved = true;
-    const list = e.getCoalescedEvents ? e.getCoalescedEvents() : [];
-    for (const ev of list.length ? list : [e]) g.pts.push(articlePoint(ev, g.art));
     const at = caretAt(e.clientX, e.clientY);
-    if (at >= 0) {
-      if (g.start < 0) g.start = at;
-      g.end = at;
-    }
-    if (g.start < 0) {
-      // Still off text: show the marker stroke as it's drawn.
-      if (!g.livePath) {
-        g.livePath = pathEl('', 'marker');
-        T.layer.appendChild(g.livePath);
-      }
-      g.livePath.setAttribute('d', outline(g.pts, SIZES[tool.size] * MARKER_WIDTH * (T.em || emPx()), true));
-      return;
-    }
-    if (g.livePath) {
-      g.livePath.remove();
-      g.livePath = null;
-    }
+    if (at >= 0) g.end = at;
     if (!HAS_HIGHLIGHTS || !g.moved) return;
     const [s, en] = snap(index().text, g.start, g.end);
     if (en > s) CSS.highlights.set('atlas-hl-preview', new Highlight(rangeOf(s, en)));
@@ -1102,17 +1228,7 @@
 
   async function endHighlight(g, cancelled) {
     if (HAS_HIGHLIGHTS) CSS.highlights.delete('atlas-hl-preview');
-    if (g.livePath) g.livePath.remove();
-    if (cancelled) return;
-    if (g.start < 0) {
-      if (!g.moved) return;
-      const made = strokeRecord({ ...g, pen: 'marker', size: tool.size, card: null });
-      if (made && made.rec) {
-        lastGroup = { ...made.group, endedAt: now(), box: made.box };
-        await commit([made.rec], [null]);
-      }
-      return;
-    }
+    if (cancelled || !T) return;
     if (!g.moved) {
       const hits = highlightsAt(g.start);
       if (hits.length) openHighlightMenu(hits);
@@ -1137,7 +1253,7 @@
       id: Store.newId('h'),
       kind: 'highlight',
       topic: T.slug,
-      data: { a: textAnchor(s, e), c: extra.color || tool.hl, n: extra.note || '', at: now() },
+      data: { a: textAnchor(s, e), c: extra.color || tool.hlColor, n: extra.note || '', at: now() },
     };
     await commit([rec], [null]);
     return rec;
@@ -1152,36 +1268,30 @@
       .sort((a, b) => (b.data.at || 0) - (a.data.at || 0));
   }
 
-  /* ---------- ink ---------- */
+  /* ---------- writing in a box ---------- */
 
-  function articlePoint(ev, art) {
+  function padPoint(ev, pad) {
+    const r = pad.getBoundingClientRect();
+    const k = 1000 / r.width;
     const q = ev.pointerType === 'pen' && ev.pressure > 0 ? ev.pressure : 0.5;
-    return [ev.clientX - art.left, ev.clientY - art.top, q];
+    return [(ev.clientX - r.left) * k, (ev.clientY - r.top) * k, q];
   }
 
-  function startStroke(e) {
-    const art = T.article.getBoundingClientRect();
-    const cardEl = e.target.closest('.atlas-card');
-    const pad = cardEl && cardEl.querySelector('.atlas-card-pad');
+  function startInk(e, pad) {
+    const box = pad.closest('.scribble');
     gesture = {
-      type: 'stroke',
+      type: 'ink',
       id: e.pointerId,
-      card: cardEl ? cardEl.dataset.card : null,
+      box: box.dataset.card,
       pad,
-      art,
       pts: [],
       pen: tool.pen,
       size: tool.size,
       startedAt: now(),
       rid: Store.newId('s'),
     };
-    if (pad) {
-      gesture.livePath = pathEl('', tool.pen);
-      pad.appendChild(gesture.livePath);
-    } else {
-      gesture.livePath = pathEl('', tool.pen);
-      T.layer.appendChild(gesture.livePath);
-    }
+    gesture.live = pathEl('', tool.pen);
+    pad.querySelector('.strokes').appendChild(gesture.live);
     addPoints(e);
     clearInterval(draftTimer);
     draftTimer = setInterval(saveDraftNow, 250);
@@ -1191,174 +1301,69 @@
     const g = gesture;
     const list = e.getCoalescedEvents ? e.getCoalescedEvents() : [];
     for (const ev of list.length ? list : [e]) {
-      let p;
-      if (g.pad) {
-        const r = g.pad.getBoundingClientRect();
-        const k = 1000 / r.width;
-        p = [(ev.clientX - r.left) * k, (ev.clientY - r.top) * k, ev.pointerType === 'pen' && ev.pressure > 0 ? ev.pressure : 0.5];
-      } else p = articlePoint(ev, g.art);
+      const p = padPoint(ev, g.pad);
       const last = g.pts[g.pts.length - 1];
-      if (!last || Math.hypot(p[0] - last[0], p[1] - last[1]) >= 0.4) g.pts.push(p);
+      if (!last || Math.hypot(p[0] - last[0], p[1] - last[1]) >= 0.5) g.pts.push(p);
     }
   }
 
+  const strokeWidth = (pen, size) => (SIZES[size] || SIZES.medium) * (pen === 'marker' ? MARKER : 1);
+
   let liveQueued = false;
-  function moveStroke(e) {
+  function moveInk(e) {
     addPoints(e);
     if (liveQueued) return;
     liveQueued = true;
     requestAnimationFrame(() => {
       liveQueued = false;
       const g = gesture;
-      if (!g || g.type !== 'stroke') return;
-      const k = g.pen === 'marker' ? MARKER_WIDTH : 1;
-      const width = (g.pad ? cardWidthUnits(g.size) : SIZES[g.size] * (T.em || emPx())) * k;
-      g.livePath.setAttribute('d', outline(g.pts, width, g.pen === 'marker'));
+      if (!g || g.type !== 'ink') return;
+      g.live.setAttribute('d', outline(g.pts, strokeWidth(g.pen, g.size), g.pen === 'marker'));
     });
-  }
-
-  const cardWidthUnits = (size) => ({ fine: 3, medium: 5, bold: 8.5 })[size] || 5;
-
-  function ctxNow() {
-    return { fs: emPx(), cw: Math.round(T.prose.getBoundingClientRect().width), pr: prefSig(Atlas.prefs()) };
-  }
-
-  /* Pick what a new group of ink hangs on: the word under it when it's on
-     the article text; otherwise the part of the page beside it — a paragraph,
-     a figure, the title, the end-of-topic sections. */
-  function anchorFor(cx, cy) {
-    const pr = T.prose.getBoundingClientRect();
-    const overText = cx >= pr.left && cx <= pr.right && cy >= pr.top && cy <= pr.bottom;
-    const el = document.elementFromPoint(cx, cy);
-    if (overText && !(el && el.closest('.viz, .atlas-card'))) {
-      const at = caretAt(cx, cy);
-      if (at >= 0) {
-        const w = wordAt(index().text, at);
-        if (w) {
-          const rect = rangeOf(w[0], w[1]).getBoundingClientRect();
-          const em = emPx();
-          // caret APIs snap to the nearest text even from far away; only
-          // accept a word that's genuinely under the ink
-          if (cy >= rect.top - em * 1.6 && cy <= rect.bottom + em * 1.6) return { t: 'w', ...textAnchor(w[0], w[1]) };
-        }
-      }
-    }
-    const reg = regionAtY(cy);
-    if (!reg) return null;
-    const side = cx > pr.right ? { side: 'r' } : {};
-    if (reg.block) {
-      const viz = reg.el.matches('.viz');
-      return { t: 'b', u: viz ? 'w' : 'em', ...(viz ? {} : side), ...blockAnchor(reg.el) };
-    }
-    return { t: 'e', k: reg.key, ...side };
   }
 
   function strokeRecord(g) {
     if (!g.pts.length) return null;
-    if (g.card) {
-      return {
-        id: g.rid,
-        kind: 'stroke',
-        topic: T.slug,
-        data: {
-          g: g.rid,
-          a: { t: 'c', c: g.card },
-          c: g.pen,
-          w: cardWidthUnits(g.size) * (g.pen === 'marker' ? MARKER_WIDTH : 1),
-          p: encode(g.pts.map(([x, y, q]) => [x / 10, y / 10, q])),
-          at: g.startedAt,
-        },
-      };
-    }
-    const art = T.article.getBoundingClientRect();
-    const em = emPx();
-    const xs = g.pts.map((p) => p[0]);
-    const ys = g.pts.map((p) => p[1]);
-    const box = [Math.min(...xs), Math.min(...ys), Math.max(...xs), Math.max(...ys)];
-
-    // Join the previous group if this stroke follows it closely in time and
-    // space — the letters of one handwritten word must move together.
-    let group = null;
-    if (lastGroup && lastGroup.topic === T.slug && g.startedAt - lastGroup.endedAt < GROUP_GAP_MS) {
-      const [a0, b0, a1, b1] = lastGroup.box;
-      const gap = GROUP_DIST_EM * em;
-      if (box[0] < a1 + gap && box[2] > a0 - gap && box[1] < b1 + gap && box[3] > b0 - gap) group = lastGroup;
-    }
-    let anchor;
-    let target;
-    if (group) {
-      anchor = group.a;
-      target = group.target;
-    } else {
-      const cx = (box[0] + box[2]) / 2 + art.left;
-      const cy = (box[1] + box[3]) / 2 + art.top;
-      anchor = anchorFor(cx, cy);
-      if (!anchor) return null;
-      target = anchor.t === 'w' ? [anchor.s, anchor.e] : resolveTarget(anchor);
-    }
-    const o = originOf(anchor, target, art, em);
-    if (!o) return null;
     return {
-      rec: {
-        id: g.rid,
-        kind: 'stroke',
-        topic: T.slug,
-        data: {
-          g: group ? group.g : g.rid,
-          a: anchor,
-          c: g.pen,
-          w: SIZES[g.size] * (g.pen === 'marker' ? MARKER_WIDTH : 1),
-          p: encode(g.pts.map(([x, y, q]) => [(x - o.x) / o.unit, (y - o.y) / o.unit, q])),
-          ctx: group ? group.ctx : ctxNow(),
-          at: g.startedAt,
-        },
-      },
-      group: group || { g: g.rid, a: anchor, target, ctx: ctxNow(), topic: T.slug },
-      box,
+      id: g.rid,
+      kind: 'stroke',
+      topic: T.slug,
+      data: { g: g.box, a: { t: 'c', c: g.box }, c: g.pen, w: strokeWidth(g.pen, g.size), p: packBox(g.pts), at: g.startedAt },
     };
   }
 
   function saveDraftNow() {
     const g = gesture;
-    if (!g || g.type !== 'stroke' || !T) return;
-    const made = g.card ? { rec: strokeRecord(g) } : strokeRecord(g);
-    if (made && made.rec) Store.saveDraft(made.rec).catch(() => {});
+    if (!g || g.type !== 'ink' || !T) return;
+    const rec = strokeRecord(g);
+    if (rec) Store.saveDraft(rec).catch(() => {});
   }
 
-  async function endStroke(g, cancelled) {
+  async function endInk(g, cancelled) {
     clearInterval(draftTimer);
-    if (g.livePath) g.livePath.remove();
-    // iOS can cancel a touch mid-stroke (a system gesture, an alert). Ink
-    // already on the page is kept; only an accidental dot is dropped.
+    if (g.live) g.live.remove();
+    // iOS can cancel a touch mid-stroke; ink already drawn is kept.
     if (!T || !g.pts.length || (cancelled && g.pts.length < 3)) {
       Store.saveDraft(undefined).catch(() => {});
       return;
     }
-    const made = g.card ? { rec: strokeRecord(g) } : strokeRecord(g);
-    if (!made || !made.rec) {
-      Store.saveDraft(undefined).catch(() => {});
-      return;
-    }
-    if (made.group) {
-      lastGroup = { ...made.group, endedAt: now(), box: made.box };
-      if (T.res.get(`g:${made.group.g}`) == null) T.res.set(`g:${made.group.g}`, made.group.target);
-    }
-    // Writing near the bottom of a space makes it grow, like a Notes page.
-    const card = g.card && T.recs.get(g.card);
+    const rec = strokeRecord(g);
+    const card = T.recs.get(g.box);
+    const after = [rec];
+    const before = [null];
+    // Writing near the bottom makes the box grow, like a Notes page.
     if (card) {
-      const h = card.data.h || 0.5;
+      const h = card.data.h || BOX_START;
       const lowest = Math.max(...g.pts.map((p) => p[1]));
-      if (lowest > h * 1000 * 0.8 && h < 4) {
-        await commit([made.rec, { ...card, data: { ...card.data, h: Math.min(4, h + 0.35) } }], [null, card]);
-        Store.saveDraft(undefined).catch(() => {});
-        return;
+      if (lowest > h * 1000 * 0.78 && h < BOX_MAX) {
+        after.push({ ...card, data: { ...card.data, h: Math.min(BOX_MAX, h + 0.3) } });
+        before.push(card);
       }
     }
-    await commit([made.rec], [null]);
+    await commit(after, before);
     Store.saveDraft(undefined).catch(() => {});
   }
 
-  /* After iOS closes the app mid-stroke: save what was checkpointed. */
   async function recoverDraft() {
     try {
       const d = await Store.takeDraft();
@@ -1371,7 +1376,7 @@
     }
   }
 
-  /* ---------- eraser ---------- */
+  /* ---------- eraser (inside boxes) ---------- */
 
   function distToSeg(px, py, ax, ay, bx, by) {
     const dx = bx - ax;
@@ -1382,145 +1387,151 @@
     return Math.hypot(px - (ax + t * dx), py - (ay + t * dy));
   }
 
-  function hitsStroke(h, x, y, tol) {
-    const [x0, y0, x1, y1] = h.box;
-    if (x < x0 - tol || x > x1 + tol || y < y0 - tol || y > y1 + tol) return false;
-    for (let i = 0; i < h.pts.length; i++) {
-      const a = h.pts[i];
-      const b = h.pts[Math.min(i + 1, h.pts.length - 1)];
-      if (distToSeg(x, y, a[0], a[1], b[0], b[1]) <= tol + h.w / 2) return true;
-    }
-    return false;
+  function startErase(e, pad) {
+    const box = pad.closest('.scribble').dataset.card;
+    gesture = { type: 'erase', id: e.pointerId, box, pad, ids: new Set(), cache: boxStrokes(box).map((s) => ({ s, pts: boxPoints(s) })) };
+    eraseAt(e);
   }
 
+  /* Checks the whole path since the last sample, not just the sample: a quick
+     swipe can jump right over a thin stroke between two reported points. */
   function eraseAt(e) {
     const g = gesture;
-    const art = T.article.getBoundingClientRect();
-    const x = e.clientX - art.left;
-    const y = e.clientY - art.top;
-    for (const h of T.hits) {
-      if (!g.ids.has(h.id) && hitsStroke(h, x, y, 10)) {
-        g.ids.add(h.id);
-        const el = T.layer.querySelector(`[data-id="${h.id}"]`);
-        if (el) el.style.opacity = '0.15';
-      }
-    }
-    const under = document.elementFromPoint(e.clientX, e.clientY);
-    const cardEl = under && under.closest('.atlas-card');
-    if (cardEl) {
-      const pad = cardEl.querySelector('.atlas-card-pad').getBoundingClientRect();
-      const k = 1000 / pad.width;
-      for (const h of T.cardHits) {
-        if (h.card === cardEl.dataset.card && !g.ids.has(h.id) && hitsStroke(h, (e.clientX - pad.left) * k, (e.clientY - pad.top) * k, 10 * k)) {
-          g.ids.add(h.id);
-          const el = cardEl.querySelector(`[data-id="${h.id}"]`);
-          if (el) el.style.opacity = '0.15';
+    const [x, y] = padPoint(e, g.pad);
+    const tol = 12;
+    const from = g.last || [x, y];
+    g.last = [x, y];
+    const steps = Math.max(1, Math.ceil(Math.hypot(x - from[0], y - from[1]) / 6));
+    for (let k = 1; k <= steps; k++) {
+      const px = from[0] + ((x - from[0]) * k) / steps;
+      const py = from[1] + ((y - from[1]) * k) / steps;
+      for (const { s, pts } of g.cache) {
+        if (g.ids.has(s.id)) continue;
+        const w = (s.data.w || 5) / 2;
+        for (let i = 0; i < pts.length; i++) {
+          const a = pts[i];
+          const b = pts[Math.min(i + 1, pts.length - 1)];
+          if (distToSeg(px, py, a[0], a[1], b[0], b[1]) <= tol + w) {
+            g.ids.add(s.id);
+            const el = g.pad.querySelector(`[data-id="${s.id}"]`);
+            if (el) el.style.opacity = '0.15';
+            break;
+          }
         }
       }
-    }
-    const at = caretAt(e.clientX, e.clientY);
-    if (at >= 0) {
-      const pr = T.prose.getBoundingClientRect();
-      if (e.clientX >= pr.left && e.clientX <= pr.right) for (const h of highlightsAt(at)) g.ids.add(h.id);
     }
   }
 
   async function endErase(g) {
-    if (!g.ids.size) return;
+    if (!g.ids.size || !T) return;
     const before = [...g.ids].map((id) => T.recs.get(id)).filter(Boolean);
-    await commit(before.map(deleted), before);
-    Atlas.toast(`${before.length} mark${before.length === 1 ? '' : 's'} erased.`, { action: 'Undo', onAction: undo });
+    await commit(before.map((r) => deleted(r)), before);
+    Atlas.toast(`${before.length} stroke${before.length === 1 ? '' : 's'} erased.`, { action: 'Undo', onAction: undo });
   }
 
-  /* ---------- re-placing marks from the tray ---------- */
+  /* ---------- placing boxes from the tray ---------- */
 
-  async function placeGroupAt(cx, cy) {
-    const g = pendingPlace;
+  async function placeBoxAt(y) {
+    const id = pendingPlace;
     pendingPlace = null;
     root.classList.remove('ink-placing');
-    const strokes = live('stroke').filter((s) => (s.data.g || s.id) === g);
-    const anchor = anchorFor(cx, cy);
-    if (!strokes.length || !anchor) return;
-    // Put the group's top-left corner where the reader tapped.
-    const all = strokes.flatMap((s) => decode(s.data.p || []));
-    const x0 = Math.min(...all.map((p) => p[0]));
-    const y0 = Math.min(...all.map((p) => p[1]));
-    const art = T.article.getBoundingClientRect();
-    const target = anchor.t === 'w' ? [anchor.s, anchor.e] : resolveTarget(anchor);
-    const o = originOf(anchor, target, art, emPx());
-    const dx = (cx - art.left - o.x) / o.unit;
-    const dy = (cy - art.top - o.y) / o.unit;
-    const after = strokes.map((s) => ({
-      ...s,
-      data: { ...s.data, a: anchor, ctx: ctxNow(), p: encode(decode(s.data.p).map(([x, y, q]) => [x - x0 + dx, y - y0 + dy, q])) },
-    }));
-    await commit(after, strokes);
-    Atlas.toast('Ink placed.');
+    const rec = T.recs.get(id);
+    const block = blockAtY(y);
+    if (!rec || !block) return;
+    await commit([{ ...rec, data: { ...rec.data, a: blockAnchor(block) } }], [rec]);
+    Atlas.toast('Box placed.');
   }
 
+  /* ---------- clicks: boxes, markers, tray, ＋ ---------- */
+
   view.addEventListener('click', async (e) => {
-    const btn = e.target.closest('[data-orphan], [data-card-act], [data-ink-act], .atlas-marker');
-    if (!btn || !T) return;
-    e.preventDefault();
-    if (btn.classList.contains('atlas-marker')) {
-      const h = T.recs.get(btn.dataset.hl);
-      if (h) openHighlightMenu([h], btn.getBoundingClientRect());
+    if (!T) return;
+    const plus = e.target.closest('.scribble-plus');
+    if (plus) {
+      e.preventDefault();
+      const b = blocks()[Number(plus.dataset.after)];
+      insertMode = false;
+      renderPlus(); // clears the markers
+      syncDock();
+      if (b) await addBox(blockAnchor(b.el));
+      else renderPlus();
       return;
     }
-    if (btn.dataset.cardAct) {
-      const card = btn.closest('.atlas-card');
-      const rec = card && T.recs.get(card.dataset.card);
+    const marker = e.target.closest('.atlas-marker');
+    if (marker) {
+      const h = T.recs.get(marker.dataset.hl);
+      if (h) openHighlightMenu([h], marker.getBoundingClientRect());
+      return;
+    }
+    const sb = e.target.closest('[data-sb]');
+    if (sb) {
+      e.preventDefault();
+      const box = sb.closest('.scribble');
+      const rec = box && T.recs.get(box.dataset.card);
       if (!rec) return;
-      if (btn.dataset.cardAct === 'size') {
-        const h = rec.data.h || 0.5;
-        await commit([{ ...rec, data: { ...rec.data, h: h >= 0.85 ? 0.5 : h >= 0.6 ? 0.9 : 0.65 } }], [rec]);
-      } else {
-        const strokes = live('stroke').filter((s) => s.data.a && s.data.a.t === 'c' && s.data.a.c === rec.id);
-        await commit([rec, ...strokes].map(deleted), [rec, ...strokes]);
-        Atlas.toast('Sketch deleted.', { action: 'Undo', onAction: undo });
-      }
+      await boxAction(sb.dataset.sb, sb, rec);
       return;
     }
-    const act = btn.dataset.orphan || btn.dataset.inkAct;
-    const id = btn.dataset.id;
-    if (act === 'replace') {
-      pendingReplace = id;
-      setMode('highlight');
-      Atlas.toast('Swipe the Pencil across the passage this highlight belongs to — or select it with a finger.');
-    } else if (act === 'delete') {
+    const orphan = e.target.closest('[data-orphan]');
+    if (orphan) {
+      e.preventDefault();
+      const id = orphan.dataset.id;
       const rec = T.recs.get(id);
-      if (rec) await commit([deleted(rec)], [rec]);
-    } else if (act === 'delete-ink') {
-      const strokes = live('stroke').filter((s) => (s.data.g || s.id) === id);
-      await commit(strokes.map(deleted), strokes);
-    } else if (act === 'place') {
-      pendingPlace = id;
-      root.classList.add('ink-placing');
-      Atlas.toast('Tap the word or paragraph this ink belongs next to.');
-    } else if (act === 'card-here') {
-      const rec = T.recs.get(id);
-      const el = blockAtY(window.innerHeight * 0.45);
-      if (rec && el) await commit([{ ...rec, data: { ...rec.data, a: blockAnchor(el) } }], [rec]);
-    } else if (act === 'preview') {
-      const c = T.drawnCtx;
-      if (!c) return;
-      const [size, font, leading, width] = c.pr.split('|');
-      previewing = true;
-      Atlas.previewPrefs({ size, font, leading, width, column: c.cw });
-      paintTop();
-    } else if (act === 'margin-on') {
-      if (!tool.margin) toggleMargin();
-    } else if (act === 'unpreview') {
-      previewing = false;
-      Atlas.previewPrefs(null);
-      paintTop();
+      const act = orphan.dataset.orphan;
+      if (act === 'replace') {
+        pendingReplace = id;
+        if (!tool.hl) setHighlighter(true);
+        Atlas.toast('Swipe the Pencil across the passage this highlight belongs to — or select it with a finger.');
+      } else if (act === 'delete' && rec) {
+        await commit([deleted(rec)], [rec]);
+      } else if (act === 'delete-box' && rec) {
+        const strokes = boxStrokes(id);
+        await commit([rec, ...strokes].map((r) => deleted(r)), [rec, ...strokes]);
+      } else if (act === 'place') {
+        pendingPlace = id;
+        root.classList.add('ink-placing');
+        Atlas.toast('Tap the paragraph this box should follow.');
+      }
     }
   });
 
-  /* ---------- tapping a highlight while reading ---------- */
+  async function boxAction(act, btn, rec) {
+    switch (act) {
+      case 'collapse': {
+        const collapsed = rec.data.collapsed != null ? rec.data.collapsed : tool.collapsed;
+        await commit([{ ...rec, data: { ...rec.data, collapsed: !collapsed } }], [rec], { undoable: false });
+        return;
+      }
+      case 'pen':
+        tool.pen = btn.dataset.v;
+        eraser = false;
+        saveTool();
+        refreshToolbars();
+        return;
+      case 'size':
+        tool.size = btn.dataset.v;
+        eraser = false;
+        saveTool();
+        refreshToolbars();
+        return;
+      case 'eraser':
+        toggleEraser();
+        return;
+      case 'undo':
+        return undo();
+      case 'redo':
+        return redo();
+      case 'another':
+        return addBox(rec.data.a);
+      case 'more':
+        return openBoxMenu(rec, btn.getBoundingClientRect());
+    }
+  }
+
+  /* ---------- tapping a highlight ---------- */
 
   view.addEventListener('click', (e) => {
-    if (!T || tool.mode !== 'read' || pendingPlace) return;
+    if (!T || pendingPlace) return;
     if (e.target.closest('a, button, [data-atlas-ui]') || !T.prose.contains(e.target)) return;
     const sel = window.getSelection();
     if (sel && !sel.isCollapsed) return;
@@ -1546,40 +1557,44 @@
     document.body.appendChild(el);
     const w = el.offsetWidth;
     const h = el.offsetHeight;
-    const vw = window.innerWidth;
-    let left = Math.max(10, Math.min(vw - w - 10, rect.left + rect.width / 2 - w / 2));
+    const left = Math.max(10, Math.min(window.innerWidth - w - 10, rect.left + rect.width / 2 - w / 2));
     let top = rect.bottom + 10;
     if (top + h > window.innerHeight - 20) top = Math.max(10, rect.top - h - 10);
     el.style.left = `${left}px`;
     el.style.top = `${top}px`;
   }
 
+  function newMenu(extraClass = '') {
+    closeMenus();
+    menu = document.createElement('div');
+    menu.className = `atlas-menu ${extraClass}`.trim();
+    menu.setAttribute('data-atlas-menu', '');
+    menu.setAttribute('data-atlas-ui', '');
+    return menu;
+  }
+
   function highlightRect(h) {
     const span = T.res.get(h.id);
     if (!span) return null;
-    const rects = rangeOf(span[0], span[1]).getClientRects();
-    return rects[0] || null;
+    return rangeOf(span[0], span[1]).getClientRects()[0] || null;
   }
 
   function openHighlightMenu(hits, rect) {
-    closeMenus();
     const h = hits[0];
     rect = rect || highlightRect(h);
     if (!rect) return;
-    menu = document.createElement('div');
-    menu.className = 'atlas-menu';
-    menu.setAttribute('data-atlas-menu', '');
-    menu.setAttribute('data-atlas-ui', '');
+    const m = newMenu();
     const others = hits.slice(1);
-    menu.innerHTML = `
+    m.innerHTML = `
       ${others.length ? `<div class="menu-note">${hits.length} highlights overlap here · <button type="button" data-menu="next">Next</button></div>` : ''}
       <div class="menu-row">${HL.map((c) => `<button type="button" class="swatch hl-${c}${h.data.c === c ? ' on' : ''}" data-menu="color" data-c="${c}" aria-label="${c}"></button>`).join('')}
         <span class="menu-sep"></span>
         <button type="button" data-menu="note">${icon('note', 16)} ${h.data.n ? 'Edit note' : 'Note'}</button>
+        <button type="button" data-menu="scribble">${svgIcon('plus', 16)} Scribble below</button>
         <button type="button" data-menu="copy">Copy</button>
         <button type="button" data-menu="delete" class="danger">Delete</button></div>
       ${h.data.n ? `<div class="menu-text">${esc(h.data.n)}</div>` : ''}`;
-    menu.addEventListener('click', async (e) => {
+    m.addEventListener('click', async (e) => {
       const b = e.target.closest('[data-menu]');
       if (!b) return;
       const act = b.dataset.menu;
@@ -1588,8 +1603,9 @@
       if (act === 'next') return openHighlightMenu([...others, h]);
       if (act === 'color') {
         await commit([{ ...cur, data: { ...cur.data, c: b.dataset.c } }], [cur]);
-        tool.hl = b.dataset.c;
+        tool.hlColor = b.dataset.c;
         saveTool();
+        syncDock();
         closeMenus();
       } else if (act === 'copy') {
         try {
@@ -1605,48 +1621,85 @@
         Atlas.toast('Highlight deleted.', { action: 'Undo', onAction: undo });
       } else if (act === 'note') {
         openNoteEditor(cur, rect);
+      } else if (act === 'scribble') {
+        closeMenus();
+        const span = T.res.get(cur.id);
+        const block = span && topBlockOf(locate(index(), span[1] - 1)[0]);
+        if (block) addBox(blockAnchor(block));
       }
     });
-    placeMenu(menu, rect);
+    placeMenu(m, rect);
   }
 
   function openNoteEditor(h, rect, { isNew } = {}) {
-    closeMenus();
-    menu = document.createElement('div');
-    menu.className = 'atlas-menu atlas-note-editor';
-    menu.setAttribute('data-atlas-menu', '');
-    menu.setAttribute('data-atlas-ui', '');
-    menu.innerHTML = `<div class="menu-quote">“${esc(h.data.a.q.slice(0, 140))}${h.data.a.q.length > 140 ? '…' : ''}”</div>
+    const m = newMenu('atlas-note-editor');
+    m.innerHTML = `<div class="menu-quote">“${esc(h.data.a.q.slice(0, 140))}${h.data.a.q.length > 140 ? '…' : ''}”</div>
       <textarea id="atlas-hl-note" rows="4" placeholder="Your note — type, or write with the Pencil (Scribble)">${esc(h.data.n || '')}</textarea>
       <div class="menu-row end"><button type="button" data-menu="cancel">${isNew ? 'Skip' : 'Cancel'}</button><button type="button" class="primary" data-menu="save">Save note</button></div>`;
-    menu.addEventListener('click', async (e) => {
+    m.addEventListener('click', async (e) => {
       const b = e.target.closest('[data-menu]');
       if (!b) return;
       if (b.dataset.menu === 'save') {
         const cur = T && T.recs.get(h.id);
-        const text = menu.querySelector('textarea').value;
+        const text = m.querySelector('textarea').value;
         if (cur) await commit([{ ...cur, data: { ...cur.data, n: text.trim() ? text : '' } }], [cur]);
       }
       closeMenus();
     });
-    placeMenu(menu, rect);
-    const area = menu.querySelector('textarea');
+    placeMenu(m, rect);
+    const area = m.querySelector('textarea');
     area.focus();
     area.setSelectionRange(area.value.length, area.value.length);
   }
 
+  function openBoxMenu(rec, rect) {
+    const m = newMenu('atlas-box-menu');
+    const paper = PAPERS.includes(rec.data.paper) ? rec.data.paper : 'dots';
+    m.innerHTML = `
+      <div class="menu-head">Paper</div>
+      <div class="seg full">${PAPERS.map((p) => `<button type="button" data-menu="paper" data-v="${p}" class="${paper === p ? 'on' : ''}">${p[0].toUpperCase() + p.slice(1)}</button>`).join('')}</div>
+      <div class="menu-head">Label</div>
+      <div class="menu-row"><input id="atlas-box-label" class="field" type="text" value="${esc(rec.data.label || '')}" placeholder="Optional — makes the box searchable" maxlength="80"><button type="button" class="primary" data-menu="label">Save</button></div>
+      <div class="menu-row end"><button type="button" class="danger" data-menu="delete">${svgIcon('trash', 16)} Delete box</button></div>`;
+    m.addEventListener('click', async (e) => {
+      const b = e.target.closest('[data-menu]');
+      if (!b) return;
+      const cur = T && T.recs.get(rec.id);
+      if (!cur) return closeMenus();
+      if (b.dataset.menu === 'paper') {
+        await commit([{ ...cur, data: { ...cur.data, paper: b.dataset.v } }], [cur]);
+        tool.paper = b.dataset.v;
+        saveTool();
+        closeMenus();
+      } else if (b.dataset.menu === 'label') {
+        const v = m.querySelector('#atlas-box-label').value.trim();
+        await commit([{ ...cur, data: { ...cur.data, label: v } }], [cur]);
+        closeMenus();
+      } else if (b.dataset.menu === 'delete') {
+        const strokes = boxStrokes(cur.id);
+        await commit([cur, ...strokes].map((r) => deleted(r)), [cur, ...strokes]);
+        closeMenus();
+        Atlas.toast('Scribble box deleted.', { action: 'Undo', onAction: undo });
+      }
+    });
+    m.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && e.target.id === 'atlas-box-label') m.querySelector('[data-menu="label"]').click();
+    });
+    placeMenu(m, rect);
+  }
+
   document.addEventListener('pointerdown', (e) => {
-    if (menu && !menu.contains(e.target) && !e.target.closest('.atlas-marker')) closeMenus();
+    if (menu && !menu.contains(e.target) && !e.target.closest('.atlas-marker, [data-sb="more"]')) closeMenus();
   });
   window.addEventListener(
     'scroll',
     () => {
-      if (menu && !menu.classList.contains('atlas-note-editor')) closeMenus();
+      if (menu && !menu.classList.contains('atlas-note-editor') && !menu.classList.contains('atlas-box-menu')) closeMenus();
     },
     { passive: true }
   );
 
-  /* ---------- highlighting a finger selection (Read mode) ---------- */
+  /* ---------- a finger selection: highlight it, note it, scribble below ---------- */
 
   let selBar = null;
   let selSpan = null;
@@ -1675,25 +1728,30 @@
         pressed = null;
         if (!b || !span || !T) return;
         const [s, en] = span;
-        const r = window.getSelection();
         const rect2 = selBar.getBoundingClientRect();
         hideSelectionBar();
+        const r = window.getSelection();
         if (r) r.removeAllRanges();
         if (b.dataset.sel === 'note') {
           const rec = await saveHighlight(s, en);
           openNoteEditor(T.recs.get(rec.id) || rec, rect2, { isNew: true });
+        } else if (b.dataset.sel === 'scribble') {
+          const block = topBlockOf(locate(index(), Math.max(s, en - 1))[0]);
+          if (block) addBox(blockAnchor(block));
         } else {
           await saveHighlight(s, en, { color: b.dataset.sel });
-          tool.hl = b.dataset.sel;
+          tool.hlColor = b.dataset.sel;
           saveTool();
+          syncDock();
         }
       });
       document.body.appendChild(selBar);
     }
     selBar.innerHTML = pendingReplace
-      ? `<div class="menu-row"><button type="button" class="primary" data-sel="${esc(tool.hl)}">Attach highlight here</button></div>`
+      ? `<div class="menu-row"><button type="button" class="primary" data-sel="${esc(tool.hlColor)}">Attach highlight here</button></div>`
       : `<div class="menu-row">${HL.map((c) => `<button type="button" class="swatch hl-${c}" data-sel="${c}" aria-label="Highlight ${c}"></button>`).join('')}
-         <span class="menu-sep"></span><button type="button" data-sel="note">${icon('note', 16)} Note</button></div>`;
+         <span class="menu-sep"></span><button type="button" data-sel="note">${icon('note', 16)} Note</button>
+         <button type="button" data-sel="scribble">${svgIcon('plus', 16)} Scribble below</button></div>`;
     selBar.hidden = false;
     const w = selBar.offsetWidth;
     const h = selBar.offsetHeight;
@@ -1708,7 +1766,7 @@
   document.addEventListener('selectionchange', () => {
     clearTimeout(selTimer);
     selTimer = setTimeout(() => {
-      if (!T || tool.mode !== 'read') return hideSelectionBar();
+      if (!T || gesture) return hideSelectionBar();
       const sel = window.getSelection();
       if (!sel || sel.isCollapsed || !sel.rangeCount) return hideSelectionBar();
       const r = sel.getRangeAt(0);
@@ -1738,198 +1796,72 @@
           setTimeout(() => HAS_HIGHLIGHTS && CSS.highlights.delete('atlas-hl-flash'), 1600);
         }
       }
-    } else if (rec.kind === 'card') {
-      const el = T.prose.querySelector(`.atlas-card[data-card="${id}"]`);
-      if (el) rect = el.getBoundingClientRect();
     } else {
-      const el = T.layer.querySelector(`[data-id="${id}"]`);
-      if (el) rect = el.getBoundingClientRect();
+      const boxId = rec.kind === 'card' ? id : rec.data && rec.data.a && rec.data.a.c;
+      const el = boxId && T.prose.querySelector(`.scribble[data-card="${boxId}"]`);
+      if (el) {
+        rect = el.getBoundingClientRect();
+        el.classList.add('fresh');
+        setTimeout(() => el.classList.remove('fresh'), 1400);
+      }
     }
     if (rect) window.scrollTo(0, Math.max(0, rect.top + window.scrollY - window.innerHeight * 0.3));
   }
 
-  /* ---------- the Pencil tray ---------- */
+  /* ---------- the dock: Highlighter and Scribble ---------- */
 
-  const tray = document.createElement('div');
-  tray.id = 'atlas-tray';
-  tray.setAttribute('data-atlas-ui', '');
-  tray.hidden = true;
-  document.body.appendChild(tray);
-
-  const MODE_ICONS = {
-    read: '<path d="M2.5 12s3.5-7 9.5-7 9.5 7 9.5 7-3.5 7-9.5 7-9.5-7-9.5-7Z"/><circle cx="12" cy="12" r="3"/>',
-    highlight: '<path d="m9 11-6 6v3h9l3-3"/><path d="m22 12-4.6 4.6a2 2 0 0 1-2.8 0l-5.2-5.2a2 2 0 0 1 0-2.8L14 4"/>',
-    pen: '<path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/>',
+  const ICONS = {
+    highlighter: '<path d="m9 11-6 6v3h9l3-3"/><path d="m22 12-4.6 4.6a2 2 0 0 1-2.8 0l-5.2-5.2a2 2 0 0 1 0-2.8L14 4"/>',
+    scribble: '<path d="M3 17c3-6 5-10 7-10s-2 10 1 10 4-8 6-8-1 6 1 6 2-2 3-3"/>',
     eraser: '<path d="m7 21-4.3-4.3a1 1 0 0 1 0-1.4l10-10a1 1 0 0 1 1.4 0l5.6 5.6a1 1 0 0 1 0 1.4L13 19"/><path d="M22 21H7M5 11l9 9"/>',
     undo: '<path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/>',
     redo: '<path d="m15 14 5-5-5-5"/><path d="M20 9H9.5a5.5 5.5 0 0 0 0 11H13"/>',
-    sketch: '<rect x="3" y="5" width="18" height="14" rx="2"/><path d="M7 15c2-4 4 1 6-2s3-2 4-1"/>',
-    margin: '<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M14 4v16M6 8h5M6 11h5M6 14h3"/>',
-    close: '<path d="m6 9 6 6 6-6"/>',
+    plus: '<path d="M12 5v14M5 12h14"/>',
+    chev: '<path d="m9 6 6 6-6 6"/>',
+    more: '<circle cx="5" cy="12" r="1.3" fill="currentColor"/><circle cx="12" cy="12" r="1.3" fill="currentColor"/><circle cx="19" cy="12" r="1.3" fill="currentColor"/>',
+    trash: '<path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/>',
+    x: '<path d="M6 6l12 12M18 6 6 18"/>',
   };
-  const svg = (name, size = 20) =>
-    `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${MODE_ICONS[name]}</svg>`;
-  const LABEL = { read: 'Read', highlight: 'Highlight', pen: 'Pen', eraser: 'Eraser' };
-
-  function syncTray() {
-    const onTopic = !!T;
-    tray.hidden = !onTopic;
-    if (!onTopic) return;
-    const colors = tool.mode === 'pen' ? PENS : HL;
-    const current = tool.mode === 'pen' ? tool.pen : tool.hl;
-    tray.className = `${tool.open ? 'open' : ''} mode-${tool.mode}`;
-    tray.innerHTML = `
-      <div class="tray-panel" role="toolbar" aria-label="Pencil tools">
-        <div class="tray-modes">${['read', 'highlight', 'pen', 'eraser']
-          .map((m) => `<button type="button" data-tool-mode="${m}" class="${tool.mode === m ? 'on' : ''}" aria-pressed="${tool.mode === m}">${svg(m, 19)}<span>${LABEL[m]}</span></button>`)
-          .join('')}</div>
-        <div class="tray-opts">
-          ${tool.mode === 'highlight' || tool.mode === 'pen'
-            ? `<div class="tray-colors">${colors
-                .map((c) => `<button type="button" class="swatch ${tool.mode === 'pen' ? 'pen' : 'hl'}-${c}${current === c ? ' on' : ''}" data-tool-color="${c}" aria-label="${c}"></button>`)
-                .join('')}</div>`
-            : ''}
-          ${tool.mode === 'pen'
-            ? `<div class="tray-sizes">${Object.keys(SIZES)
-                .map((s) => `<button type="button" data-tool-size="${s}" class="size-${s}${tool.size === s ? ' on' : ''}" aria-label="${s} line"><i></i></button>`)
-                .join('')}</div>`
-            : ''}
-          <button type="button" class="tray-btn" data-tool-act="sketch" title="Add space to write">${svg('sketch', 19)}<span>Space</span></button>
-          <button type="button" class="tray-btn${tool.margin ? ' on' : ''}" data-tool-act="margin" aria-pressed="${tool.margin}" title="Wide margin to write in">${svg('margin', 19)}<span>Margin</span></button>
-          <button type="button" class="tray-btn" data-tool-act="undo" ${undoStack.length ? '' : 'disabled'} aria-label="Undo">${svg('undo', 19)}</button>
-          <button type="button" class="tray-btn" data-tool-act="redo" ${redoStack.length ? '' : 'disabled'} aria-label="Redo">${svg('redo', 19)}</button>
-        </div>
-      </div>
-      ${!tool.open && tool.mode !== 'read'
-        ? `<button type="button" class="tray-quick" data-tool-act="eraser" aria-label="${tool.mode === 'eraser' ? `Back to ${LABEL[tool.lastTool] || 'Pen'}` : 'Eraser'}">${svg(tool.mode === 'eraser' ? tool.lastTool || 'pen' : 'eraser', 20)}</button>`
-        : ''}
-      <button type="button" class="tray-fab" data-tool-act="toggle" aria-expanded="${tool.open}" aria-label="${tool.open ? 'Hide Pencil tools' : 'Pencil tools'}">
-        ${tool.open ? svg('close', 22) : svg(tool.mode === 'read' ? 'pen' : tool.mode, 22)}
-        ${tool.mode !== 'read' && !tool.open ? `<em>${LABEL[tool.mode]}</em>` : ''}
-      </button>`;
+  function svgIcon(name, size = 20) {
+    return `<svg class="ic" width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICONS[name] || ''}</svg>`;
   }
 
-  function applyModeClass() {
-    for (const m of ['highlight', 'pen', 'eraser']) root.classList.toggle(`ink-mode-${m}`, tool.mode === m);
-    root.classList.toggle('ink-margin', !!tool.margin);
+  const dock = document.createElement('div');
+  dock.id = 'atlas-dock';
+  dock.setAttribute('data-atlas-ui', '');
+  dock.hidden = true;
+  document.body.appendChild(dock);
+
+  function syncDock() {
+    dock.hidden = !T;
+    if (!T) return;
+    dock.className = `${tool.hl ? 'hl-on' : ''} ${insertMode ? 'inserting' : ''}`.trim();
+    dock.innerHTML = `
+      ${tool.hl ? `<div class="dock-colors" role="group" aria-label="Highlighter colour">${HL.map((c) => `<button type="button" class="swatch hl-${c}${tool.hlColor === c ? ' on' : ''}" data-dock="color" data-v="${c}" aria-label="${c}"></button>`).join('')}</div>` : ''}
+      <button type="button" class="dock-btn dock-hl hl-${esc(tool.hlColor)}" data-dock="hl" aria-pressed="${tool.hl}">
+        ${svgIcon('highlighter', 20)}<span>${tool.hl ? 'Highlighter on' : 'Highlighter'}</span></button>
+      <button type="button" class="dock-btn dock-sc" data-dock="scribble" aria-pressed="${insertMode}">
+        ${svgIcon(insertMode ? 'x' : 'scribble', 20)}<span>${insertMode ? 'Done' : 'Scribble'}</span></button>`;
   }
 
-  function setMode(m) {
-    if (m === 'highlight' || m === 'pen') tool.lastTool = m;
-    tool.mode = m;
-    if (m !== 'read') hideSelectionBar();
+  function setHighlighter(on) {
+    tool.hl = !!on;
     saveTool();
-    applyModeClass();
-    syncTray();
+    syncDock();
+    if (tool.hl) Atlas.toast('Highlighter on — swipe the Pencil over text.', { ms: 1800 });
   }
 
-  tray.addEventListener('click', (e) => {
-    const b = e.target.closest('button');
+  dock.addEventListener('click', (e) => {
+    const b = e.target.closest('[data-dock]');
     if (!b) return;
-    if (b.dataset.toolMode) setMode(b.dataset.toolMode);
-    else if (b.dataset.toolColor) {
-      if (tool.mode === 'pen') tool.pen = b.dataset.toolColor;
-      else tool.hl = b.dataset.toolColor;
+    if (b.dataset.dock === 'hl') setHighlighter(!tool.hl);
+    else if (b.dataset.dock === 'scribble') setInsertMode(!insertMode);
+    else if (b.dataset.dock === 'color') {
+      tool.hlColor = b.dataset.v;
       saveTool();
-      syncTray();
-    } else if (b.dataset.toolSize) {
-      tool.size = b.dataset.toolSize;
-      saveTool();
-      syncTray();
-    } else if (b.dataset.toolAct === 'toggle') {
-      tool.open = !tool.open;
-      saveTool();
-      syncTray();
-    } else if (b.dataset.toolAct === 'undo') undo();
-    else if (b.dataset.toolAct === 'redo') redo();
-    else if (b.dataset.toolAct === 'sketch') addCard();
-    else if (b.dataset.toolAct === 'eraser') toggleEraser();
-    else if (b.dataset.toolAct === 'margin') toggleMargin();
+      syncDock();
+    }
   });
-
-  /* Apple Pencil double-tap only reaches native apps — iPadOS never tells a
-     web page about it. The nearest equivalents: a two-finger tap anywhere on
-     the page, the round button beside the pencil button, or E on a keyboard. */
-  function toggleEraser() {
-    if (tool.mode === 'eraser') setMode(tool.lastTool || 'pen');
-    else setMode('eraser');
-  }
-
-  function toggleMargin() {
-    Atlas.keepPlace(() => {
-      tool.margin = !tool.margin;
-      saveTool();
-      applyModeClass();
-    });
-    syncTray();
-  }
-
-  // Two-finger tap. Touch events on iPad (pointer events get cancelled when
-  // iOS thinks a pinch may be starting); pointer events everywhere else.
-  let twoTap = null;
-  const tapTimeout = 350;
-  const tapSlop = 14;
-  if ('ontouchstart' in window) {
-    view.addEventListener(
-      'touchstart',
-      (e) => {
-        const fingers = Array.from(e.touches).filter((t) => t.touchType !== 'stylus');
-        if (fingers.length === 2 && !twoTap) twoTap = { at: now(), n: 2, start: new Map(fingers.map((f) => [f.identifier, [f.clientX, f.clientY]])), moved: false };
-        else if (twoTap && fingers.length > 2) twoTap.n = fingers.length;
-      },
-      { passive: true }
-    );
-    view.addEventListener(
-      'touchmove',
-      (e) => {
-        if (!twoTap) return;
-        for (const t of e.changedTouches) {
-          const s0 = twoTap.start.get(t.identifier);
-          if (s0 && Math.hypot(t.clientX - s0[0], t.clientY - s0[1]) > tapSlop) twoTap.moved = true;
-        }
-      },
-      { passive: true }
-    );
-    const done = (e) => {
-      if (!twoTap || e.touches.length) return;
-      const t = twoTap;
-      twoTap = null;
-      if (t.n === 2 && !t.moved && now() - t.at < tapTimeout && marking() && !pendingPlace) toggleEraser();
-    };
-    view.addEventListener('touchend', done, { passive: true });
-    view.addEventListener('touchcancel', () => (twoTap = null), { passive: true });
-  } else {
-    const fingers = new Map();
-    view.addEventListener(
-      'pointerdown',
-      (e) => {
-        if (e.pointerType !== 'touch') return;
-        if (!fingers.size) twoTap = { at: now(), n: 0, moved: false };
-        fingers.set(e.pointerId, [e.clientX, e.clientY]);
-        twoTap.n = Math.max(twoTap.n, fingers.size);
-      },
-      true
-    );
-    view.addEventListener(
-      'pointermove',
-      (e) => {
-        const f = fingers.get(e.pointerId);
-        if (f && twoTap && Math.hypot(e.clientX - f[0], e.clientY - f[1]) > tapSlop) twoTap.moved = true;
-      },
-      true
-    );
-    view.addEventListener(
-      'pointerup',
-      (e) => {
-        if (!fingers.delete(e.pointerId) || fingers.size || !twoTap) return;
-        const t = twoTap;
-        twoTap = null;
-        if (t.n === 2 && !t.moved && now() - t.at < tapTimeout && marking() && !pendingPlace) toggleEraser();
-      },
-      true
-    );
-    view.addEventListener('pointercancel', (e) => fingers.delete(e.pointerId), true);
-  }
 
   document.addEventListener('keydown', (e) => {
     if (!T || Atlas.searchOpen() || (e.target.closest && e.target.closest('input, textarea, select'))) return;
@@ -1940,15 +1872,51 @@
       return;
     }
     if (e.metaKey || e.ctrlKey || e.altKey) return;
-    if (e.key === 'e') return toggleEraser();
-    const m = { h: 'highlight', i: 'pen', r: 'read' }[e.key];
-    if (m) setMode(m);
+    if (e.key === 'h') setHighlighter(!tool.hl);
+    else if (e.key === 's') setInsertMode(!insertMode);
+    else if (e.key === 'e') toggleEraser();
     else if (e.key === 'Escape') {
+      if (insertMode) setInsertMode(false);
       pendingPlace = null;
       pendingReplace = null;
       root.classList.remove('ink-placing');
     }
   });
+
+  /* ---------- touch diagnostics ---------- */
+
+  let diagEl = null;
+  const diagLines = [];
+  function diag(e) {
+    if (!tool.diag) return;
+    if (!diagEl) {
+      diagEl = document.createElement('div');
+      diagEl.id = 'atlas-diag';
+      diagEl.setAttribute('data-atlas-ui', '');
+      document.body.appendChild(diagEl);
+    }
+    const t = e.changedTouches ? e.changedTouches[0] : null;
+    const who = t ? `${t.touchType || 'touch'} r=${(t.radiusX || 0).toFixed(1)}` : `${e.pointerType} p=${(e.pressure || 0).toFixed(2)}`;
+    const target =
+      e.target && e.target.nodeType === 1
+        ? `${e.target.tagName.toLowerCase()}${e.target.className && typeof e.target.className === 'string' ? '.' + e.target.className.split(' ')[0] : ''}`
+        : '';
+    diagLines.push(`${new Date().toTimeString().slice(3, 8)} ${e.type.padEnd(12)} ${who.padEnd(14)} ${target}${e.defaultPrevented ? ' · held' : ''}${gesture ? ` · ${gesture.type}` : ''}`);
+    while (diagLines.length > 9) diagLines.shift();
+    diagEl.textContent = diagLines.join('\n');
+  }
+  for (const type of ['pointerdown', 'pointerup', 'pointercancel', 'touchstart', 'touchend', 'touchcancel']) {
+    window.addEventListener(type, (e) => setTimeout(() => diag(e), 0), { passive: true, capture: true });
+  }
+  function setDiag(on) {
+    tool.diag = !!on;
+    saveTool();
+    if (!on && diagEl) {
+      diagEl.remove();
+      diagEl = null;
+      diagLines.length = 0;
+    }
+  }
 
   /* ---------- Settings → Pencil ---------- */
 
@@ -1956,21 +1924,32 @@
     const slot = view.querySelector('[data-slot="pencil"]');
     if (!slot) return;
     const recs = await Store.all().catch(() => []);
-    const n = (k) => recs.filter((r) => r.kind === k && !r.deleted).length;
+    const n = (k) => recs.filter((r) => r.kind === k && !r.deleted && !(k === 'stroke' && r.data && r.data.a && r.data.a.t !== 'c')).length;
+    const toggle = (key, on) => `<button type="button" class="btn small" data-pencil="${key}" aria-pressed="${on}">${on ? 'On' : 'Off'}</button>`;
     slot.innerHTML = `<section class="block"><h2>Pencil</h2>
       <div class="list">
-        <div class="set-row"><div><b>Draw with a finger too</b><small>For when the Pencil isn’t with you. While a marking tool is on, one finger draws instead of scrolling.</small></div>
-          <button type="button" class="btn small" data-pencil="finger" aria-pressed="${tool.finger}">${tool.finger ? 'On' : 'Off'}</button></div>
-        <div class="set-row"><div><b>Switching to the eraser</b><small>Tap with two fingers anywhere on the page, tap the round button beside the pencil button, or press E on a keyboard. (Apple only sends the Pencil's double-tap to native apps, not to web apps.)</small></div></div>
-        <div class="set-row"><div><b>Where you can write</b><small>Anywhere on a topic — over the text, the title, the margins and the space below. Turn on Margin in the tray for a wide margin, or add a writing space between paragraphs.</small></div></div>
-        <div class="set-row"><div><b>On this iPad</b><small>${n('highlight')} highlights · ${n('stroke')} ink strokes · ${n('card')} sketch cards. Deleted marks can be restored from the Library for ${KEEP_DELETED_DAYS} days.</small></div></div>
+        <div class="set-row"><div><b>Highlighter</b><small>Turn it on with the button at the bottom right of a topic, then swipe the Pencil over text. Your finger always scrolls; select text with a finger to highlight it any time.</small></div></div>
+        <div class="set-row"><div><b>Scribble boxes</b><small>Tap Scribble, then a ＋ after any paragraph. The Pencil writes inside the box; fingers scroll past it. Two-finger tap inside a box switches the eraser.</small></div></div>
+        <div class="set-row"><div><b>Draw with a finger in boxes</b><small>For when the Pencil isn’t with you. Fingers then draw instead of scrolling while inside a box.</small></div>${toggle('finger', tool.finger)}</div>
+        <div class="set-row"><div><b>Start boxes collapsed</b><small>Keeps topics clean for reading; tap a box to open it.</small></div>${toggle('collapsed', tool.collapsed)}</div>
+        <div class="set-row stack"><div><b>Paper for new boxes</b></div><div class="seg full">${PAPERS.map((p) => `<button type="button" data-pencil="paper" data-v="${p}" class="${tool.paper === p ? 'on' : ''}">${p[0].toUpperCase() + p.slice(1)}</button>`).join('')}</div></div>
+        <div class="set-row"><div><b>Touch diagnostics</b><small>Shows what the iPad reports for each touch — handy if something feels unresponsive.</small></div>${toggle('diag', tool.diag)}</div>
+        <div class="set-row"><div><b>On this iPad</b><small>${n('highlight')} highlights · ${n('card')} scribble boxes · ${n('stroke')} strokes. Deleted marks can be restored from the Library for ${KEEP_DELETED_DAYS} days.</small></div></div>
       </div></section>`;
   }
 
   view.addEventListener('click', (e) => {
-    const b = e.target.closest('[data-pencil="finger"]');
+    const b = e.target.closest('[data-pencil]');
     if (!b) return;
-    tool.finger = !tool.finger;
+    const k = b.dataset.pencil;
+    if (k === 'finger') tool.finger = !tool.finger;
+    else if (k === 'collapsed') tool.collapsed = !tool.collapsed;
+    else if (k === 'paper') tool.paper = b.dataset.v;
+    else if (k === 'diag') {
+      setDiag(!tool.diag);
+      paintPencilSettings();
+      return;
+    }
     saveTool();
     paintPencilSettings();
   });
@@ -1985,7 +1964,7 @@
     const recs = (await Store.all().catch(() => [])).filter((r) => MARK_KINDS.has(r.kind));
     const active = recs.filter((r) => !r.deleted);
     const cutoff = now() - KEEP_DELETED_DAYS * 864e5;
-    const trash = recs.filter((r) => r.deleted && r.data && r.data.del > cutoff && !r.data.compacted);
+    const trash = recs.filter((r) => r.deleted && r.data && r.data.del > cutoff && !r.data.compacted && !r.data.migrated);
 
     const byTopic = new Map();
     for (const r of active) {
@@ -1997,21 +1976,18 @@
       return t ? t.i : 1e9;
     };
     const pass = (h) =>
-      libFilter === 'all' ||
-      (libFilter === 'notes' && (h.data.n || '').trim()) ||
-      (HL.includes(libFilter) && h.data.c === libFilter);
+      libFilter === 'all' || (libFilter === 'notes' && (h.data.n || '').trim()) || (HL.includes(libFilter) && h.data.c === libFilter);
+    const showBoxes = libFilter === 'all' || libFilter === 'scribbles';
 
     const sections = [...byTopic.keys()]
       .sort((a, b) => order(a) - order(b))
       .map((slug) => {
         const t = Atlas.topic(slug);
         const list = byTopic.get(slug);
-        const hs = list.filter((r) => r.kind === 'highlight' && pass(r)).sort((a, b) => (a.data.a.s || 0) - (b.data.a.s || 0));
-        const strokes = list.filter((r) => r.kind === 'stroke');
-        const groups = new Set(strokes.map((s) => s.data.g || s.id)).size;
-        const cards = list.filter((r) => r.kind === 'card').length;
-        const showInk = libFilter === 'all' || libFilter === 'ink';
-        if (!hs.length && !(showInk && (groups || cards))) return '';
+        const hs = list.filter((r) => r.kind === 'highlight' && r.data.a && pass(r)).sort((a, b) => (a.data.a.s || 0) - (b.data.a.s || 0));
+        const boxes = showBoxes ? list.filter((r) => r.kind === 'card').sort((a, b) => (a.data.at || 0) - (b.data.at || 0)) : [];
+        const pageInk = list.filter(isPageInk);
+        if (!hs.length && !boxes.length && !(showBoxes && pageInk.length)) return '';
         const s = t ? Atlas.section(t.section) : null;
         const href = t ? Atlas.topicHref(t) : '#/';
         const rows = hs
@@ -2020,25 +1996,31 @@
               <span class="ann-body"><span class="ann-quote">${esc(h.data.a.q)}</span>${h.data.n ? `<span class="ann-note">${esc(h.data.n)}</span>` : ''}</span></a>`
           )
           .join('');
-        const ink =
-          showInk && (groups || cards)
-            ? `<a class="ann-row ann-ink" href="${href}" data-mark="${esc(strokes[0] ? strokes[0].id : list.find((r) => r.kind === 'card').id)}">${thumb(strokes.slice(0, 12))}
-                <span class="ann-body"><span class="ann-note">${groups ? `${groups} scribble${groups === 1 ? '' : 's'}` : ''}${groups && cards ? ' · ' : ''}${cards ? `${cards} sketch${cards === 1 ? '' : 'es'}` : ''}</span></span></a>`
+        const boxRows = boxes
+          .map((c) => {
+            const strokes = list.filter((r) => r.kind === 'stroke' && r.data.a && r.data.a.t === 'c' && r.data.a.c === c.id);
+            return `<a class="ann-row ann-box" href="${href}" data-mark="${c.id}">${thumb(strokes, 150, 50)}
+              <span class="ann-body"><span class="ann-quote">${esc(boxLabel(c))}</span><span class="ann-note">${strokes.length} stroke${strokes.length === 1 ? '' : 's'}</span></span></a>`;
+          })
+          .join('');
+        const legacy =
+          showBoxes && pageInk.length
+            ? `<a class="ann-row" href="${href}"><span class="ann-body"><span class="ann-note">Ink from the previous version — opens in scribble boxes</span></span></a>`
             : '';
         return `<div class="ann-topic" style="--a:${s ? s.accent : 'var(--text-dim)'}">
           <div class="ann-head">${t ? `<a href="${href}">${esc(t.title)}</a><small>${esc(s.title)}</small>` : `<b>From a removed topic</b><small>${esc(slug)}</small>`}</div>
-          ${rows}${ink}</div>`;
+          ${rows}${boxRows}${legacy}</div>`;
       })
       .filter(Boolean)
       .join('');
 
-    const trashGroups = new Map();
+    const groups = new Map();
     for (const r of trash) {
       const key = r.kind === 'stroke' ? `${r.topic}|${r.data.g || r.id}|${Math.round(r.data.del / 60000)}` : r.id;
-      if (!trashGroups.has(key)) trashGroups.set(key, []);
-      trashGroups.get(key).push(r);
+      if (!groups.has(key)) groups.set(key, []);
+      groups.get(key).push(r);
     }
-    const trashRows = [...trashGroups.entries()]
+    const trashRows = [...groups.entries()]
       .sort((a, b) => b[1][0].data.del - a[1][0].data.del)
       .slice(0, 40)
       .map(([key, list]) => {
@@ -2048,25 +2030,20 @@
           r.kind === 'highlight'
             ? `“${esc((r.data.a && r.data.a.q ? r.data.a.q : '').slice(0, 90))}”`
             : r.kind === 'card'
-              ? 'Sketch card'
+              ? 'Scribble box'
               : `Ink · ${list.length} stroke${list.length === 1 ? '' : 's'}`;
         return `<div class="set-row"><div><b>${what}</b><small>${t ? esc(t.title) : esc(r.topic)} · deleted ${Atlas.fmtDate(r.data.del)}</small></div>
           <button type="button" class="btn small" data-restore="${esc(key)}">Restore</button></div>`;
       })
       .join('');
-    slot._trash = trashGroups;
+    slot._trash = groups;
 
-    const chips = [
-      ['all', 'All'],
-      ...HL.map((c) => [c, c[0].toUpperCase() + c.slice(1)]),
-      ['notes', 'With notes'],
-      ['ink', 'Ink'],
-    ]
+    const chips = [['all', 'All'], ...HL.map((c) => [c, c[0].toUpperCase() + c.slice(1)]), ['notes', 'With notes'], ['scribbles', 'Scribbles']]
       .map(([k, l]) => `<button type="button" class="chip${libFilter === k ? ' on' : ''}" data-ann-filter="${k}">${HL.includes(k) ? `<span class="dot hl-${k}"></span>` : ''}${l}</button>`)
       .join('');
 
     slot.innerHTML = `<section class="block"><h2>Annotations</h2>
-        ${active.length ? `<div class="chips ann-filters">${chips}</div>${sections || '<div class="empty">Nothing matches this filter.</div>'}` : '<div class="empty">Highlights, ink and sketches you make on topics collect here. Open a topic and tap the pencil button at the bottom right.</div>'}
+        ${active.length ? `<div class="chips ann-filters">${chips}</div>${sections || '<div class="empty">Nothing matches this filter.</div>'}` : '<div class="empty">Highlights and scribble boxes you make on topics collect here. Open a topic and use Highlighter or Scribble at the bottom right.</div>'}
       </section>
       ${trashRows ? `<section class="block"><h2>Recently deleted</h2><div class="list">${trashRows}</div></section>` : ''}`;
   }
@@ -2083,11 +2060,17 @@
       const slot = view.querySelector('[data-slot="annotations"]');
       const list = slot && slot._trash && slot._trash.get(r.dataset.restore);
       if (!list) return;
-      // Restoring ink on a deleted card restores the card too.
+      // Restoring a box brings its strokes back; restoring ink in a deleted
+      // box brings the box back.
       const extra = [];
-      for (const s of list) {
-        if (s.kind === 'stroke' && s.data.a && s.data.a.t === 'c') {
-          const card = await Store.get(s.data.a.c);
+      for (const x of list) {
+        if (x.kind === 'card') {
+          for (const s of await Store.byTopic(x.topic)) {
+            if (s.kind === 'stroke' && s.deleted && s.data.a && s.data.a.c === x.id && Math.abs((s.data.del || 0) - (x.data.del || 0)) < 5000) extra.push(s);
+          }
+        }
+        if (x.kind === 'stroke' && x.data.a && x.data.a.t === 'c') {
+          const card = await Store.get(x.data.a.c);
           if (card && card.deleted) extra.push(card);
         }
       }
@@ -2097,7 +2080,7 @@
     }
   });
 
-  /* ---------- search over your own highlights ---------- */
+  /* ---------- search over your highlights and box labels ---------- */
 
   let searchCache = [];
   let cacheTimer = 0;
@@ -2105,9 +2088,15 @@
     clearTimeout(cacheTimer);
     cacheTimer = setTimeout(async () => {
       try {
-        searchCache = (await Store.byKind('highlight'))
-          .filter((h) => !h.deleted && h.data && h.data.a && Atlas.topic(h.topic))
-          .map((h) => ({ h, hay: `${h.data.a.q} ${h.data.n || ''}`.toLowerCase() }));
+        const all = await Store.all();
+        searchCache = all
+          .filter(
+            (r) =>
+              !r.deleted &&
+              Atlas.topic(r.topic) &&
+              ((r.kind === 'highlight' && r.data && r.data.a) || (r.kind === 'card' && (r.data.label || '').trim()))
+          )
+          .map((r) => ({ r, hay: r.kind === 'highlight' ? `${r.data.a.q} ${r.data.n || ''}`.toLowerCase() : r.data.label.toLowerCase() }));
       } catch {
         searchCache = [];
       }
@@ -2118,16 +2107,19 @@
   Atlas.searchProviders.push((q, tokens) =>
     searchCache
       .filter((x) => tokens.every((t) => x.hay.includes(t)))
-      .map(({ h }) => {
-        const t = Atlas.topic(h.topic);
+      .map(({ r }) => {
+        const t = Atlas.topic(r.topic);
         const s = Atlas.section(t.section);
+        if (r.kind === 'card') {
+          return { href: Atlas.topicHref(t), mark: r.id, title: t.title, kicker: `Your scribble · ${s.title}`, accent: s.accent, snippet: esc(r.data.label) };
+        }
         return {
           href: Atlas.topicHref(t),
-          mark: h.id,
+          mark: r.id,
           title: t.title,
-          kicker: `${h.data.n ? 'Your note' : 'Your highlight'} · ${s.title}`,
+          kicker: `${r.data.n ? 'Your note' : 'Your highlight'} · ${s.title}`,
           accent: s.accent,
-          snippet: `<span class="hl-inline hl-${esc(h.data.c)}">${esc(h.data.a.q.slice(0, 180))}</span>${h.data.n ? ` — ${esc(h.data.n.slice(0, 140))}` : ''}`,
+          snippet: `<span class="hl-inline hl-${esc(r.data.c)}">${esc(r.data.a.q.slice(0, 180))}</span>${r.data.n ? ` — ${esc(r.data.n.slice(0, 140))}` : ''}`,
         };
       })
   );
@@ -2143,7 +2135,14 @@
 
   /* ---------- start ---------- */
 
+  window.AtlasInk = {
+    // for diagnostics and tests
+    state: () => ({ gesture: gesture ? gesture.type : null, hl: tool.hl, eraser, insertMode, pendingPlace, topic: T ? T.slug : null }),
+    setHighlighter,
+    setInsertMode,
+  };
+
   recoverDraft();
   Store.compact(KEEP_DELETED_DAYS).catch(() => {});
-  syncTray();
+  syncDock();
 })();

@@ -186,9 +186,10 @@ const cssFile = emitHashed('app.css', `${vars}\n${proseCss}\n${overrides}`);
 
 const dataFile = emitHashed('data.js', dataBody);
 const script = (name) => emitHashed(name, fs.readFileSync(path.join(SRC, name), 'utf8'));
-// Load order matters: store → app → sync → annotate (see ipad/index.html).
+// Load order matters: store → app → track → sync → annotate (see ipad/index.html).
 const storeFile = script('store.js');
 const jsFile = script('app.js');
+const trackFile = script('track.js');
 const syncFile = script('sync.js');
 const annotateFile = script('annotate.js');
 
@@ -230,6 +231,7 @@ const index = fs
   .replaceAll('{{DATA}}', dataFile)
   .replaceAll('{{STORE}}', storeFile)
   .replaceAll('{{JS}}', jsFile)
+  .replaceAll('{{TRACK}}', trackFile)
   .replaceAll('{{SYNC}}', syncFile)
   .replaceAll('{{ANNOTATE}}', annotateFile);
 if (/\{\{\w+\}\}/.test(index)) throw new Error(`ipad/index.html has an unfilled placeholder: ${index.match(/\{\{\w+\}\}/)[0]}`);
@@ -244,6 +246,7 @@ const shellFiles = [
   dataFile,
   storeFile,
   jsFile,
+  trackFile,
   syncFile,
   annotateFile,
   'manifest.webmanifest',

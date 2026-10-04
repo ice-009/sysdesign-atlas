@@ -36,21 +36,27 @@ for *Available offline* in the sidebar. After that it runs fully offline — rea
 bookmarks and notes are all on-device. Content updates download in the background next time it's
 online.
 
-**Apple Pencil marks.** On any topic, the pencil button opens a tray: highlight (swipe the Pencil
-over text, or select with a finger), pen, eraser, and sketch cards between paragraphs. Marks are
-anchored to the words, not to screen positions, so they stay put when the text size, typeface,
-spacing, column width or orientation changes; if a topic's text is edited, each mark is re-found by
-its quote and context, and anything that can't be matched waits in a "needs a new home" tray rather
-than being dropped. Every stroke is written to IndexedDB on pen-up.
+**Highlighter and scribble boxes.** On any topic, the dock at the bottom right has *Highlighter*
+(swipe the Pencil over text to highlight it; swipes that miss the text do nothing) and *Scribble*
+(＋ markers appear between paragraphs; tap one to drop a Notes-like writing box there). The app
+only takes over a touch when the Pencil lands in a box or on text with the highlighter on — fingers
+always scroll. Highlights are anchored to the words and re-found after topic edits; boxes follow
+their paragraph and store strokes relative to their own width, so they never distort. Every stroke
+is written to IndexedDB on pen-up.
+
+**Tracking.** The app remembers the paragraph you stopped at, which sections you actually read
+(time at the reading line), daily reading time, a streak with an optional weekly rest day, a review
+schedule driven by your Shaky / Okay / Solid ratings, and a track goal with a daily pace. Home shows
+the highlights of it; the Progress page shows the rest.
 
 **Sync.** Settings → Sync & backup signs the iPad in with a normal Atlas account. Marks, progress,
-bookmarks and notes upload whenever the app is open and online, and the website shows the same
-progress. The server side is `lib/ipad-sync.ts` with `/api/ipad/session` and `/api/ipad/sync`;
+bookmarks, notes and tracking upload whenever the app is open and online; the website shows the same
+progress, and iPad reading time feeds the website's activity heatmap. The server side is `lib/ipad-sync.ts` with `/api/ipad/session` and `/api/ipad/sync`;
 signed-in iPads are listed (and revocable) on `/account`. The sync tables (`DeviceToken`,
 `SyncRecord`, `SyncState`) need `npx prisma db push` once per database.
 
-Sources: `ipad/` (shell, styles, `app.js`, `store.js`, `sync.js`, `annotate.js`, service worker,
-icons) and `scripts/ipad/build.mjs`.
+Sources: `ipad/` (shell, styles, `app.js`, `store.js`, `track.js`, `sync.js`, `annotate.js`, service
+worker, icons) and `scripts/ipad/build.mjs`.
 
 ## Deployment
 

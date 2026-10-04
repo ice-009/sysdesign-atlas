@@ -21,7 +21,9 @@
   if (!Atlas || !Store) return;
 
   const API = String(Atlas.data.api || '/api/ipad').replace(/\/$/, '');
-  const STATE_KINDS = new Set(['done', 'conf', 'bookmark', 'note']);
+  // Study state app.js applies itself. (Tracking kinds — sec, time, review,
+  // goal — are applied by track.js, which listens to the store directly.)
+  const STATE_KINDS = new Set(['done', 'conf', 'bookmark', 'note', 'pos']);
   const BATCH_MAX = 200;
   const BATCH_BYTES = 600 * 1024;
   const esc = Atlas.esc;

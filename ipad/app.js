@@ -257,6 +257,8 @@
     upload: '<path d="M12 20V9M7 14l5-5 5 5M5 4h14"/>',
     trash: '<path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/>',
     plane: '<path d="M21 15.5v-2l-8-5V3.8a1.5 1.5 0 0 0-3 0v4.7l-8 5v2l8-2.5v5l-2 1.5V21l3.5-1 3.5 1v-1.5l-2-1.5v-5Z"/>',
+    chart: '<path d="M4 20V11M10 20V5M16 20v-6M22 20H2"/>',
+    ribbon: '<path d="M7 3h10v18l-5-3.5L7 21Z"/>',
   };
 
   function icon(name, size = 20, sw = 1.7, filled = false) {
@@ -282,6 +284,7 @@
     if (parts[0] === 's' && parts[1]) return { name: 'section', sec: parts[1] };
     if (parts[0] === 'library') return { name: 'library' };
     if (parts[0] === 'settings') return { name: 'settings' };
+    if (parts[0] === 'progress') return { name: 'progress' };
     return { name: 'missing' };
   }
 
@@ -370,6 +373,9 @@
     } else if (route.name === 'settings') {
       html = settingsView();
       title = 'Settings';
+    } else if (route.name === 'progress') {
+      html = progressView();
+      title = 'Progress';
     } else {
       html = missingView();
     }
@@ -421,8 +427,13 @@
       /* positioned at the heading */
     } else if (opts.find && findInArticle(opts.find)) {
       /* positioned at the search hit */
-    } else if (opts.resume && S.pos[t.slug] > 0.02 && S.pos[t.slug] < 0.98) scrollToFraction(S.pos[t.slug]);
+    } else if (opts.resume && posP(t.slug) > 0.02 && posP(t.slug) < 0.98) restorePosition(S.pos[t.slug]);
     else window.scrollTo(0, 0);
+
+    // Mark where the reader stopped last time, if it isn't where we are.
+    const saved = S.pos[t.slug];
+    ribbonPos = saved && typeof saved === 'object' && posP(t.slug) > 0.03 && posP(t.slug) < 0.97 ? saved : null;
+    placeRibbon();
 
     const next = TOPICS[t.i + 1];
     if (next) setTimeout(() => loadTopic(next).catch(() => {}), 1500);
@@ -475,11 +486,120 @@
     }
   }
 
+  /* Where the reader is: the paragraph at the reading line and how far into
+     it. A plain percentage drifts when text reflows or a topic is edited; the
+     paragraph doesn't. The percentage is kept as a fallback. */
+  function hashText(str) {
+    let h = 5381;
+    for (let i = 0; i < str.length; i++) h = ((h << 5) + h + str.charCodeAt(i)) | 0;
+    return (h >>> 0).toString(36);
+  }
+  const normText = (el) => el.textContent.replace(/\s+/g, ' ').trim();
+  const round3 = (v) => Math.round(v * 1000) / 1000;
+  const proseBlocks = () => {
+    const prose = $('.prose', view);
+    return prose ? Array.from(prose.children).filter((el) => !el.hasAttribute('data-atlas-ui')) : [];
+  };
+  const readingLine = () => bar.offsetHeight + 24;
+
+  function headingBefore(el) {
+    for (let n = el; n; n = n.previousElementSibling) {
+      if (/^H[23]$/.test(n.tagName)) return normText(n).replace(/^#\s*/, '');
+    }
+    return '';
+  }
+
+  function capturePosition() {
+    const kids = proseBlocks();
+    if (!kids.length) return null;
+    const line = readingLine();
+    let i = kids.findIndex((el) => el.getBoundingClientRect().bottom > line);
+    if (i < 0) i = kids.length - 1;
+    const el = kids[i];
+    const r = el.getBoundingClientRect();
+    const text = normText(el);
+    return {
+      i,
+      h: hashText(text),
+      q: text.slice(0, 60),
+      f: round3(clamp((line - r.top) / Math.max(1, r.height), 0, 1)),
+      p: round3(readFraction()),
+      hd: headingBefore(el),
+      at: Date.now(),
+    };
+  }
+
+  function findPosBlock(pos) {
+    const kids = proseBlocks();
+    if (!pos || !pos.h) return null;
+    if (kids[pos.i] && hashText(normText(kids[pos.i])) === pos.h) return kids[pos.i];
+    const same = kids.find((el) => hashText(normText(el)) === pos.h);
+    if (same) return same;
+    return pos.q && pos.q.length >= 16 ? kids.find((el) => normText(el).startsWith(pos.q.slice(0, 40))) || null : null;
+  }
+
+  function positionY(pos) {
+    const el = findPosBlock(pos);
+    if (!el) return null;
+    const r = el.getBoundingClientRect();
+    return r.top + window.scrollY + (pos.f || 0) * r.height;
+  }
+
+  function restorePosition(pos, smooth) {
+    if (pos == null) return;
+    const y = typeof pos === 'object' ? positionY(pos) : null;
+    if (y != null) window.scrollTo({ top: Math.max(0, y - readingLine()), behavior: smooth ? 'smooth' : 'auto' });
+    else scrollToFraction(typeof pos === 'number' ? pos : pos.p || 0, smooth);
+  }
+
+  const posP = (slug) => {
+    const v = S.pos[slug];
+    return typeof v === 'number' ? v : v && typeof v.p === 'number' ? v.p : 0;
+  };
+  const posHd = (slug) => {
+    const v = S.pos[slug];
+    return v && typeof v === 'object' ? v.hd || '' : '';
+  };
+  // How far through a topic: sections actually read when the tracker knows,
+  // otherwise how far the reader scrolled.
+  const progressOf = (slug) => (window.AtlasTrack ? AtlasTrack.percent(slug) : posP(slug));
+
+  /* A small ribbon in the margin where the reader stopped last time. */
+  let ribbonPos = null;
+  function placeRibbon() {
+    const art = $('article.topic', view);
+    const old = art && $('.resume-ribbon', art);
+    if (old) old.remove();
+    if (!art || !ribbonPos) return;
+    const y = positionY(ribbonPos);
+    if (y == null) return;
+    const ar = art.getBoundingClientRect();
+    const el = document.createElement('div');
+    el.className = 'resume-ribbon';
+    el.setAttribute('data-atlas-ui', '');
+    el.title = 'You stopped here last time';
+    el.style.top = `${y - (ar.top + window.scrollY) - 4}px`;
+    el.innerHTML = icon('ribbon', 18, 1.8, true);
+    art.appendChild(el);
+  }
+  on('prefs', () => requestAnimationFrame(placeRibbon));
+  window.addEventListener('resize', () => requestAnimationFrame(placeRibbon));
+
+  let lastPosSync = { slug: '', i: -1, at: 0 };
   function flushPosition() {
     clearTimeout(posTimer);
     if (!interacted || !current || current.name !== 'topic' || !$('.prose', view)) return;
-    S.pos[current.slug] = Math.round(readFraction() * 1000) / 1000;
+    const pos = capturePosition();
+    if (!pos) return;
+    S.pos[current.slug] = pos;
     save('pos');
+    // Sync the place, but not on every scroll: when the paragraph changes,
+    // and at most every 15 seconds otherwise.
+    const slug = current.slug;
+    if (lastPosSync.slug !== slug || lastPosSync.i !== pos.i || Date.now() - lastPosSync.at > 15000) {
+      lastPosSync = { slug, i: pos.i, at: Date.now() };
+      emitState('pos', slug);
+    }
   }
 
   window.addEventListener(
@@ -520,18 +640,6 @@
     }
   }, 15000);
 
-  function streakDays() {
-    let n = 0;
-    const d = new Date();
-    // Not having read yet today doesn't break a streak — yesterday still counts.
-    if (!((S.days[dayKey(d)] || 0) >= 60)) d.setDate(d.getDate() - 1);
-    while ((S.days[dayKey(d)] || 0) >= 60) {
-      n++;
-      d.setDate(d.getDate() - 1);
-    }
-    return n;
-  }
-
   // iOS can evict a backgrounded Home Screen app at any moment; save first.
   document.addEventListener('visibilitychange', () => {
     if (document.visibilityState === 'hidden') flushPosition();
@@ -559,6 +667,7 @@
       accent = s.accent;
     } else if (route.name === 'library') name = 'Library';
     else if (route.name === 'settings') name = 'Settings';
+    else if (route.name === 'progress') name = 'Progress';
 
     titleEl.style.setProperty('--a', accent || 'var(--text-dim)');
     titleEl.innerHTML = `${kicker ? `<span class="bar-kicker">${esc(kicker)}</span>` : ''}<span class="bar-name">${esc(name)}</span>`;
@@ -595,6 +704,7 @@
     $('#atlas-sb-main').innerHTML = [
       ['#/', 'home', 'Home', 'home'],
       ['#/library', 'library', 'Library', 'bookmark'],
+      ['#/progress', 'progress', 'Progress', 'chart'],
       ['#/settings', 'settings', 'Settings', 'settings'],
     ]
       .map(
@@ -637,7 +747,16 @@
       c.textContent = n ? `${n}/${list.length}` : String(list.length);
       c.classList.toggle('full', n === list.length);
     }
-    for (const a of $$('.sb-topics a')) a.classList.toggle('done', !!S.done[a.dataset.slug]);
+    for (const a of $$('.sb-topics a')) {
+      const slug = a.dataset.slug;
+      const done = !!S.done[slug];
+      const pct = done ? 0 : progressOf(slug);
+      a.classList.toggle('done', done);
+      // In-progress topics get a small ring that fills as sections are read.
+      a.classList.toggle('reading', !done && pct > 0.02);
+      if (!done && pct > 0.02) a.style.setProperty('--pct', `${Math.round(Math.max(0.08, pct) * 100)}%`);
+      else a.style.removeProperty('--pct');
+    }
     const nSaved = Object.keys(S.saved).filter((k) => TOPIC.has(k)).length;
     const badge = $('#atlas-saved-count');
     badge.textContent = String(nSaved);
@@ -698,8 +817,22 @@
     return null;
   }
 
+  /* The topic last actually read: the newest saved reading place (these sync,
+     so a second iPad picks up from the first), else the last one opened. */
+  function lastRead() {
+    let best = null;
+    let at = 0;
+    for (const [slug, pos] of Object.entries(S.pos)) {
+      if (pos && typeof pos === 'object' && pos.at > at && TOPIC.has(slug)) {
+        at = pos.at;
+        best = TOPIC.get(slug);
+      }
+    }
+    return best || S.recent.map((s) => TOPIC.get(s)).find(Boolean) || null;
+  }
+
   function continueCard() {
-    const last = S.recent.map((s) => TOPIC.get(s)).find(Boolean);
+    const last = lastRead();
     let t = last;
     let label = 'Continue reading';
     let resume = true;
@@ -710,23 +843,24 @@
     } else if (S.done[last.slug]) {
       t = nextUnread(last);
       label = 'Up next';
-      resume = !!S.pos[t && t.slug];
+      resume = t ? posP(t.slug) > 0.02 : false;
       if (!t) {
         return `<div class="card continue" style="--a:var(--good)"><div class="eyebrow">All done</div><h3>You've finished every topic.</h3><p>Use the Library's review queue to revisit the ones you marked Shaky.</p></div>`;
       }
     }
     const s = SEC.get(t.section);
-    const p = S.pos[t.slug] || 0;
-    const left = Math.max(1, Math.round(t.minutes * (1 - p)));
+    const p = Math.max(progressOf(t.slug), posP(t.slug));
+    const left = window.AtlasTrack ? AtlasTrack.minutesLeft(t) : Math.max(1, Math.round(t.minutes * (1 - p)));
+    const hd = posHd(t.slug);
     return `<a class="card continue" href="${topicHref(t)}"${resume ? ' data-resume' : ''} style="--a:${s.accent}">
       <div class="eyebrow">${label} · ${esc(s.title)}</div>
       <h3>${esc(t.title)}</h3>
-      <p>${esc(t.summary)}</p>
+      <p>${p > 0.02 && hd ? `You stopped at <b>${esc(hd)}</b>.` : esc(t.summary)}</p>
       <div class="meta-row">
         <div class="bar-track"><div class="bar-fill" style="width:${Math.round(p * 100)}%"></div></div>
-        <span>${p > 0.02 ? `${Math.round(p * 100)}% · ${left} min left` : `${t.minutes} min`}</span>
+        <span>${p > 0.02 ? `${Math.round(p * 100)}% · about ${left} min left` : `${t.minutes} min`}</span>
       </div>
-      <span class="btn primary cta">${p > 0.02 ? 'Resume' : 'Start reading'} ${icon('arrow', 18)}</span>
+      <span class="btn primary cta">${p > 0.02 ? 'Pick up where you left off' : 'Start reading'} ${icon('arrow', 18)}</span>
     </a>`;
   }
 
@@ -748,9 +882,6 @@
 
   function homeView() {
     const done = doneCount();
-    const today = Math.round((S.days[dayKey()] || 0) / 60);
-    const total = Math.round(Object.values(S.days).reduce((a, b) => a + b, 0) / 60);
-    const review = TOPICS.filter((t) => S.conf[t.slug] === 1).slice(0, 8);
 
     return `<div class="wrap">
       <section class="hero">
@@ -766,24 +897,9 @@
 
       <div class="home-grid">
         ${continueCard()}
-        <div class="stats">
-          <div class="card stat"><b>${today}<small style="font-size:14px"> min</small></b><span>Today</span></div>
-          <div class="card stat"><b>${streakDays()}</b><span>Day streak</span></div>
-          <div class="card stat"><b>${done}</b><span>Topics done</span></div>
-          <div class="card stat"><b>${fmtMin(total)}</b><span>Time studied</span></div>
-        </div>
+        <div data-slot="home-today"></div>
       </div>
-
-      ${
-        review.length
-          ? `<section class="review-strip"><h2>Marked shaky — worth another pass</h2><div class="chips">${review
-              .map(
-                (t) =>
-                  `<a class="chip" href="${topicHref(t)}" style="--a:${SEC.get(t.section).accent}"><span class="dot"></span>${esc(t.title)}</a>`
-              )
-              .join('')}</div></section>`
-          : ''
-      }
+      <div data-slot="home-track"></div>
 
       ${GROUPS.map(
         (g) => `<section class="group">
@@ -816,7 +932,7 @@
     const n = doneCount(list);
     const mins = list.reduce((a, t) => a + t.minutes, 0);
     const next = list.find((t) => !S.done[t.slug]);
-    const started = list.some((t) => S.done[t.slug] || S.pos[t.slug] > 0.02);
+    const started = list.some((t) => S.done[t.slug] || posP(t.slug) > 0.02);
     return `<div class="wrap" style="--a:${s.accent}">
       <header class="sec-head">
         <div class="sec-ico">${icon(s.icon, 26)}</div>
@@ -829,7 +945,7 @@
         </div>
         ${
           next
-            ? `<div class="sec-actions"><a class="btn primary" href="${topicHref(next)}"${S.pos[next.slug] > 0.02 ? ' data-resume' : ''}>${started ? 'Continue' : 'Start'}: ${esc(next.title)} ${icon('arrow', 18)}</a></div>`
+            ? `<div class="sec-actions"><a class="btn primary" href="${topicHref(next)}"${posP(next.slug) > 0.02 ? ' data-resume' : ''}>${started ? 'Continue' : 'Start'}: ${esc(next.title)} ${icon('arrow', 18)}</a></div>`
             : ''
         }
       </header>
@@ -839,7 +955,7 @@
 
   function topicRow(t, i) {
     const done = !!S.done[t.slug];
-    const p = S.pos[t.slug] || 0;
+    const p = progressOf(t.slug);
     const scope = A.scopes[t.scope];
     const conf = { 1: 'Shaky', 2: 'Okay', 3: 'Solid' }[S.conf[t.slug]];
     const meta = [
@@ -848,9 +964,10 @@
       scope && scope.label,
       t.level ? `Level ${t.level}` : '',
       !done && p > 0.02 ? `${Math.round(p * 100)}% read` : '',
+      window.AtlasTrack ? AtlasTrack.reviewBadge(t.slug) : '',
       conf ? `Rated ${conf}` : '',
     ].filter(Boolean);
-    return `<li><a class="card topic-row${done ? ' done' : ''}" href="${topicHref(t)}"${!done && p > 0.02 ? ' data-resume' : ''}>
+    return `<li><a class="card topic-row${done ? ' done' : ''}" href="${topicHref(t)}"${!done && posP(t.slug) > 0.02 ? ' data-resume' : ''} style="--pct:${Math.round(Math.max(0.08, p) * 100)}%">
       <span class="topic-num">${pad2(i + 1)}</span>
       <div class="topic-body">
         <h3>${esc(t.title)}</h3>
@@ -869,7 +986,8 @@
     const scope = A.scopes[t.scope];
     const diff = DIFF[(t.difficulty || '').toLowerCase()];
     const pre = t.prereqs.map((p) => TOPIC.get(p)).filter(Boolean);
-    const p = S.pos[t.slug] || 0;
+    const p = posP(t.slug);
+    const hd = posHd(t.slug);
     const prev = TOPICS[t.i - 1];
     const next = TOPICS[t.i + 1];
 
@@ -900,7 +1018,7 @@
 
     const resume =
       !opts.resume && !opts.find && p > 0.03 && p < 0.97
-        ? `<div class="resume" id="atlas-resume">${icon('book', 18)}<span>You were ${Math.round(p * 100)}% of the way through.</span><button class="btn small primary" type="button" data-act="resume">Resume</button></div>`
+        ? `<div class="resume" id="atlas-resume">${icon('ribbon', 18, 1.8, true)}<span>${hd ? `Pick up at <b>${esc(hd)}</b> · ${Math.round(p * 100)}%` : `You were ${Math.round(p * 100)}% of the way through.`}</span><button class="btn small primary" type="button" data-act="resume">Resume</button></div>`
         : '';
 
     const pnCard = (q, cls, label) => {
@@ -922,6 +1040,7 @@
       <div class="badges">${badges}</div>
       ${prereq}
       ${resume}
+      <div data-slot="recap"></div>
       <div class="prose">${body}</div>
       ${finishHtml(t)}
       <section class="card notes">
@@ -946,6 +1065,7 @@
       ]
         .map(([v, l]) => `<button type="button" data-conf="${v}" class="${conf === v ? 'on' : ''}">${l}</button>`)
         .join('')}</div></div>
+      ${window.AtlasTrack ? AtlasTrack.reviewLine(t.slug) : ''}
     </section>`;
   }
 
@@ -980,13 +1100,13 @@
       .filter(([k]) => TOPIC.has(k))
       .sort((a, b) => b[1] - a[1])
       .map(([k]) => TOPIC.get(k));
-    const review = [1, 2].flatMap((c) => TOPICS.filter((t) => S.conf[t.slug] === c));
+    const review = window.AtlasTrack ? AtlasTrack.reviewQueue() : [1, 2].flatMap((c) => TOPICS.filter((t) => S.conf[t.slug] === c)).map((t) => ({ t, label: S.conf[t.slug] === 1 ? 'Shaky' : 'Okay' }));
     const notes = TOPICS.filter((t) => (S.notes[t.slug] || '').trim());
     const recent = S.recent.map((k) => TOPIC.get(k)).filter(Boolean).slice(0, 15);
 
     const row = (t, side, sub) => {
       const s = SEC.get(t.section);
-      return `<a class="row-link" href="${topicHref(t)}" style="--a:${s.accent}"${S.pos[t.slug] > 0.02 && !S.done[t.slug] ? ' data-resume' : ''}>
+      return `<a class="row-link" href="${topicHref(t)}" style="--a:${s.accent}"${posP(t.slug) > 0.02 && !S.done[t.slug] ? ' data-resume' : ''}>
         <div class="row-main"><b>${esc(t.title)}</b><small><span class="row-kicker">${esc(s.title)}</span>${sub ? ` · ${esc(sub)}` : ''}</small></div>
         ${side ? `<span class="row-side">${side}</span>` : ''}
         ${icon('chevron', 16, 2).replace('class="ic"', 'class="ic chev"')}
@@ -994,8 +1114,7 @@
     };
     const block = (title, items, empty) =>
       `<section class="block"><h2>${title}</h2>${items.length ? `<div class="list">${items.join('')}</div>` : `<div class="empty">${empty}</div>`}</section>`;
-    const state = (t) =>
-      S.done[t.slug] ? 'Done' : S.pos[t.slug] > 0.02 ? `${Math.round(S.pos[t.slug] * 100)}%` : '';
+    const state = (t) => (S.done[t.slug] ? 'Done' : progressOf(t.slug) > 0.02 ? `${Math.round(progressOf(t.slug) * 100)}%` : '');
 
     return `<div class="wrap reading">
       <header class="page-head"><h1>Library</h1><p>Your bookmarks, review queue, notes and marks.</p></header>
@@ -1003,8 +1122,8 @@
       ${block('Bookmarks', saved.map((t) => row(t, state(t), `${t.minutes} min`)), 'Tap the bookmark icon at the top of any topic to keep it here.')}
       ${block(
         'Review queue',
-        review.map((t) => row(t, S.conf[t.slug] === 1 ? 'Shaky' : 'Okay', '')),
-        'Rate a topic Shaky or Okay at the end of the article and it lands here, shakiest first.'
+        review.map((r) => row(r.t, esc(r.label), r.sub || '')),
+        'Rate a topic at the end of the article (Shaky, Okay or Solid) and it comes back here when it’s due for review.'
       )}
       ${block(
         'Notes',
@@ -1027,6 +1146,7 @@
         <div class="list">${['theme', 'size', 'font', 'leading', 'width'].map(prefRow).join('')}</div>
       </section>
 
+      <div data-slot="study"></div>
       <div data-slot="pencil"></div>
       <div data-slot="sync"></div>
 
@@ -1061,9 +1181,10 @@
           <span><kbd>D</kbd></span><span>Mark done</span>
           <span><kbd>B</kbd></span><span>Bookmark</span>
           <span><kbd>\\</kbd></span><span>Show / hide the sidebar</span>
-          <span><kbd>H</kbd> <kbd>I</kbd> <kbd>R</kbd></span><span>Highlight, ink (pen), read — on a topic</span>
-          <span><kbd>E</kbd></span><span>Eraser on / off (same as a two-finger tap)</span>
-          <span><kbd>⌘</kbd> <kbd>Z</kbd> / <kbd>⇧</kbd> <kbd>⌘</kbd> <kbd>Z</kbd></span><span>Undo / redo a mark</span>
+          <span><kbd>H</kbd></span><span>Highlighter on / off</span>
+          <span><kbd>S</kbd></span><span>Add a scribble box</span>
+          <span><kbd>E</kbd></span><span>Eraser in scribble boxes (or a two-finger tap)</span>
+          <span><kbd>⌘</kbd> <kbd>Z</kbd> / <kbd>⇧</kbd> <kbd>⌘</kbd> <kbd>Z</kbd></span><span>Undo / redo</span>
           <span><kbd>Esc</kbd></span><span>Close panels</span>
         </div></div>
       </section>
@@ -1072,6 +1193,15 @@
         <div class="list"><div class="set-row"><div><b>SysDesign Atlas · offline edition</b>
           <small>${TOPICS.length} topics · ${SECTIONS.length} tracks · about ${Math.round(TOTAL_MIN / 60)} hours of reading. Content is identical to the website.</small></div></div></div>
       </section>
+    </div>`;
+  }
+
+  /* ---------- views: progress (filled by track.js) ---------- */
+
+  function progressView() {
+    return `<div class="wrap">
+      <header class="page-head"><h1>Progress</h1><p>Your reading time, streak, review schedule and goals — all on this device, synced when you sign in.</p></header>
+      <div data-slot="progress"></div>
     </div>`;
   }
 
@@ -1101,6 +1231,7 @@
         .join('')}</div>`;
     } else {
       const heads = $$('.prose h2, .prose h3', view);
+      const readIds = window.AtlasTrack && currentTopic() ? AtlasTrack.sectionsRead(currentTopic().slug) : new Set();
       const y = window.scrollY + bar.offsetHeight + 24;
       let active = -1;
       heads.forEach((h, i) => {
@@ -1111,7 +1242,7 @@
           ? heads
               .map(
                 (h, i) =>
-                  `<button type="button" class="toc-item lvl-${h.tagName[1]}${i === active ? ' active' : ''}" data-toc="${esc(h.id)}">${esc(h.textContent.replace(/^#/, ''))}</button>`
+                  `<button type="button" class="toc-item lvl-${h.tagName[1]}${i === active ? ' active' : ''}${readIds.has(h.id) ? ' read' : ''}" data-toc="${esc(h.id)}"><span>${esc(h.textContent.replace(/^#/, ''))}</span>${readIds.has(h.id) ? icon('check', 14, 2.4) : ''}</button>`
               )
               .join('')
           : '<div class="empty">This topic has no sections.</div>'
@@ -1456,6 +1587,8 @@
         return { data: { section, title: t ? t.title : slug, at: S.saved[slug] || 0 }, deleted: !S.saved[slug] };
       case 'note':
         return { data: { text: S.notes[slug] || '', section }, deleted: !(S.notes[slug] || '').trim() };
+      case 'pos':
+        return { data: { pos: S.pos[slug] || null, section }, deleted: !S.pos[slug] };
     }
     return null;
   }
@@ -1482,6 +1615,10 @@
       if (deleted) delete S.saved[slug];
       else S.saved[slug] = S.saved[slug] || data.at || Date.now();
       save('saved');
+    } else if (kind === 'pos') {
+      if (deleted || !data.pos) delete S.pos[slug];
+      else S.pos[slug] = data.pos;
+      save('pos');
     } else if (kind === 'note') {
       const text = deleted ? '' : String(data.text || '');
       if (text.trim()) S.notes[slug] = text;
@@ -1594,12 +1731,13 @@
 
   function resetData() {
     if (!confirm('Erase all progress, bookmarks and notes? If you are signed in, this clears them from your account too. Highlights and ink are not affected. This cannot be undone.')) return;
-    const had = { done: { ...S.done }, conf: { ...S.conf }, bookmark: { ...S.saved }, note: { ...S.notes } };
+    const had = { done: { ...S.done }, conf: { ...S.conf }, bookmark: { ...S.saved }, note: { ...S.notes }, pos: { ...S.pos } };
     for (const k of DATA_KEYS) {
       S[k] = Array.isArray(S[k]) ? [] : {};
       save(k);
     }
     for (const [kind, map] of Object.entries(had)) for (const slug of Object.keys(map)) emitState(kind, slug);
+    emit('reset');
     refreshProgressMarks();
     render(current);
     toast('Progress erased.');
@@ -1870,7 +2008,7 @@
         const t = currentTopic();
         const pill = $('#atlas-resume');
         if (pill) pill.remove();
-        if (t) scrollToFraction(S.pos[t.slug] || 0, true);
+        if (t) restorePosition(S.pos[t.slug], true);
         return;
       }
       case 'retry':
@@ -1976,6 +2114,37 @@
     isWide,
     stateRecord,
     applyState,
+    refreshMarks: refreshProgressMarks,
+    isDone: (slug) => !!S.done[slug],
+    doneAt: (slug) => S.done[slug] || 0,
+    confOf: (slug) => S.conf[slug] || 0,
+    noteOf: (slug) => S.notes[slug] || '',
+    posOf: (slug) => S.pos[slug] || null,
+    posFraction: posP,
+    days: () => S.days,
+    spent: () => S.spent,
+    setDone: (slug, on) => {
+      if (!TOPIC.has(slug) || !!S.done[slug] === !!on) return;
+      if (on) S.done[slug] = Date.now();
+      else delete S.done[slug];
+      save('done');
+      emitState('done', slug);
+      refreshProgressMarks();
+      const t = currentTopic();
+      const el = $('#atlas-finish');
+      if (t && t.slug === slug && el) el.outerHTML = finishHtml(t);
+    },
+    setConf: (slug, v) => {
+      if (!TOPIC.has(slug)) return;
+      if (v) S.conf[slug] = v;
+      else delete S.conf[slug];
+      save('conf');
+      emitState('conf', slug);
+      const t = currentTopic();
+      const el = $('#atlas-finish');
+      if (t && t.slug === slug && el) el.outerHTML = finishHtml(t);
+    },
+    emit,
     searchOpen: () => !searchEl.hidden,
     on,
     preparers,

@@ -23,7 +23,23 @@ import { entitlementFrom } from './plans';
 
 type Tx = Prisma.TransactionClient;
 
-export const SYNC_KINDS = ['highlight', 'stroke', 'card', 'done', 'conf', 'bookmark', 'note'] as const;
+export const SYNC_KINDS = [
+  // marks
+  'highlight',
+  'stroke',
+  'card',
+  // study state, mirrored into the website's tables
+  'done',
+  'conf',
+  'bookmark',
+  'note',
+  // reading tracker
+  'pos', //    where the reader stopped in a topic
+  'sec', //    one section read (create-only, so devices merge as a set)
+  'time', //   one device's reading seconds for one day (topic = YYYY-MM-DD)
+  'review', // review schedule for a topic
+  'goal', //   the reader's track goal (topic = "main")
+] as const;
 const KINDS = new Set<string>(SYNC_KINDS);
 const CLOCK = /^[0-9a-z]{9}-[0-9a-z]{4}-[\w-]{1,40}$/;
 const ID = /^[\w:.-]{1,120}$/;
@@ -135,7 +151,7 @@ async function noteLimitFor(tx: Tx, userId: string) {
   return entitlementFrom(user?.subscription ?? null, user?.role === 'ADMIN').noteLimit;
 }
 
-async function mirror(tx: Tx, userId: string, c: Change, ctx: { noteLimit?: number | null }) {
+async function mirror(tx: Tx, userId: string, c: Change, ctx: { noteLimit?: number | null }, prev?: SyncRecord) {
   const d = (c.data && typeof c.data === 'object' ? c.data : {}) as Record<string, unknown>;
   const slug = c.topic;
   const section = String(d.section ?? '').slice(0, 80);
@@ -168,6 +184,30 @@ async function mirror(tx: Tx, userId: string, c: Change, ctx: { noteLimit?: numb
       }
       const title = String(d.title ?? slug).slice(0, 200);
       await tx.bookmark.upsert({ where: key, create: { userId, slug, section, title }, update: { title } });
+      return;
+    }
+    case 'time': {
+      // Each device owns one record per day holding its running total. Only
+      // whole minutes gained since the previous version of that record are
+      // added to the website's Activity row, so retries and repeats never
+      // double-count and the website's own minutes are left alone.
+      const day = c.topic;
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(day)) return;
+      const before = prev && !prev.deleted ? Number((prev.data as Record<string, unknown>)?.s) || 0 : 0;
+      const after = c.deleted ? before : Math.max(0, Number(d.s) || 0);
+      const minutes = Math.floor(after / 60) - Math.floor(before / 60);
+      if (minutes <= 0) return;
+      await tx.activity.upsert({
+        where: { userId_day: { userId, day } },
+        create: { userId, day, minutes },
+        update: { minutes: { increment: minutes } },
+      });
+      return;
+    }
+    case 'pos': {
+      const pos = d.pos as { at?: number } | null | undefined;
+      if (c.deleted || !pos) return;
+      await tx.progress.updateMany({ where: { userId, slug }, data: { lastViewed: new Date(Number(pos.at) || Date.now()) } });
       return;
     }
     case 'note': {
@@ -304,12 +344,11 @@ export async function runSync(userId: string, cursor: bigint, incoming: Change[]
       }
 
       const ctx: { noteLimit?: number | null } = {};
+      const MIRRORED = new Set(['done', 'conf', 'bookmark', 'note', 'time', 'pos']);
       for (const c of changes) {
         const ex = have.get(c.id);
         if (ex && ex.clock >= c.clock) continue;
-        if (c.kind === 'done' || c.kind === 'conf' || c.kind === 'bookmark' || c.kind === 'note') {
-          await mirror(tx, userId, c, ctx);
-        }
+        if (MIRRORED.has(c.kind)) await mirror(tx, userId, c, ctx, ex);
       }
 
       return {
