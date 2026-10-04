@@ -15,6 +15,22 @@ const nextConfig = {
   ],
   outputFileTracingRoot: import.meta.dirname,
   poweredByHeader: false,
+  // The offline iPad edition is plain static files in public/ipad/ (built by
+  // scripts/ipad/build.mjs). Next doesn't serve index.html for a directory, and
+  // the app's relative URLs need the trailing path, so send /ipad to the file.
+  async redirects() {
+    return [{ source: '/ipad', destination: '/ipad/index.html', permanent: false }];
+  },
+  async headers() {
+    return [
+      {
+        // The service worker must be revalidated on every check, or an update
+        // can sit unnoticed behind a cached copy.
+        source: '/ipad/sw.js',
+        headers: [{ key: 'Cache-Control', value: 'no-cache' }],
+      },
+    ];
+  },
 };
 
 export default nextConfig;

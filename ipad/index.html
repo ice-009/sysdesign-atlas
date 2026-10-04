@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>SysDesign Atlas</title>
+<meta name="description" content="The full systems curriculum, readable offline.">
+<meta name="theme-color" content="#07090e">
+<meta name="color-scheme" content="light dark">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Atlas">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<!-- Stops iOS turning figures like 1,000,000 or 10.0.0.1 into phone links. -->
+<meta name="format-detection" content="telephone=no, date=no, address=no, email=no">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" type="image/png" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/icon-180.png">
+<link rel="apple-touch-startup-image" href="icons/splash-1640x2360.png"
+  media="(device-width: 820px) and (device-height: 1180px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)">
+<link rel="apple-touch-startup-image" href="icons/splash-2360x1640.png"
+  media="(device-width: 820px) and (device-height: 1180px) and (-webkit-device-pixel-ratio: 2) and (orientation: landscape)">
+<script>
+  /* Apply the saved theme and reading preferences before first paint. */
+  (function () {
+    var r = document.documentElement, p = {};
+    try { p = JSON.parse(localStorage.getItem('atlas.prefs') || '{}') || {}; } catch (e) {}
+    var t = p.theme || 'auto';
+    if (t === 'auto') t = matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+    if (t !== 'light') r.classList.add(t);
+    if (p.sbCollapsed) r.classList.add('sb-collapsed');
+    r.dataset.size = p.size || 'm';
+    r.dataset.font = p.font || 'sans';
+    r.dataset.leading = p.leading || 'normal';
+    r.dataset.width = p.width || 'normal';
+    var bg = { light: '#ffffff', sepia: '#f6f0e4', dark: '#07090e' }[t];
+    document.querySelector('meta[name="theme-color"]').setAttribute('content', bg);
+  })();
+</script>
+<link rel="stylesheet" href="{{CSS}}">
+</head>
+<body>
+<aside id="atlas-sidebar" aria-label="Curriculum">
+  <div class="sb-head">
+    <a class="sb-brand" href="#/">
+      <img src="icons/icon-180.png" alt="" width="30" height="30">
+      <span>SysDesign Atlas</span>
+    </a>
+    <button class="sb-search" type="button" data-open-search>
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.6-3.6"/></svg>
+      <span>Search</span>
+    </button>
+    <nav class="sb-main" id="atlas-sb-main"></nav>
+  </div>
+  <div class="sb-nav" id="atlas-sb-nav"></div>
+  <div class="sb-foot" id="atlas-sb-offline"></div>
+</aside>
+<div id="atlas-scrim"></div>
+
+<main id="atlas-main">
+  <header id="atlas-bar">
+    <button class="icon-btn" id="atlas-btn-menu" type="button" aria-label="Show or hide the curriculum"></button>
+    <button class="icon-btn" id="atlas-btn-back" type="button" aria-label="Back" hidden></button>
+    <div class="bar-title" id="atlas-bar-title"></div>
+    <div class="bar-actions">
+      <button class="icon-btn topic-only" id="atlas-btn-save" type="button" aria-label="Bookmark"></button>
+      <button class="icon-btn topic-only" id="atlas-btn-toc" type="button" aria-label="Contents"></button>
+      <button class="icon-btn" id="atlas-btn-text" type="button" aria-label="Reading settings"></button>
+      <button class="icon-btn" id="atlas-btn-search" type="button" aria-label="Search" data-open-search></button>
+    </div>
+    <div id="atlas-progress"></div>
+  </header>
+  <div id="atlas-view"></div>
+</main>
+
+<div id="atlas-popover" hidden></div>
+
+<div id="atlas-search" hidden>
+  <div class="search-panel" role="dialog" aria-label="Search">
+    <div class="search-field">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.6-3.6"/></svg>
+      <input id="atlas-q" type="search" placeholder="Search topics, concepts, terms…" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" enterkeyhint="go">
+      <button type="button" class="search-cancel" data-close-search>Cancel</button>
+    </div>
+    <div class="search-results" id="atlas-results"></div>
+  </div>
+</div>
+
+<div id="atlas-toast" role="status" aria-live="polite"></div>
+
+<noscript>SysDesign Atlas needs JavaScript to run.</noscript>
+<script src="{{DATA}}"></script>
+<script src="{{JS}}"></script>
+</body>
+</html>

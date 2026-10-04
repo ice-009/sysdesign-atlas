@@ -20,6 +20,24 @@ npm run build        # check + prisma generate + next build
 npm start            # serve the production build
 ```
 
+## Offline iPad edition
+
+A static, installable copy of the whole curriculum that works with no connection — built for an
+iPad (sized for the 11" iPad Air, fluid everywhere else). It is generated from the same markdown
+and renderer as the site, so content never drifts.
+
+```bash
+npm run ipad         # build into public/ipad/ and preview at http://localhost:4322/ipad/
+```
+
+`npm run build` produces it too, so every deploy serves it at **`/ipad`**. To install: open that
+URL in Safari on the iPad → Share → **Add to Home Screen** → open it once while online and wait
+for *Available offline* in the sidebar. After that it runs fully offline — reading, search, progress,
+bookmarks and notes are all on-device. Content updates download in the background next time it's
+online.
+
+Sources: `ipad/` (shell, styles, app, service worker, icons) and `scripts/ipad/build.mjs`.
+
 ## Deployment
 
 Live at <https://sysdesign-atlas.vercel.app> — Vercel (Next.js) with Neon Postgres.
