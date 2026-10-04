@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { currentUserId } from '@/lib/auth';
 import { getEntitlement } from '@/lib/entitlements';
+import { logWebChange } from '@/lib/ipad-sync';
 
 export async function GET(req: Request) {
   const userId = await currentUserId();
@@ -27,6 +28,7 @@ export async function POST(req: Request) {
   // Empty body means "delete the note" rather than storing a blank row.
   if (!text.trim()) {
     await prisma.note.deleteMany({ where: { userId, slug } });
+    await logWebChange(userId, 'note', slug, { section, text: '' }, true);
     return NextResponse.json({ ok: true, note: '' });
   }
 
@@ -56,5 +58,6 @@ export async function POST(req: Request) {
     create: { userId, slug, section, body: text },
     update: { body: text },
   });
+  await logWebChange(userId, 'note', slug, { section, text });
   return NextResponse.json({ ok: true, note: text });
 }

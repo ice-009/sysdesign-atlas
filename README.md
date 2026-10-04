@@ -36,7 +36,21 @@ for *Available offline* in the sidebar. After that it runs fully offline — rea
 bookmarks and notes are all on-device. Content updates download in the background next time it's
 online.
 
-Sources: `ipad/` (shell, styles, app, service worker, icons) and `scripts/ipad/build.mjs`.
+**Apple Pencil marks.** On any topic, the pencil button opens a tray: highlight (swipe the Pencil
+over text, or select with a finger), pen, eraser, and sketch cards between paragraphs. Marks are
+anchored to the words, not to screen positions, so they stay put when the text size, typeface,
+spacing, column width or orientation changes; if a topic's text is edited, each mark is re-found by
+its quote and context, and anything that can't be matched waits in a "needs a new home" tray rather
+than being dropped. Every stroke is written to IndexedDB on pen-up.
+
+**Sync.** Settings → Sync & backup signs the iPad in with a normal Atlas account. Marks, progress,
+bookmarks and notes upload whenever the app is open and online, and the website shows the same
+progress. The server side is `lib/ipad-sync.ts` with `/api/ipad/session` and `/api/ipad/sync`;
+signed-in iPads are listed (and revocable) on `/account`. The sync tables (`DeviceToken`,
+`SyncRecord`, `SyncState`) need `npx prisma db push` once per database.
+
+Sources: `ipad/` (shell, styles, `app.js`, `store.js`, `sync.js`, `annotate.js`, service worker,
+icons) and `scripts/ipad/build.mjs`.
 
 ## Deployment
 

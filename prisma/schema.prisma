@@ -39,6 +39,9 @@ model User {
   activity     Activity[]
   subscription Subscription?
   invoices     Invoice[]
+  deviceTokens DeviceToken[]
+  syncRecords  SyncRecord[]
+  syncState    SyncState?
 }
 
 /// One active subscription per user. Absent = free tier.
@@ -207,4 +210,54 @@ model Activity {
 
   @@unique([userId, day])
   @@index([userId])
+}
+
+/// Sign-in keys for the offline iPad app (/ipad). A Home Screen web app on iOS
+/// gets its own cookie jar and can't use the website's session, so it signs in
+/// once and keeps one of these instead. Only the SHA-256 of the key is stored.
+model DeviceToken {
+  id         String    @id @default(cuid())
+  userId     String
+  tokenHash  String    @unique
+  name       String
+  createdAt  DateTime  @default(now())
+  lastUsedAt DateTime  @default(now())
+  revokedAt  DateTime?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+/// The change log the iPad app syncs against. Holds its annotations
+/// (highlights, ink strokes, sketch cards) and a mirror of progress, bookmarks
+/// and notes so the website and the iPad agree. `id` is minted on the device,
+/// which makes a retried upload a no-op; `clock` orders edits for
+/// newest-edit-wins; deletes are kept as tombstones so they sync too.
+model SyncRecord {
+  userId    String
+  id        String
+  kind      String
+  topic     String
+  data      Json
+  clock     String
+  deleted   Boolean  @default(false)
+  seq       BigInt
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([userId, id])
+  @@index([userId, seq])
+}
+
+/// Per-user counter for SyncRecord.seq. It is bumped inside the same
+/// transaction as the writes, which holds a row lock until commit, so sequence
+/// numbers are handed out in commit order and "everything after #N" never
+/// skips a row that committed late.
+model SyncState {
+  userId String @id
+  seq    BigInt @default(0)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }

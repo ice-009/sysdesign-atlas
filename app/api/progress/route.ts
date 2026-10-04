@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { currentUserId } from '@/lib/auth';
 import { getAllTopics } from '@/lib/content';
+import { logWebChange } from '@/lib/ipad-sync';
 
 function today() {
   return new Date().toISOString().slice(0, 10);
@@ -117,6 +118,14 @@ export async function POST(req: Request) {
         ...(minutes > 0 && { minutes: { increment: minutes } }),
       },
     });
+  }
+
+  // Let the offline iPad app pick these up on its next sync.
+  if (completed !== undefined) {
+    await logWebChange(userId, 'done', slug, { done: completed ? Date.now() : 0, section });
+  }
+  if (confidence !== undefined) {
+    await logWebChange(userId, 'conf', slug, { conf: confidence, section });
   }
 
   // The timer wants the refreshed cross-topic average to compare against.

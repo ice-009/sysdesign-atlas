@@ -34,6 +34,31 @@
   const resultsEl = document.getElementById('atlas-results');
   const toastEl = document.getElementById('atlas-toast');
 
+  /* ---------- extension hooks ----------
+     sync.js and annotate.js plug in through window.Atlas (defined at the
+     bottom) instead of being woven through this file. Events:
+       leave   a page is about to be replaced
+       paint   new page HTML is in the DOM, before scroll is positioned
+       render  page is fully positioned
+       prefs   reading preferences changed
+       state   the reader changed done / confidence / bookmark / note
+       close   close any floating panels */
+  const handlers = {};
+  const on = (ev, fn) => (handlers[ev] = handlers[ev] || []).push(fn);
+  function emit(ev, payload) {
+    for (const fn of handlers[ev] || []) {
+      try {
+        fn(payload);
+      } catch (err) {
+        console.error(`[atlas] ${ev} handler failed`, err);
+      }
+    }
+  }
+  const preparers = []; //    (topic) => Promise, awaited alongside the topic fetch
+  const searchProviders = []; // (query, tokens) => [{ href, title, kicker, accent, snippet, mark }]
+  const exporters = []; //    async () => ({ key: value }) merged into the export file
+  const importers = []; //    async (parsedFile) => void
+
   /* ---------- helpers ---------- */
 
   const $ = (s, r = document) => r.querySelector(s);
@@ -140,6 +165,26 @@
     root.dataset.leading = p.leading;
     root.dataset.width = p.width;
     $('meta[name="theme-color"]').setAttribute('content', THEME_BG[theme]);
+    emit('prefs', { ...p });
+  }
+
+  /* Show the page with someone else's settings without saving them — used by
+     "Show as drawn" to recreate the layout a scribble was made in. */
+  function previewPrefs(p) {
+    const keep = current && current.name === 'topic' ? readFraction() : null;
+    if (!p) {
+      root.style.removeProperty('--read-max');
+      root.style.removeProperty('--width-scale');
+      applyPrefs();
+    } else {
+      for (const k of ['size', 'font', 'leading', 'width']) if (p[k]) root.dataset[k] = p[k];
+      if (p.column) {
+        root.style.setProperty('--read-max', `${p.column}px`);
+        root.style.setProperty('--width-scale', '1');
+      }
+      emit('prefs', { ...S.prefs, ...p, preview: true });
+    }
+    if (keep != null) scrollToFraction(keep);
   }
 
   function setPref(k, v) {
@@ -246,6 +291,7 @@
       closeOverlays();
       if (route.anchor) scrollToId(route.anchor, true);
       else if (opts.find) findInArticle(opts.find);
+      else if (opts.mark) emit('render', { route, topic: currentTopic(), view, opts });
       updateBack();
       return;
     }
@@ -270,6 +316,7 @@
   async function render(route, opts = {}) {
     const seq = ++renderSeq;
     flushPosition();
+    emit('leave', { route: current });
     closeOverlays();
     clearHighlight();
     current = route;
@@ -292,11 +339,15 @@
       updateChrome(route); // bar + sidebar respond immediately, before the fetch
       const slow = setTimeout(() => seq === renderSeq && paint(loadingView(topic)), 140);
       let body = null;
+      // Marks for this topic load from IndexedDB while the text loads, so both
+      // are ready before anything is drawn and nothing jumps afterwards.
+      const prep = Promise.all(preparers.map((fn) => Promise.resolve().then(() => fn(topic)).catch(() => {})));
       try {
         body = await loadTopic(topic);
       } catch {
         body = null;
       }
+      await prep;
       clearTimeout(slow);
       if (seq !== renderSeq) return; // the reader moved on while this loaded
       html = body == null ? failedView(topic) : topicView(topic, body, opts);
@@ -316,12 +367,14 @@
     updateChrome(route);
     S.last = { hash: location.hash || '#/', at: Date.now() };
     save('last');
+    emit('paint', { route, topic, view, opts });
 
     if (topic) afterTopic(topic, route, opts);
     else window.scrollTo(0, opts.y || 0);
     onScroll();
 
     if (route.name === 'settings') paintStorage();
+    emit('render', { route, topic, view, opts });
   }
 
   function paint(html) {
@@ -350,7 +403,9 @@
     save('recent');
 
     if (typeof opts.y === 'number') window.scrollTo(0, opts.y);
-    else if (route.anchor && scrollToId(route.anchor)) {
+    else if (opts.mark) {
+      /* annotate.js scrolls to the mark on 'render' */
+    } else if (route.anchor && scrollToId(route.anchor)) {
       /* positioned at the heading */
     } else if (opts.find && findInArticle(opts.find)) {
       /* positioned at the search hit */
@@ -931,7 +986,8 @@
       S.done[t.slug] ? 'Done' : S.pos[t.slug] > 0.02 ? `${Math.round(S.pos[t.slug] * 100)}%` : '';
 
     return `<div class="wrap reading">
-      <header class="page-head"><h1>Library</h1><p>Everything here is stored on this device only.</p></header>
+      <header class="page-head"><h1>Library</h1><p>Your bookmarks, review queue, notes and marks.</p></header>
+      <div data-slot="annotations"></div>
       ${block('Bookmarks', saved.map((t) => row(t, state(t), `${t.minutes} min`)), 'Tap the bookmark icon at the top of any topic to keep it here.')}
       ${block(
         'Review queue',
@@ -959,6 +1015,9 @@
         <div class="list">${['theme', 'size', 'font', 'leading', 'width'].map(prefRow).join('')}</div>
       </section>
 
+      <div data-slot="pencil"></div>
+      <div data-slot="sync"></div>
+
       <section class="block"><h2>Offline</h2>
         <div class="list">
           <div class="set-row"><div data-offline="detail">${offlineDetail()}</div></div>
@@ -972,12 +1031,12 @@
 
       <section class="block"><h2>Your progress</h2>
         <div class="list">
-          <div class="set-row"><div><b>Export</b><small>Save progress, bookmarks and notes as a file — to Files, AirDrop, anywhere.</small></div>
+          <div class="set-row"><div><b>Export</b><small>Save progress, bookmarks, notes, highlights and ink as a file — to Files, AirDrop, anywhere.</small></div>
             <button class="btn small" type="button" data-act="export">${icon('share', 16)} Export</button></div>
           <div class="set-row"><div><b>Import</b><small>Restore from an exported file. Replaces what's here.</small></div>
             <button class="btn small" type="button" data-act="import">${icon('upload', 16)} Import</button>
             <input type="file" id="atlas-import" accept=".json,application/json" hidden></div>
-          <div class="set-row"><div><b>Reset</b><small>Erase all progress, bookmarks and notes on this device.</small></div>
+          <div class="set-row"><div><b>Reset</b><small>Erase all progress, bookmarks and notes. Highlights and ink are kept.</small></div>
             <button class="btn small danger" type="button" data-act="reset">${icon('trash', 16)} Reset</button></div>
         </div>
       </section>
@@ -990,6 +1049,8 @@
           <span><kbd>D</kbd></span><span>Mark done</span>
           <span><kbd>B</kbd></span><span>Bookmark</span>
           <span><kbd>\\</kbd></span><span>Show / hide the sidebar</span>
+          <span><kbd>H</kbd> <kbd>I</kbd> <kbd>E</kbd> <kbd>R</kbd></span><span>Highlight, ink, eraser, read (on a topic)</span>
+          <span><kbd>⌘</kbd> <kbd>Z</kbd> / <kbd>⇧</kbd> <kbd>⌘</kbd> <kbd>Z</kbd></span><span>Undo / redo a mark</span>
           <span><kbd>Esc</kbd></span><span>Close panels</span>
         </div></div>
       </section>
@@ -1054,6 +1115,7 @@
   }
 
   function closeOverlays() {
+    emit('close');
     closePopover();
     closeSearch();
     setDrawer(false);
@@ -1195,6 +1257,30 @@
     results = out.slice(0, 40);
     sel = 0;
 
+    // Your own highlights and their notes, from annotate.js.
+    const mine = searchProviders.flatMap((fn) => {
+      try {
+        return fn(q, tokens) || [];
+      } catch {
+        return [];
+      }
+    }).slice(0, 12);
+    const mineHtml = mine.length
+      ? `<div class="sr-label">Your highlights &amp; notes</div>${mine
+          .map(
+            (m, k) => `<a class="sr-item" href="${m.href}" data-idx="${results.length + k}"${m.mark ? ` data-mark="${esc(m.mark)}"` : ''} style="--a:${m.accent || 'var(--accent)'}">
+              <div class="sr-title"><span>${highlight(m.title, tokens)}</span></div>
+              <div class="sr-meta"><span class="k">${esc(m.kicker || '')}</span></div>
+              <div class="sr-snip">${m.snippet}</div>
+            </a>`
+          )
+          .join('')}`
+      : '';
+
+    if (!results.length && mine.length) {
+      resultsEl.innerHTML = mineHtml;
+      return;
+    }
     if (!results.length) {
       resultsEl.innerHTML = `<div class="sr-empty">No topics match “${esc(q)}”.${docs ? '' : ' Full-text search is still loading…'}</div>`;
       return;
@@ -1213,6 +1299,7 @@
           </a>`;
         })
         .join('') +
+      mineHtml +
       (docs ? '' : '<div class="sr-empty">Loading full-text search…</div>');
   }
 
@@ -1306,6 +1393,7 @@
     if (S.saved[t.slug]) delete S.saved[t.slug];
     else S.saved[t.slug] = Date.now();
     save('saved');
+    emitState('bookmark', t.slug);
     updateSaveBtn();
     refreshProgressMarks();
     toast(S.saved[t.slug] ? 'Bookmarked — find it in your Library.' : 'Bookmark removed.');
@@ -1317,6 +1405,7 @@
     if (S.done[t.slug]) delete S.done[t.slug];
     else S.done[t.slug] = Date.now();
     save('done');
+    emitState('done', t.slug);
     refreshProgressMarks();
     const el = $('#atlas-finish');
     if (el) el.outerHTML = finishHtml(t);
@@ -1335,8 +1424,70 @@
     if (S.conf[t.slug] === v) delete S.conf[t.slug];
     else S.conf[t.slug] = v;
     save('conf');
+    emitState('conf', t.slug);
     const el = $('#atlas-finish');
     if (el) el.outerHTML = finishHtml(t);
+  }
+
+  /* The current value of one piece of study state, in the shape sync.js
+     stores and the server mirrors into the website's tables. */
+  function stateRecord(kind, slug) {
+    const t = TOPIC.get(slug);
+    const section = t ? t.section : '';
+    switch (kind) {
+      case 'done':
+        return { data: { done: S.done[slug] || 0, section }, deleted: !S.done[slug] };
+      case 'conf':
+        return { data: { conf: S.conf[slug] || 0, section }, deleted: !S.conf[slug] };
+      case 'bookmark':
+        return { data: { section, title: t ? t.title : slug, at: S.saved[slug] || 0 }, deleted: !S.saved[slug] };
+      case 'note':
+        return { data: { text: S.notes[slug] || '', section }, deleted: !(S.notes[slug] || '').trim() };
+    }
+    return null;
+  }
+
+  function emitState(kind, slug) {
+    const rec = stateRecord(kind, slug);
+    if (rec) emit('state', { kind, slug, ...rec });
+  }
+
+  /* A change to study state that arrived from another device or the website. */
+  function applyState(kind, slug, data, deleted) {
+    if (!TOPIC.has(slug)) return;
+    data = data || {};
+    if (kind === 'done') {
+      if (deleted || !data.done) delete S.done[slug];
+      else S.done[slug] = typeof data.done === 'number' && data.done > 1 ? data.done : Date.now();
+      save('done');
+    } else if (kind === 'conf') {
+      const v = Math.round(Number(data.conf) || 0);
+      if (deleted || !v) delete S.conf[slug];
+      else S.conf[slug] = Math.max(1, Math.min(3, v));
+      save('conf');
+    } else if (kind === 'bookmark') {
+      if (deleted) delete S.saved[slug];
+      else S.saved[slug] = S.saved[slug] || data.at || Date.now();
+      save('saved');
+    } else if (kind === 'note') {
+      const text = deleted ? '' : String(data.text || '');
+      if (text.trim()) S.notes[slug] = text;
+      else delete S.notes[slug];
+      save('notes');
+    } else return;
+
+    refreshProgressMarks();
+    const t = currentTopic();
+    if (!t || t.slug !== slug) return;
+    if (kind === 'done' || kind === 'conf') {
+      const el = $('#atlas-finish');
+      if (el) el.outerHTML = finishHtml(t);
+    } else if (kind === 'bookmark') updateSaveBtn();
+    else if (kind === 'note') {
+      const area = $('#atlas-note');
+      // Never yank text out from under someone who is typing.
+      if (area && document.activeElement !== area) area.value = S.notes[slug] || '';
+    }
   }
 
   function step(delta) {
@@ -1358,6 +1509,7 @@
       if (area.value.trim()) S.notes[t.slug] = area.value;
       else delete S.notes[t.slug];
       save('notes');
+      emitState('note', t.slug);
       const st = $('#atlas-note-state');
       if (st) st.textContent = 'Saved on this device';
     }, 350);
@@ -1367,9 +1519,16 @@
     if (e.target.id === 'atlas-import' && e.target.files && e.target.files[0]) importData(e.target.files[0]);
   });
 
-  function exportData() {
-    const payload = { app: 'sysdesign-atlas', kind: 'progress', version: 1, exportedAt: new Date().toISOString() };
+  async function exportData() {
+    const payload = { app: 'sysdesign-atlas', kind: 'progress', version: 2, exportedAt: new Date().toISOString() };
     for (const k of DATA_KEYS) payload[k] = S[k];
+    for (const fn of exporters) {
+      try {
+        Object.assign(payload, await fn());
+      } catch (err) {
+        console.error('[atlas] export extension failed', err);
+      }
+    }
     const name = `atlas-progress-${dayKey()}.json`;
     const file = new File([JSON.stringify(payload, null, 2)], name, { type: 'application/json' });
     if (navigator.canShare && navigator.canShare({ files: [file] })) {
@@ -1389,32 +1548,45 @@
 
   function importData(file) {
     const reader = new FileReader();
-    reader.onload = () => {
+    reader.onload = async () => {
+      let d;
       try {
-        const d = JSON.parse(String(reader.result));
+        d = JSON.parse(String(reader.result));
         if (!d || d.app !== 'sysdesign-atlas') throw new Error('not an export');
-        for (const k of DATA_KEYS) {
-          if (d[k] && typeof d[k] === 'object') {
-            S[k] = d[k];
-            save(k);
-          }
-        }
-        refreshProgressMarks();
-        render(current);
-        toast('Progress imported.');
       } catch {
         toast("That file isn't an Atlas progress export.");
+        return;
       }
+      for (const k of DATA_KEYS) {
+        if (d[k] && typeof d[k] === 'object') {
+          S[k] = d[k];
+          save(k);
+        }
+      }
+      // Queue the imported study state for upload like any other change.
+      for (const slug of TOPIC.keys()) for (const kind of ['done', 'conf', 'bookmark', 'note']) emitState(kind, slug);
+      for (const fn of importers) {
+        try {
+          await fn(d);
+        } catch (err) {
+          console.error('[atlas] import extension failed', err);
+        }
+      }
+      refreshProgressMarks();
+      render(current);
+      toast('Progress imported.');
     };
     reader.readAsText(file);
   }
 
   function resetData() {
-    if (!confirm('Erase all progress, bookmarks and notes on this device? This cannot be undone.')) return;
+    if (!confirm('Erase all progress, bookmarks and notes? If you are signed in, this clears them from your account too. Highlights and ink are not affected. This cannot be undone.')) return;
+    const had = { done: { ...S.done }, conf: { ...S.conf }, bookmark: { ...S.saved }, note: { ...S.notes } };
     for (const k of DATA_KEYS) {
       S[k] = Array.isArray(S[k]) ? [] : {};
       save(k);
     }
+    for (const [kind, map] of Object.entries(had)) for (const slug of Object.keys(map)) emitState(kind, slug);
     refreshProgressMarks();
     render(current);
     toast('Progress erased.');
@@ -1550,6 +1722,7 @@
     } catch {
       return setOffline('unsupported');
     }
+    if (!swReg) return setOffline('unsupported'); // registration refused (e.g. blocked by policy)
 
     const track = (w) => {
       if (!w) return;
@@ -1650,12 +1823,12 @@
       const h = a.getAttribute('href');
       if (!h.startsWith('#/') || e.metaKey || e.ctrlKey || e.shiftKey) return;
       e.preventDefault();
-      if (h === location.hash && !a.dataset.find) {
+      if (h === location.hash && !a.dataset.find && !a.dataset.mark) {
         // Tapping where you already are just closes the drawer.
         closeOverlays();
         return;
       }
-      go(h, { resume: a.hasAttribute('data-resume'), find: a.dataset.find || '' });
+      go(h, { resume: a.hasAttribute('data-resume'), find: a.dataset.find || '', mark: a.dataset.mark || '' });
       return;
     }
 
@@ -1766,6 +1939,37 @@
     }
   });
 
+  /* ---------- public surface for sync.js and annotate.js ---------- */
+
+  window.Atlas = {
+    data: A,
+    topics: TOPICS,
+    sections: SECTIONS,
+    topic: (slug) => TOPIC.get(slug),
+    section: (slug) => SEC.get(slug),
+    current: () => current,
+    currentTopic,
+    prefs: () => ({ ...S.prefs }),
+    previewPrefs,
+    readFraction,
+    scrollToFraction,
+    go,
+    toast,
+    icon,
+    esc,
+    topicHref,
+    fmtDate,
+    isWide,
+    stateRecord,
+    applyState,
+    searchOpen: () => !searchEl.hidden,
+    on,
+    preparers,
+    searchProviders,
+    exporters,
+    importers,
+  };
+
   /* ---------- boot ---------- */
 
   $('#atlas-btn-back').innerHTML = icon('back', 22, 2);
@@ -1781,13 +1985,19 @@
 
   // A Home Screen app relaunched after iOS evicted it starts at the start URL.
   // If the reader was in the middle of something recently, put them back.
-  const startHash = location.hash;
-  if ((!startHash || startHash === '#/') && S.last && S.last.hash && S.last.hash !== '#/' && Date.now() - S.last.at < 12 * 3600 * 1000) {
-    history.replaceState({ d: 0 }, '', S.last.hash);
-    render(parse(S.last.hash), { resume: true });
-  } else {
-    render(parse(startHash), { y: history.state && history.state.y, resume: true });
+  function boot() {
+    const startHash = location.hash;
+    if ((!startHash || startHash === '#/') && S.last && S.last.hash && S.last.hash !== '#/' && Date.now() - S.last.at < 12 * 3600 * 1000) {
+      history.replaceState({ d: 0 }, '', S.last.hash);
+      render(parse(S.last.hash), { resume: true });
+    } else {
+      render(parse(startHash), { y: history.state && history.state.y, resume: true });
+    }
+    initServiceWorker();
   }
 
-  initServiceWorker();
+  // The extension scripts load after this one; wait for them so the first
+  // page already has their hooks.
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot, { once: true });
+  else boot();
 })();

@@ -30,8 +30,14 @@ const HERE = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.join(HERE, '..', '..');
 const SRC = path.join(ROOT, 'ipad');
 
-const outArg = process.argv.indexOf('--out');
-const OUT = path.resolve(ROOT, outArg > -1 ? process.argv[outArg + 1] : 'public/ipad');
+const arg = (name, fallback) => {
+  const i = process.argv.indexOf(name);
+  return i > -1 ? process.argv[i + 1] : fallback;
+};
+const OUT = path.resolve(ROOT, arg('--out', 'public/ipad'));
+// Where the sync API lives, as seen from the app. The Next.js app serves it
+// at /api/ipad on the same origin as /ipad.
+const API = arg('--api', '/api/ipad');
 
 register(pathToFileURL(path.join(HERE, 'ts-loader.mjs')));
 process.chdir(ROOT); // lib/content.ts resolves content/ from the cwd
@@ -156,6 +162,7 @@ const dataBody = `window.ATLAS=${JSON.stringify({
   scopes: SCOPE_META,
   topics: topicMeta,
   search: searchFile,
+  api: API,
 })};\n`;
 
 /* ---------- styles ---------- */
@@ -178,7 +185,12 @@ if (overrides === undefined) throw new Error('ipad/app.css is missing its /* @pr
 const cssFile = emitHashed('app.css', `${vars}\n${proseCss}\n${overrides}`);
 
 const dataFile = emitHashed('data.js', dataBody);
-const jsFile = emitHashed('app.js', fs.readFileSync(path.join(SRC, 'app.js'), 'utf8'));
+const script = (name) => emitHashed(name, fs.readFileSync(path.join(SRC, name), 'utf8'));
+// Load order matters: store → app → sync → annotate (see ipad/index.html).
+const storeFile = script('store.js');
+const jsFile = script('app.js');
+const syncFile = script('sync.js');
+const annotateFile = script('annotate.js');
 
 /* ---------- install surface ---------- */
 
@@ -216,7 +228,11 @@ const index = fs
   .readFileSync(path.join(SRC, 'index.html'), 'utf8')
   .replaceAll('{{CSS}}', cssFile)
   .replaceAll('{{DATA}}', dataFile)
-  .replaceAll('{{JS}}', jsFile);
+  .replaceAll('{{STORE}}', storeFile)
+  .replaceAll('{{JS}}', jsFile)
+  .replaceAll('{{SYNC}}', syncFile)
+  .replaceAll('{{ANNOTATE}}', annotateFile);
+if (/\{\{\w+\}\}/.test(index)) throw new Error(`ipad/index.html has an unfilled placeholder: ${index.match(/\{\{\w+\}\}/)[0]}`);
 emit('index.html', index);
 
 /* ---------- service worker ---------- */
@@ -226,7 +242,10 @@ const shellFiles = [
   'index.html',
   cssFile,
   dataFile,
+  storeFile,
   jsFile,
+  syncFile,
+  annotateFile,
   'manifest.webmanifest',
   ...icons.filter((f) => f.startsWith('icon-')).map((f) => `icons/${f}`),
 ];
