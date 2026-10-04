@@ -171,7 +171,10 @@
   /* Show the page with someone else's settings without saving them — used by
      "Show as drawn" to recreate the layout a scribble was made in. */
   function previewPrefs(p) {
-    const keep = current && current.name === 'topic' ? readFraction() : null;
+    keepPlace(() => applyPreview(p));
+  }
+
+  function applyPreview(p) {
     if (!p) {
       root.style.removeProperty('--read-max');
       root.style.removeProperty('--width-scale');
@@ -184,17 +187,26 @@
       }
       emit('prefs', { ...S.prefs, ...p, preview: true });
     }
+  }
+
+  /* Text reflows when size, spacing or width changes; keep the reader on the
+     same passage instead of wherever the old pixel offset now lands. Only
+     once they're into the article — at the top, the top stays put. */
+  function keepPlace(change) {
+    const b = current && current.name === 'topic' ? articleBounds() : null;
+    const keep = b && window.scrollY > b.start ? readFraction() : null;
+    change();
     if (keep != null) scrollToFraction(keep);
   }
 
   function setPref(k, v) {
-    // Text reflows when size or spacing changes; keep the reader on the same
-    // passage instead of wherever the old pixel offset now lands.
-    const keep = current && current.name === 'topic' ? readFraction() : null;
-    S.prefs[k] = v;
-    save('prefs');
-    applyPrefs();
-    if (keep != null && k !== 'theme') scrollToFraction(keep);
+    const apply = () => {
+      S.prefs[k] = v;
+      save('prefs');
+      applyPrefs();
+    };
+    if (k === 'theme') apply();
+    else keepPlace(apply);
     $$('[data-pref]').forEach((b) => b.classList.toggle('on', S.prefs[b.dataset.pref] === b.dataset.val));
   }
 
@@ -1049,7 +1061,8 @@
           <span><kbd>D</kbd></span><span>Mark done</span>
           <span><kbd>B</kbd></span><span>Bookmark</span>
           <span><kbd>\\</kbd></span><span>Show / hide the sidebar</span>
-          <span><kbd>H</kbd> <kbd>I</kbd> <kbd>E</kbd> <kbd>R</kbd></span><span>Highlight, ink, eraser, read (on a topic)</span>
+          <span><kbd>H</kbd> <kbd>I</kbd> <kbd>R</kbd></span><span>Highlight, ink (pen), read — on a topic</span>
+          <span><kbd>E</kbd></span><span>Eraser on / off (same as a two-finger tap)</span>
           <span><kbd>⌘</kbd> <kbd>Z</kbd> / <kbd>⇧</kbd> <kbd>⌘</kbd> <kbd>Z</kbd></span><span>Undo / redo a mark</span>
           <span><kbd>Esc</kbd></span><span>Close panels</span>
         </div></div>
@@ -1951,6 +1964,7 @@
     currentTopic,
     prefs: () => ({ ...S.prefs }),
     previewPrefs,
+    keepPlace,
     readFraction,
     scrollToFraction,
     go,

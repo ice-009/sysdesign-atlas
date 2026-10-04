@@ -1128,7 +1128,12 @@ kbd {
   transition: transform 0.3s var(--ease), opacity 0.3s;
   pointer-events: none;
 }
-#atlas-toast.show { transform: translate(-50%, 0); opacity: 1; pointer-events: auto; }
+/* A toast never blocks the Pencil or a tap underneath — only its button
+   takes input. */
+#atlas-toast.show { transform: translate(-50%, 0); opacity: 1; }
+#atlas-toast.show button { pointer-events: auto; }
+/* Above the open Pencil tray instead of on top of it. */
+:root:has(#atlas-tray.open:not([hidden])) #atlas-toast { bottom: calc(var(--safe-b) + 150px); }
 #atlas-toast:not(:has(button)) { padding-right: 18px; }
 #atlas-toast button {
   min-height: 34px;
@@ -1178,6 +1183,10 @@ kbd {
 .pen-red { fill: var(--pen-red); }
 .pen-blue { fill: var(--pen-blue); }
 .pen-green { fill: var(--pen-green); }
+/* Marker: translucent, and multiplied over the page so text stays crisp
+   underneath, like a real highlighter on paper. */
+.pen-marker { fill: rgba(250, 204, 21, 0.5); mix-blend-mode: multiply; }
+:root.dark .pen-marker { fill: rgba(250, 204, 21, 0.3); mix-blend-mode: normal; }
 
 .hl-yellow { --swatch: #facc15; }
 .hl-green { --swatch: #4ade80; }
@@ -1212,12 +1221,12 @@ kbd {
   cursor: pointer;
 }
 
-/* While a marking tool is on, the Pencil marks instead of selecting text. */
-:root.ink-mode-highlight .prose,
-:root.ink-mode-pen .prose,
-:root.ink-mode-eraser .prose {
-  -webkit-user-select: none;
-  user-select: none;
+/* While a marking tool is on, a long press mustn't bring up the iOS callout.
+   (Not user-select:none — Safari won't paint highlights on unselectable text.
+   annotate.js cancels selectstart instead.) */
+:root.ink-mode-highlight #atlas-view,
+:root.ink-mode-pen #atlas-view,
+:root.ink-mode-eraser #atlas-view {
   -webkit-touch-callout: none;
 }
 :root.ink-mode-highlight #atlas-view { cursor: text; }
@@ -1382,6 +1391,8 @@ kbd {
 .swatch.pen-red { background: var(--pen-red); }
 .swatch.pen-blue { background: var(--pen-blue); }
 .swatch.pen-green { background: var(--pen-green); }
+.swatch.pen-marker { background: #facc15; box-shadow: 0 0 0 1px var(--border-strong), inset 0 0 0 5px rgba(255, 255, 255, 0.55); }
+.swatch.pen-marker.on { box-shadow: 0 0 0 2px var(--text), inset 0 0 0 5px rgba(255, 255, 255, 0.55); }
 
 /* The Pencil tray: one round button until opened. */
 #atlas-tray {
@@ -1457,6 +1468,23 @@ kbd {
 }
 .tray-btn:active { background: var(--bg-inset); }
 .tray-btn:disabled { opacity: 0.35; }
+.tray-btn.on { background: var(--bg-inset); color: var(--accent); }
+/* One-tap eraser beside the pencil button: the stand-in for Pencil double-tap. */
+.tray-quick {
+  flex: none;
+  width: 46px;
+  height: 46px;
+  margin-bottom: 5px;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--border);
+  border-radius: 50%;
+  background: var(--panel);
+  color: var(--text);
+  box-shadow: var(--shadow-lg);
+  cursor: pointer;
+}
+#atlas-tray.mode-eraser .tray-quick { color: var(--accent); }
 .tray-fab {
   position: relative;
   flex: none;
@@ -1485,6 +1513,14 @@ kbd {
   font: 700 10.5px var(--font-sans);
   font-style: normal;
   white-space: nowrap;
+}
+
+/* Margin mode: the text column moves left to leave a wide margin to write in.
+   Margin ink is anchored to the column's right edge, so it follows. */
+:root.ink-margin .topic {
+  max-width: min(calc(var(--read-max) * var(--width-scale)), calc(100% - 240px));
+  margin-left: 0;
+  margin-right: auto;
 }
 
 /* Library → Annotations */
