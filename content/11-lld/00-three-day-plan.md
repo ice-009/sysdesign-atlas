@@ -78,6 +78,7 @@ You can't design classes fluently without the words for it. Get them back first.
 | | Topic | Why now |
 |---|---|---|
 | 60 min | [Objects, in practice](oop-refresher.html) | What an object is *for*, and when to use an interface |
+| 20 min | [Class diagrams, fast](uml-class-diagrams.html) | Drawing your design so the interviewer can follow it |
 | 45 min | [SOLID, in plain English](solid.html) | The five ideas you'll narrate your design with |
 | 75 min | [The patterns worth knowing](design-patterns.html) | Strategy, factory, observer, state — most of what appears |
 | 45 min | [The LLD method](lld-interview-method.html) | What to do minute by minute |
@@ -110,6 +111,22 @@ Solving them isn't the point. **Producing an answer under time pressure** is. Se
 :::warn Stop the night before
 Spend the last two hours on the [checklist](../12-hld-bridge/final-checklist.html) and nothing else. New material the night before doesn't stick, and it pushes out what you already rehearsed. Sleep is the better investment.
 :::
+
+## More problems, for after the three days
+
+Each is written to be answered in 40 minutes, in the same six steps. Pick by what you want to practise:
+
+| Problem | What it practises |
+|---|---|
+| [Vending Machine](vending-machine.html) | A state machine with money in it — and the change-making trap |
+| [ATM](atm.html) | Keeping a bank's ledger and a cash drawer in agreement through crashes |
+| [Library Management](library-management.html) | Telling a title from its copies; fair reservation queues |
+| [Logging Framework](logging-framework.html) | Strategy, decorator and a defensible singleton, on a hot path |
+| [Alerting System](alerting-system.html) | The observer pattern with its real-world problems: slow listeners, duplicates, storms |
+| [Snake and Ladder](snake-and-ladder.html) | A clean turn-based game, and making randomness testable |
+| [Chess](chess.html) | Polymorphism that earns its keep, and the one rule behind every legal move |
+
+And one page for reviewing code rather than designing it: [Code smells and refactoring](code-smells.html).
 
 ## Three rules for practising
 

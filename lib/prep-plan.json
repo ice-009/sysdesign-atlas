@@ -61,7 +61,7 @@
    "difficulty": "",
    "minutes": 40,
    "hint": "",
-   "link": "https://karanpratapsingh.com/courses/system-design/system-design-interviews",
+   "link": "",
    "read": [
     {
      "sec": "appendix",
@@ -88,7 +88,7 @@
    "difficulty": "",
    "minutes": 40,
    "hint": "",
-   "link": "https://karanpratapsingh.com/courses/system-design/scalability",
+   "link": "",
    "read": [
     {
      "sec": "fundamentals",
@@ -111,7 +111,7 @@
    "difficulty": "",
    "minutes": 40,
    "hint": "",
-   "link": "https://karanpratapsingh.com/courses/system-design/load-balancing",
+   "link": "",
    "read": [
     {
      "sec": "building-blocks",
@@ -130,7 +130,7 @@
    "difficulty": "",
    "minutes": 40,
    "hint": "",
-   "link": "https://karanpratapsingh.com/courses/system-design/caching",
+   "link": "",
    "read": [
     {
      "sec": "building-blocks",
@@ -149,7 +149,7 @@
    "difficulty": "",
    "minutes": 40,
    "hint": "",
-   "link": "https://karanpratapsingh.com/courses/system-design/content-delivery-network",
+   "link": "",
    "read": [
     {
      "sec": "building-blocks",
@@ -168,17 +168,11 @@
    "difficulty": "",
    "minutes": 40,
    "hint": "",
-   "link": "https://karanpratapsingh.com/courses/system-design/proxy",
+   "link": "",
    "read": [
     {
      "sec": "building-blocks",
-     "slug": "load-balancing",
-     "anchor": "what-else-lives-here"
-    },
-    {
-     "sec": "building-blocks",
-     "slug": "api-gateway",
-     "anchor": "the-edge-tier"
+     "slug": "proxies"
     }
    ]
   },
@@ -193,7 +187,7 @@
    "difficulty": "",
    "minutes": 40,
    "hint": "",
-   "link": "https://karanpratapsingh.com/courses/system-design/sql-vs-nosql-databases",
+   "link": "",
    "read": [
     {
      "sec": "building-blocks",
@@ -212,7 +206,7 @@
    "difficulty": "",
    "minutes": 40,
    "hint": "",
-   "link": "https://karanpratapsingh.com/courses/system-design/database-replication",
+   "link": "",
    "read": [
     {
      "sec": "building-blocks",
@@ -231,11 +225,12 @@
    "difficulty": "",
    "minutes": 40,
    "hint": "",
-   "link": "https://karanpratapsingh.com/courses/system-design/indexes",
+   "link": "",
    "read": [
     {
      "sec": "building-blocks",
-     "slug": "indexing"
+     "slug": "indexing",
+     "anchor": "dense-vs-sparse"
     }
    ]
   },
@@ -250,7 +245,7 @@
    "difficulty": "",
    "minutes": 40,
    "hint": "",
-   "link": "https://karanpratapsingh.com/courses/system-design/sharding",
+   "link": "",
    "read": [
     {
      "sec": "building-blocks",
@@ -269,7 +264,7 @@
    "difficulty": "",
    "minutes": 40,
    "hint": "",
-   "link": "https://karanpratapsingh.com/courses/system-design/consistent-hashing",
+   "link": "",
    "read": [
     {
      "sec": "building-blocks",
@@ -288,7 +283,7 @@
    "difficulty": "",
    "minutes": 40,
    "hint": "",
-   "link": "https://karanpratapsingh.com/courses/system-design/cap-theorem",
+   "link": "",
    "read": [
     {
      "sec": "fundamentals",
@@ -307,12 +302,12 @@
    "difficulty": "",
    "minutes": 40,
    "hint": "",
-   "link": "https://karanpratapsingh.com/courses/system-design/acid-and-base-consistency-models",
+   "link": "",
    "read": [
     {
      "sec": "data",
      "slug": "transactions-isolation",
-     "anchor": "acid-precisely"
+     "anchor": "acid-vs-base"
     },
     {
      "sec": "fundamentals",
@@ -331,7 +326,7 @@
    "difficulty": "",
    "minutes": 40,
    "hint": "",
-   "link": "https://karanpratapsingh.com/courses/system-design/message-brokers",
+   "link": "",
    "read": [
     {
      "sec": "building-blocks",
@@ -354,7 +349,7 @@
    "difficulty": "",
    "minutes": 40,
    "hint": "",
-   "link": "https://karanpratapsingh.com/courses/system-design/publish-subscribe",
+   "link": "",
    "read": [
     {
      "sec": "building-blocks",
@@ -373,12 +368,11 @@
    "difficulty": "",
    "minutes": 40,
    "hint": "",
-   "link": "https://karanpratapsingh.com/courses/system-design/monoliths-microservices",
+   "link": "",
    "read": [
     {
      "sec": "building-blocks",
-     "slug": "api-gateway",
-     "anchor": "service-to-service-communication"
+     "slug": "monoliths-microservices"
     }
    ]
   },
@@ -393,12 +387,11 @@
    "difficulty": "",
    "minutes": 40,
    "hint": "",
-   "link": "https://karanpratapsingh.com/courses/system-design/api-gateway",
+   "link": "",
    "read": [
     {
      "sec": "building-blocks",
-     "slug": "api-gateway",
-     "anchor": "backend-for-frontend-bff"
+     "slug": "api-gateway"
     }
    ]
   },
@@ -413,7 +406,7 @@
    "difficulty": "",
    "minutes": 40,
    "hint": "",
-   "link": "https://karanpratapsingh.com/courses/system-design/rest-graphql-grpc",
+   "link": "",
    "read": [
     {
      "sec": "building-blocks",
@@ -433,7 +426,7 @@
    "difficulty": "",
    "minutes": 40,
    "hint": "",
-   "link": "https://karanpratapsingh.com/courses/system-design/long-polling-websockets-server-sent-events",
+   "link": "",
    "read": [
     {
      "sec": "building-blocks",
@@ -452,7 +445,7 @@
    "difficulty": "",
    "minutes": 40,
    "hint": "",
-   "link": "https://karanpratapsingh.com/courses/system-design/distributed-transactions",
+   "link": "",
    "read": [
     {
      "sec": "distributed",
@@ -471,7 +464,7 @@
    "difficulty": "",
    "minutes": 40,
    "hint": "",
-   "link": "https://karanpratapsingh.com/courses/system-design/circuit-breaker",
+   "link": "",
    "read": [
     {
      "sec": "fundamentals",
@@ -494,7 +487,7 @@
    "difficulty": "",
    "minutes": 40,
    "hint": "",
-   "link": "https://karanpratapsingh.com/courses/system-design/sla-slo-sli",
+   "link": "",
    "read": [
     {
      "sec": "fundamentals",
@@ -513,7 +506,7 @@
    "difficulty": "Medium",
    "minutes": 75,
    "hint": "",
-   "link": "https://karanpratapsingh.com/courses/system-design/url-shortener",
+   "link": "",
    "read": [
     {
      "sec": "case-studies",
@@ -532,7 +525,7 @@
    "difficulty": "Medium",
    "minutes": 75,
    "hint": "",
-   "link": "https://github.com/donnemartin/system-design-primer/blob/master/solutions/system_design/pastebin/README.md",
+   "link": "",
    "read": [
     {
      "sec": "builds",
@@ -551,7 +544,7 @@
    "difficulty": "Medium",
    "minutes": 75,
    "hint": "",
-   "link": "https://karanpratapsingh.com/courses/system-design/rate-limiting",
+   "link": "",
    "read": [
     {
      "sec": "case-studies",
@@ -574,7 +567,7 @@
    "difficulty": "Hard",
    "minutes": 100,
    "hint": "",
-   "link": "https://www.allthingsdistributed.com/files/amazon-dynamo-sosp2007.pdf",
+   "link": "",
    "read": [
     {
      "sec": "case-studies",
@@ -593,7 +586,7 @@
    "difficulty": "Medium",
    "minutes": 75,
    "hint": "",
-   "link": "https://www.hellointerview.com/learn/system-design/problem-breakdowns/web-crawler",
+   "link": "",
    "read": [
     {
      "sec": "case-studies",
@@ -612,7 +605,7 @@
    "difficulty": "Hard",
    "minutes": 100,
    "hint": "",
-   "link": "https://karanpratapsingh.com/courses/system-design/twitter",
+   "link": "",
    "read": [
     {
      "sec": "case-studies",
@@ -635,7 +628,7 @@
    "difficulty": "Hard",
    "minutes": 100,
    "hint": "",
-   "link": "https://www.hellointerview.com/learn/system-design/problem-breakdowns/whatsapp",
+   "link": "",
    "read": [
     {
      "sec": "case-studies",
@@ -658,7 +651,7 @@
    "difficulty": "Medium",
    "minutes": 75,
    "hint": "",
-   "link": "https://www.geeksforgeeks.org/system-design/design-notification-services-system-design/",
+   "link": "",
    "read": [
     {
      "sec": "case-studies",
@@ -677,7 +670,7 @@
    "difficulty": "Hard",
    "minutes": 100,
    "hint": "",
-   "link": "https://www.hellointerview.com/learn/system-design/problem-breakdowns/youtube",
+   "link": "",
    "read": [
     {
      "sec": "case-studies",
@@ -700,7 +693,7 @@
    "difficulty": "Medium",
    "minutes": 75,
    "hint": "",
-   "link": "https://www.hellointerview.com/learn/system-design/problem-breakdowns/instagram",
+   "link": "",
    "read": [
     {
      "sec": "builds",
@@ -719,7 +712,7 @@
    "difficulty": "Hard",
    "minutes": 100,
    "hint": "",
-   "link": "https://www.hellointerview.com/learn/system-design/problem-breakdowns/uber",
+   "link": "",
    "read": [
     {
      "sec": "case-studies",
@@ -742,11 +735,15 @@
    "difficulty": "Hard",
    "minutes": 100,
    "hint": "",
-   "link": "https://karanpratapsingh.com/courses/system-design/geohashing-and-quadtrees",
+   "link": "",
    "read": [
     {
      "sec": "building-blocks",
      "slug": "geospatial"
+    },
+    {
+     "sec": "case-studies",
+     "slug": "ride-sharing"
     }
    ]
   },
@@ -761,7 +758,7 @@
    "difficulty": "Medium",
    "minutes": 75,
    "hint": "",
-   "link": "https://www.geeksforgeeks.org/system-design/design-distributed-cache-system-design/",
+   "link": "",
    "read": [
     {
      "sec": "case-studies",
@@ -780,8 +777,12 @@
    "difficulty": "Hard",
    "minutes": 100,
    "hint": "",
-   "link": "https://karanpratapsingh.com/courses/system-design/message-queues",
+   "link": "",
    "read": [
+    {
+     "sec": "case-studies",
+     "slug": "distributed-log"
+    },
     {
      "sec": "building-blocks",
      "slug": "message-queues"
@@ -799,8 +800,12 @@
    "difficulty": "Hard",
    "minutes": 100,
    "hint": "",
-   "link": "https://www.hellointerview.com/learn/system-design/problem-breakdowns/dropbox",
+   "link": "",
    "read": [
+    {
+     "sec": "case-studies",
+     "slug": "file-sync"
+    },
     {
      "sec": "building-blocks",
      "slug": "object-storage"
@@ -818,7 +823,7 @@
    "difficulty": "Medium",
    "minutes": 75,
    "hint": "",
-   "link": "https://www.geeksforgeeks.org/system-design/googles-search-autocomplete-high-level-designhld/",
+   "link": "",
    "read": [
     {
      "sec": "case-studies",
@@ -837,7 +842,7 @@
    "difficulty": "Hard",
    "minutes": 100,
    "hint": "",
-   "link": "https://www.geeksforgeeks.org/system-design/designing-upi-system-design/",
+   "link": "",
    "read": [
     {
      "sec": "case-studies",
@@ -860,7 +865,7 @@
    "difficulty": "Hard",
    "minutes": 100,
    "hint": "",
-   "link": "https://www.hellointerview.com/learn/system-design/problem-breakdowns/ticketmaster",
+   "link": "",
    "read": [
     {
      "sec": "case-studies",
@@ -879,7 +884,7 @@
    "difficulty": "Medium",
    "minutes": 75,
    "hint": "",
-   "link": "https://www.geeksforgeeks.org/system-design/design-distributed-job-scheduler-system-design/",
+   "link": "",
    "read": [
     {
      "sec": "case-studies",
@@ -898,11 +903,15 @@
    "difficulty": "Medium",
    "minutes": 75,
    "hint": "",
-   "link": "https://www.geeksforgeeks.org/system-design/distributed-systems-monitoring/",
+   "link": "",
    "read": [
     {
      "sec": "case-studies",
-     "slug": "ad-click-aggregator"
+     "slug": "metrics-monitoring"
+    },
+    {
+     "sec": "lld",
+     "slug": "alerting-system"
     }
    ]
   },
@@ -917,7 +926,7 @@
    "difficulty": "",
    "minutes": 40,
    "hint": "",
-   "link": "https://www.geeksforgeeks.org/system-design/solid-principle-in-programming-understand-with-real-life-examples/",
+   "link": "",
    "read": [
     {
      "sec": "lld",
@@ -936,15 +945,11 @@
    "difficulty": "",
    "minutes": 40,
    "hint": "",
-   "link": "https://www.geeksforgeeks.org/system-design/unified-modeling-language-uml-class-diagrams/",
+   "link": "",
    "read": [
     {
      "sec": "lld",
-     "slug": "oop-refresher"
-    },
-    {
-     "sec": "lld",
-     "slug": "lld-interview-method"
+     "slug": "uml-class-diagrams"
     }
    ]
   },
@@ -959,7 +964,7 @@
    "difficulty": "",
    "minutes": 40,
    "hint": "",
-   "link": "https://refactoring.guru/design-patterns/creational-patterns",
+   "link": "",
    "read": [
     {
      "sec": "lld",
@@ -984,7 +989,7 @@
    "difficulty": "",
    "minutes": 40,
    "hint": "",
-   "link": "https://refactoring.guru/design-patterns/structural-patterns",
+   "link": "",
    "read": [
     {
      "sec": "lld",
@@ -994,7 +999,7 @@
     {
      "sec": "lld",
      "slug": "design-patterns",
-     "anchor": "adapter-command-repository-the-quick-three"
+     "anchor": "facade-one-simple-door-into-a-complicated-subsystem"
     }
    ]
   },
@@ -1009,7 +1014,7 @@
    "difficulty": "",
    "minutes": 40,
    "hint": "",
-   "link": "https://refactoring.guru/design-patterns/behavioral-patterns",
+   "link": "",
    "read": [
     {
      "sec": "lld",
@@ -1034,11 +1039,11 @@
    "difficulty": "",
    "minutes": 40,
    "hint": "",
-   "link": "https://refactoring.guru/refactoring/smells",
+   "link": "",
    "read": [
     {
      "sec": "lld",
-     "slug": "solid"
+     "slug": "code-smells"
     }
    ]
   },
@@ -1053,7 +1058,7 @@
    "difficulty": "",
    "minutes": 40,
    "hint": "",
-   "link": "https://github.com/ashishps1/awesome-low-level-design",
+   "link": "",
    "read": [
     {
      "sec": "lld",
@@ -1095,16 +1100,11 @@
    "difficulty": "Medium",
    "minutes": 60,
    "hint": "",
-   "link": "https://github.com/ashishps1/awesome-low-level-design/blob/main/problems/vending-machine.md",
+   "link": "",
    "read": [
     {
      "sec": "lld",
-     "slug": "design-patterns",
-     "anchor": "state-when-behaviour-depends-on-what-happened-before"
-    },
-    {
-     "sec": "lld",
-     "slug": "elevator-system"
+     "slug": "vending-machine"
     }
    ]
   },
@@ -1119,7 +1119,7 @@
    "difficulty": "Hard",
    "minutes": 90,
    "hint": "",
-   "link": "https://github.com/ashishps1/awesome-low-level-design/blob/main/problems/elevator-system.md",
+   "link": "",
    "read": [
     {
      "sec": "lld",
@@ -1138,11 +1138,11 @@
    "difficulty": "Medium",
    "minutes": 60,
    "hint": "",
-   "link": "https://github.com/ashishps1/awesome-low-level-design/blob/main/problems/library-management-system.md",
+   "link": "",
    "read": [
     {
      "sec": "lld",
-     "slug": "oop-refresher"
+     "slug": "library-management"
     }
    ]
   },
@@ -1157,11 +1157,11 @@
    "difficulty": "Hard",
    "minutes": 90,
    "hint": "",
-   "link": "https://github.com/ashishps1/awesome-low-level-design/blob/main/problems/chess-game.md",
+   "link": "",
    "read": [
     {
      "sec": "lld",
-     "slug": "oop-refresher"
+     "slug": "chess"
     }
    ]
   },
@@ -1176,7 +1176,7 @@
    "difficulty": "Hard",
    "minutes": 90,
    "hint": "",
-   "link": "https://github.com/ashishps1/awesome-low-level-design/blob/main/problems/splitwise.md",
+   "link": "",
    "read": [
     {
      "sec": "lld",
@@ -1222,8 +1222,7 @@
    "read": [
     {
      "sec": "lld",
-     "slug": "design-patterns",
-     "anchor": "state-when-behaviour-depends-on-what-happened-before"
+     "slug": "atm"
     }
    ]
   },
@@ -1261,11 +1260,11 @@
    "difficulty": "Medium",
    "minutes": 60,
    "hint": "",
-   "link": "https://github.com/ashishps1/awesome-low-level-design/blob/main/problems/logging-framework.md",
+   "link": "",
    "read": [
     {
      "sec": "lld",
-     "slug": "design-patterns"
+     "slug": "logging-framework"
     }
    ]
   },
@@ -1284,7 +1283,7 @@
    "read": [
     {
      "sec": "lld",
-     "slug": "oop-refresher"
+     "slug": "snake-and-ladder"
     }
    ]
   },
@@ -1299,12 +1298,11 @@
    "difficulty": "Medium",
    "minutes": 60,
    "hint": "",
-   "link": "https://github.com/ashishps1/awesome-low-level-design/blob/main/problems/pub-sub-system.md",
+   "link": "",
    "read": [
     {
      "sec": "lld",
-     "slug": "design-patterns",
-     "anchor": "observer-announce-it-dont-call-everyone"
+     "slug": "alerting-system"
     }
    ]
   },

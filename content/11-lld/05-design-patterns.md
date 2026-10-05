@@ -1,6 +1,6 @@
 ---
 title: The Patterns Worth Knowing
-summary: The ten design patterns that cover almost every LLD interview — what problem each one solves, the smallest useful example, and the phrase in the question that should make you reach for it.
+summary: The eleven design patterns that cover almost every LLD interview — what problem each one solves, the smallest useful example, and the phrase in the question that should make you reach for it.
 difficulty: Medium
 scope: LLD
 tags: [patterns, oop, lld]
@@ -133,7 +133,7 @@ class Shipped implements OrderState {
 }
 ```
 
-The payoff to name out loud: **illegal moves become impossible rather than merely unlikely**, and all the rules sit in one readable place. This is the pattern for lifts, orders, bookings, ATMs, vending machines and traffic lights — see [Elevator System](elevator-system.html).
+The payoff to name out loud: **illegal moves become impossible rather than merely unlikely**, and all the rules sit in one readable place. This is the pattern for lifts, orders, bookings, ATMs, vending machines and traffic lights — see [Elevator System](elevator-system.html), [Vending Machine](vending-machine.html) and [ATM](atm.html).
 
 There's a lighter version that is often the better answer in 40 minutes: an `enum` of states plus a `Map<State, Set<State>>` listing which moves are legal. Fewer classes, same guarantee. Say you'd start there and move to state classes when each state grows real behaviour.
 
@@ -162,6 +162,42 @@ Coffee order = new Milk(new Caramel(new Espresso()));   // composes instead of e
 ```
 
 Two real examples worth mentioning: Java's `new BufferedInputStream(new FileInputStream(...))`, and web middleware chains (auth → logging → rate limit → handler), which are the same idea one level up.
+
+## Facade — one simple door into a complicated subsystem
+
+**The problem:** doing one ordinary thing takes six objects in the right order. To check out a cart you call inventory to reserve, pricing to total, tax to calculate, payments to charge, and shipping to book — and every caller has to know that sequence.
+
+**The idea:** put one class in front with a short, task-shaped method. It does the coordinating; callers just ask for the task.
+
+```java
+class CheckoutFacade {
+    private final Inventory inventory;
+    private final Pricing pricing;
+    private final TaxCalculator tax;
+    private final PaymentGateway payments;
+    private final Shipping shipping;
+
+    Order checkout(Cart cart, Card card, Address to) {
+        Reservation r = inventory.reserve(cart.items());
+        Money total = tax.addTo(pricing.total(cart), to);
+        payments.charge(card, total);
+        Shipment s = shipping.book(r, to);
+        return Order.placed(cart, total, s);
+    }
+}
+```
+
+The subsystem's classes don't change and are still there for anyone who needs the detail. The facade just makes the common case easy and keeps the order of steps in one place.
+
+**How it differs from its neighbours** — the comparison interviewers like:
+
+| Pattern | Wraps | Changes the interface? | Purpose |
+|---|---|---|---|
+| **Adapter** | one object | yes — to the one you expect | make something fit |
+| **Decorator** | one object | no — same interface | add behaviour on top |
+| **Facade** | many objects | yes — a new, simpler one | hide a complicated sequence |
+
+You'll recognise the facade in most LLD answers already: the `ParkingLot`, `VendingMachine` and `ATM` classes are facades over their parts. Saying so — *"`VendingMachine` is the facade customers talk to; inventory, cash box and states sit behind it"* — names the pattern without forcing it.
 
 ## Singleton — know the objections or skip it
 

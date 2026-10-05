@@ -16,6 +16,29 @@ prereqs: [consistency-models, storage-engines]
 
 The word to be careful with is **Consistency** — the C in ACID is unrelated to the C in [CAP](../01-fundamentals/cap-pacelc.html). ACID's C is about invariants; CAP's C is linearizability. Blurring them leads to genuinely wrong conclusions.
 
+## ACID vs BASE
+
+**BASE** is the name given to the opposite style, popularised with the first wave of NoSQL databases. It stands for:
+
+- **Basically Available** — the system answers even when parts of it are failing, possibly with stale or partial data.
+- **Soft state** — what a replica holds may change without new writes, as updates from other replicas arrive.
+- **Eventually consistent** — if writes stop, all replicas end up agreeing; until then, different readers may see different answers. See [eventual consistency](../01-fundamentals/consistency-models.html).
+
+The acronym is a bit forced (like ACID's C), but the contrast is real:
+
+| | ACID | BASE |
+|---|---|---|
+| Priority | Correctness of every transaction | Staying up and fast under failure and scale |
+| After a write | Every reader sees it (at strong isolation) | Readers may see old data for a while |
+| Multi-item changes | All-or-nothing transactions | Usually single-item writes; you reconcile the rest |
+| When replicas disagree | Refuse or wait | Answer anyway; repair later |
+| Typical systems | Postgres, MySQL, Spanner, CockroachDB | Cassandra, DynamoDB (by default), DNS, caches |
+
+Two things worth saying, because they're where shallow answers go wrong:
+
+- **It isn't a property of a whole system — it's a choice per piece of data.** One product can keep money, inventory and bookings in an ACID store, and likes, view counts and feeds in a BASE one. Choose by asking *"what does a stale or lost update cost here?"*. A wrong bank balance is a real problem; a like count that's off for two seconds isn't.
+- **The line has blurred.** Many "NoSQL" databases now offer transactions, and distributed SQL databases offer ACID across many machines. BASE is better understood as the eventually consistent end of the spectrum in [CAP / PACELC](../01-fundamentals/cap-pacelc.html) than as a category of product.
+
 ## The anomalies
 
 An **anomaly** here is a specific way concurrent transactions can produce a result that no sequence of one-at-a-time transactions could have produced. **Isolation levels** are then defined backwards from these: a level is simply a promise about which anomalies it prevents and which it still allows. So learn the anomalies and the levels come for free.

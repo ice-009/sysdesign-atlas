@@ -73,6 +73,12 @@
     return a.getMonth() === b.getMonth() ? `${a.getDate()}–${b.getDate()} ${C.MONTHS[b.getMonth()]}` : `${a.getDate()} ${C.MONTHS[a.getMonth()]} – ${b.getDate()} ${C.MONTHS[b.getMonth()]}`;
   };
   const typeLabel = (it) => (it.type === 'Milestone' ? 'Mock' : it.type);
+  // "LC1603 Design Parking System (Easy)" from the sheet, else the problem's URL slug.
+  const leetName = (it) => {
+    if (/^LC\d+/.test(it.hint)) return it.hint;
+    const slug = (it.link.match(/problems\/([\w-]+)/) || [])[1] || 'LeetCode';
+    return slug.replace(/-/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
+  };
 
   /* ---------- state ---------- */
 
@@ -415,7 +421,7 @@
           .join('')}</div></div>
       <div class="set-row"><div><b>Back to the spreadsheet</b><small>Your status, dates, revisit flags, minutes and notes in the tracker's own columns, one row per item.</small></div>
         <div class="pl-row-btns"><button type="button" class="btn small" data-pl="copy">Copy</button><button type="button" class="btn small" data-pl="csv">${icon('download', 15)} CSV</button></div></div>
-      <div class="set-row"><div><b>Where this comes from</b><small>The HLD and LLD tabs of ${esc(PLAN.source)} (and its HLD mocks), weeks ${esc(weekRange(PLAN.weeks[0]))} to ${esc(weekRange(PLAN.weeks[PLAN.weeks.length - 1]))}. Each item links to the Atlas topics that teach it.</small></div></div>
+      <div class="set-row"><div><b>Where this comes from</b><small>The HLD and LLD tabs of ${esc(PLAN.source)} (and its HLD mocks), weeks ${esc(weekRange(PLAN.weeks[0]))} to ${esc(weekRange(PLAN.weeks[PLAN.weeks.length - 1]))}. Every item's reading is in Atlas, offline; only LeetCode practice links leave the app.</small></div></div>
     </div></section>`;
   }
 
@@ -486,7 +492,7 @@
       </div>
 
       ${reads ? `<div class="pl-sec"><span class="eyebrow">Read in Atlas · offline</span><div class="pl-reads">${reads}</div></div>` : ''}
-      ${it.link ? `<div class="pl-sec"><span class="eyebrow">From the sheet</span><a class="pl-ext" href="${esc(it.link)}" target="_blank" rel="noopener">${esc(it.link.replace(/^https?:\/\/(www\.)?/, '').slice(0, 70))} ↗</a><small class="pl-ext-note">Opens in Safari — needs a connection.</small></div>` : ''}
+      ${it.link ? `<div class="pl-sec"><span class="eyebrow">Practise on LeetCode</span><a class="pl-ext" href="${esc(it.link)}" target="_blank" rel="noopener">${esc(leetName(it))} ↗</a><small class="pl-ext-note">The one link that leaves Atlas — it opens LeetCode in Safari and needs a connection.</small></div>` : ''}
 
       <div class="pl-sec"><span class="eyebrow">Time</span>
         <div class="pl-time">

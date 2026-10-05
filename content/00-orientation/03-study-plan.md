@@ -9,7 +9,7 @@ unlocks: A specific next page to open, instead of a table of contents to stare a
 
 ## Pick the one that matches your goal
 
-There are 145 topics here. Reading them front to back is a valid plan and a slow one. These four routes exist because "learn system design" usually means one of four different things.
+There are 159 topics here. Reading them front to back is a valid plan and a slow one. These four routes exist because "learn system design" usually means one of four different things.
 
 | Route | For | Rough time |
 |---|---|---|
@@ -34,7 +34,7 @@ The intended path. Depth-first, in prerequisite order, interleaving application 
 
 **Phase 4 — Data & Storage (2–3 weeks).** What actually happens beneath a query. Short track, high density.
 
-**Phase 5 — Applied (4–6 weeks).** All sixteen case studies and the classic builds. **Design each one cold for twenty minutes before reading.** One per session; do not batch them. If you also want the class-level half of design — objects, interfaces, concurrency inside one process — the [Low-Level Design](../11-lld/three-day-plan.html) track slots in here and is largely independent of the rest.
+**Phase 5 — Applied (4–6 weeks).** All nineteen case studies and the classic builds. **Design each one cold for twenty minutes before reading.** One per session; do not batch them. If you also want the class-level half of design — objects, interfaces, concurrency inside one process — the [Low-Level Design](../11-lld/three-day-plan.html) track slots in here and is largely independent of the rest.
 
 **Phase 6 — AI Systems (6–8 weeks).** The three AI tracks, then the AI builds. By this point the Core material makes them read as variations rather than new subjects.
 

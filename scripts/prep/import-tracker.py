@@ -3,6 +3,10 @@
 lib/prep-plan.json — the plan the iPad edition's Plan page and the website
 dashboard schedule from.
 
+The reading lives in Atlas itself: every item points at the Atlas topics that
+teach it (READS below), and the sheet's own links are dropped — except
+LeetCode, which stays as the place to practise a problem.
+
     python3 scripts/prep/import-tracker.py ~/Downloads/switch_prep_tracker.xlsx
 
 What comes across, per row: week, sheet topic, item, difficulty, type, the
@@ -47,18 +51,18 @@ READS = {
         3: ["building-blocks/load-balancing"],
         4: ["building-blocks/caching"],
         5: ["building-blocks/cdn"],
-        6: ["building-blocks/load-balancing#what-else-lives-here", "building-blocks/api-gateway#the-edge-tier"],
+        6: ["building-blocks/proxies"],
         7: ["building-blocks/sql-vs-nosql"],
         8: ["building-blocks/replication"],
-        9: ["building-blocks/indexing"],
+        9: ["building-blocks/indexing#dense-vs-sparse"],
         10: ["building-blocks/sharding"],
         11: ["building-blocks/consistent-hashing"],
         12: ["fundamentals/cap-pacelc"],
-        13: ["data/transactions-isolation#acid-precisely", "fundamentals/consistency-models"],
+        13: ["data/transactions-isolation#acid-vs-base", "fundamentals/consistency-models"],
         14: ["building-blocks/message-queues", "data/stream-processing"],
         15: ["building-blocks/pub-sub"],
-        16: ["building-blocks/api-gateway#service-to-service-communication"],
-        17: ["building-blocks/api-gateway#backend-for-frontend-bff"],
+        16: ["building-blocks/monoliths-microservices"],
+        17: ["building-blocks/api-gateway"],
         18: ["building-blocks/api-gateway#rest-vs-grpc-vs-graphql"],
         19: ["building-blocks/realtime"],
         20: ["distributed/distributed-transactions"],
@@ -75,36 +79,36 @@ READS = {
         31: ["case-studies/video-streaming", "builds/netflix"],
         32: ["builds/instagram"],
         33: ["case-studies/ride-sharing", "builds/uber"],
-        34: ["building-blocks/geospatial"],
+        34: ["building-blocks/geospatial", "case-studies/ride-sharing"],
         35: ["case-studies/distributed-cache"],
-        36: ["building-blocks/message-queues"],
-        37: ["building-blocks/object-storage"],
+        36: ["case-studies/distributed-log", "building-blocks/message-queues"],
+        37: ["case-studies/file-sync", "building-blocks/object-storage"],
         38: ["case-studies/autocomplete"],
         39: ["case-studies/payment-system", "builds/stripe"],
         40: ["case-studies/ticket-booking"],
         41: ["case-studies/job-scheduler"],
-        42: ["case-studies/ad-click-aggregator"],
+        42: ["case-studies/metrics-monitoring", "lld/alerting-system"],
     },
     "lld": {
         1: ["lld/solid"],
-        2: ["lld/oop-refresher", "lld/lld-interview-method"],
+        2: ["lld/uml-class-diagrams"],
         3: ["lld/design-patterns#factory-one-place-that-knows-how-to-build-things", "lld/design-patterns#builder-construction-with-many-options"],
-        4: ["lld/design-patterns#decorator-wrap-to-add-behaviour", "lld/design-patterns#adapter-command-repository-the-quick-three"],
+        4: ["lld/design-patterns#decorator-wrap-to-add-behaviour", "lld/design-patterns#facade-one-simple-door-into-a-complicated-subsystem"],
         5: ["lld/design-patterns#strategy-the-one-youll-use-most", "lld/design-patterns#observer-announce-it-dont-call-everyone"],
-        6: ["lld/solid"],
+        6: ["lld/code-smells"],
         7: ["lld/lld-interview-method", "lld/three-day-plan"],
         8: ["lld/parking-lot"],
-        9: ["lld/design-patterns#state-when-behaviour-depends-on-what-happened-before", "lld/elevator-system"],
+        9: ["lld/vending-machine"],
         10: ["lld/elevator-system"],
-        11: ["lld/oop-refresher"],
-        12: ["lld/oop-refresher"],
+        11: ["lld/library-management"],
+        12: ["lld/chess"],
         13: ["lld/splitwise"],
         14: ["hld-bridge/seat-booking", "lld/concurrency-in-lld"],
-        15: ["lld/design-patterns#state-when-behaviour-depends-on-what-happened-before"],
+        15: ["lld/atm"],
         16: ["lld/lru-cache", "lld/concurrency-in-lld"],
-        17: ["lld/design-patterns"],
-        18: ["lld/oop-refresher"],
-        19: ["lld/design-patterns#observer-announce-it-dont-call-everyone"],
+        17: ["lld/logging-framework"],
+        18: ["lld/snake-and-ladder"],
+        19: ["lld/alerting-system"],
     },
     "mile": {
         5: ["case-studies/url-shortener", "appendix/annotated-mock"],
@@ -132,6 +136,12 @@ def as_date(v):
     if isinstance(v, dt.date):
         return v.isoformat()
     return ""
+
+
+def practice_link(link):
+    """Only LeetCode leaves the app; every other link's reading is in Atlas."""
+    link = (link or "").strip()
+    return link if link.startswith("https://leetcode.com/") else ""
 
 
 def reads_for(track, num):
@@ -193,7 +203,7 @@ def main(src):
                 "difficulty": diff,
                 "minutes": minutes,
                 "hint": hint,
-                "link": (link or "").strip(),
+                "link": practice_link(link),
                 "read": reads_for(track, num),
             }
             seed = seed_of(status, done, rev, tm, track, num)
@@ -216,7 +226,7 @@ def main(src):
             "difficulty": "",
             "minutes": MILESTONES[num],
             "hint": (notes or "").strip(),
-            "link": (link or "").strip(),
+            "link": practice_link(link),
             "read": reads_for("mile", num),
         }
         seed = seed_of(status, done, rev, tm, "mile", num)

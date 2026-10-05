@@ -55,6 +55,39 @@ The performance consequence in InnoDB-style engines:
 
 Two tree traversals, not one. This makes **covering indexes** (below) valuable, and it explains why a random UUID primary key hurts in InnoDB: rows are physically stored in PK order, so random keys cause page splits and fragmentation on every insert. Sequential-ish keys (auto-increment, [Snowflake IDs](unique-id-generation.html), UUIDv7) keep inserts appending to the end. That detail is a great one to raise when a design uses UUIDs.
 
+## Dense vs sparse
+
+A second way to classify indexes, by **how many rows get an entry**.
+
+**Dense index** — one entry for *every* row (or every distinct key). Any lookup goes straight to its row. Every secondary index is dense: the rows aren't stored in that column's order, so there's no way to skip any.
+
+**Sparse index** — one entry per *block* of rows, not per row. It only works when the rows are stored sorted by the indexed key, because then a block's first key tells you the range it covers.
+
+```diagram
+   Data stored sorted by key, in blocks:
+     block 1: 3, 5, 8, 12      block 2: 15, 19, 22, 30      block 3: 34, 41, 47, 52
+
+   DENSE index (every key)          SPARSE index (first key of each block)
+     3 → b1   15 → b2   34 → b3       3 → block 1
+     5 → b1   19 → b2   41 → b3      15 → block 2
+     8 → b1   22 → b2   47 → b3      34 → block 3
+    12 → b1   30 → b2   52 → b3
+
+   Find 22 with the sparse index: the largest entry ≤ 22 is 15,
+   so read block 2 and scan it.
+```
+
+| | Dense | Sparse |
+|---|---|---|
+| Size | One entry per row — large | One entry per block — tiny, often fits in memory |
+| Lookup | Direct | Find the block, then scan within it |
+| Needs sorted data? | No | Yes — sorted by the index key |
+| Where you see it | Secondary indexes | The clustered order of a table; the index blocks of a B+ tree; SSTables in [LSM-tree engines](../04-data/storage-engines.html); Kafka's segment index |
+
+Most real structures **mix the two**: a B+ tree's upper levels are sparse (one entry per child page), and its bottom level is dense. An LSM engine keeps a small sparse index per file in memory and reads one block from disk per lookup — that's how it holds billions of keys with a modest amount of RAM.
+
+**The point to make in an interview:** *"Sparse indexes trade a short scan for a much smaller index, and they only work on sorted data. That's why storage engines keep data sorted — the sparse index fits in memory."*
+
 ## Composite indexes and the leftmost rule
 
 An index on `(a, b, c)` sorts by `a`, then `b` within equal `a`, then `c`. This has a sharp consequence:
