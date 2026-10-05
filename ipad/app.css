@@ -1133,7 +1133,7 @@ kbd {
 #atlas-toast.show { transform: translate(-50%, 0); opacity: 1; }
 #atlas-toast.show button { pointer-events: auto; }
 /* Above the Highlighter / Scribble dock instead of on top of it. */
-:root:has(#atlas-dock:not([hidden])) #atlas-toast { bottom: calc(var(--safe-b) + 84px); }
+:root:has(#atlas-dock:not([hidden])) #atlas-toast { bottom: calc(var(--safe-b) + 76px); }
 #atlas-toast:not(:has(button)) { padding-right: 18px; }
 #atlas-toast button {
   min-height: 34px;
@@ -1483,32 +1483,46 @@ kbd {
   bottom: calc(14px + var(--safe-b));
   display: flex;
   align-items: center;
-  gap: 6px;
-  padding: 6px;
+  gap: 4px;
+  padding: 4px;
   border: 1px solid var(--border);
   border-radius: 999px;
   background: color-mix(in srgb, var(--panel) 96%, transparent);
   box-shadow: var(--shadow-lg);
   font-family: var(--font-sans);
 }
-.dock-colors { display: flex; align-items: center; gap: 6px; padding: 0 4px 0 6px; animation: plus-in 0.18s var(--ease); }
+.dock-colors { display: flex; align-items: center; gap: 5px; padding: 0 8px 0 4px; margin-right: 2px; border-right: 1px solid var(--border); animation: plus-in 0.18s var(--ease); }
 .dock-colors .swatch { width: 26px; height: 26px; }
-.dock-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
-  min-height: 44px;
-  padding: 0 16px 0 13px;
+.dock-erase {
+  display: inline-grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  margin-left: 3px;
+  padding: 0;
   border: 0;
-  border-radius: 999px;
+  border-radius: 50%;
+  background: var(--bg-inset);
+  color: var(--text-soft);
+  cursor: pointer;
+}
+.dock-erase[aria-pressed='true'] { background: var(--text); color: var(--bg); }
+.dock-btn {
+  display: inline-grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
   background: transparent;
-  color: var(--text);
-  font: 650 14px var(--font-sans);
+  color: var(--text-soft);
   cursor: pointer;
   transition: background 0.15s, color 0.15s;
 }
-.dock-btn:active { transform: scale(0.97); }
+.dock-btn:active, .dock-erase:active { transform: scale(0.94); }
 .dock-hl[aria-pressed='true'] { background: color-mix(in srgb, var(--swatch) 45%, var(--panel)); color: var(--text); box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--swatch) 80%, transparent); }
+.hl-erasing .dock-hl[aria-pressed='true'] { background: var(--bg-inset); box-shadow: inset 0 0 0 1.5px var(--border-strong); }
 .dock-sc[aria-pressed='true'] { background: var(--accent); color: #fff; }
 :root.dark .dock-sc[aria-pressed='true'] { color: #04121c; }
 

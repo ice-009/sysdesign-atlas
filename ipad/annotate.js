@@ -81,6 +81,7 @@
     /* defaults */
   }
   let eraser = false; // session only: an eraser left on by accident shouldn't greet you tomorrow
+  let hlErase = false; // the highlighter's eraser, also session only
   const saveTool = () => {
     try {
       localStorage.setItem(TOOL_KEY, JSON.stringify(tool));
@@ -520,10 +521,11 @@
     paintTop();
   }
 
-  function paintHighlights() {
+  function paintHighlights(hide = null) {
     if (!T || !HAS_HIGHLIGHTS) return;
     const by = { yellow: [], green: [], blue: [], pink: [] };
     for (const h of live('highlight')) {
+      if (hide && hide.has(h.id)) continue;
       const span = T.res.get(h.id);
       if (span) (by[h.data.c] || by.yellow).push(rangeOf(span[0], span[1]));
     }
@@ -1213,7 +1215,24 @@
 
   function startHighlight(e, at) {
     root.style.setProperty('--hl-preview', `var(--hl-${tool.hlColor})`);
-    gesture = { type: 'hl', id: e.pointerId, start: at, end: at, x: e.clientX, y: e.clientY, moved: false };
+    gesture = { type: 'hl', id: e.pointerId, start: at, end: at, x: e.clientX, y: e.clientY, moved: false, erase: hlErase };
+    if (hlErase) previewErase(gesture);
+  }
+
+  // What a highlighter-eraser stroke takes away: everything it crossed, or
+  // for a tap, the highlight under the Pencil.
+  function erasedBy(g) {
+    if (!g.moved) return highlightsAt(g.start).slice(0, 1);
+    const s = Math.min(g.start, g.end);
+    const e = Math.max(g.start, g.end) + 1;
+    return live('highlight').filter((h) => {
+      const span = T.res.get(h.id);
+      return span && span[0] < e && span[1] > s;
+    });
+  }
+
+  function previewErase(g) {
+    paintHighlights(new Set(erasedBy(g).map((h) => h.id)));
   }
 
   function moveHighlight(e) {
@@ -1221,6 +1240,7 @@
     if (Math.hypot(e.clientX - g.x, e.clientY - g.y) > 6) g.moved = true;
     const at = caretAt(e.clientX, e.clientY);
     if (at >= 0) g.end = at;
+    if (g.erase) return previewErase(g);
     if (!HAS_HIGHLIGHTS || !g.moved) return;
     const [s, en] = snap(index().text, g.start, g.end);
     if (en > s) CSS.highlights.set('atlas-hl-preview', new Highlight(rangeOf(s, en)));
@@ -1228,6 +1248,13 @@
 
   async function endHighlight(g, cancelled) {
     if (HAS_HIGHLIGHTS) CSS.highlights.delete('atlas-hl-preview');
+    if (g.erase) {
+      const gone = !cancelled && T ? erasedBy(g) : [];
+      if (!gone.length) return paintHighlights();
+      await commit(gone.map((h) => deleted(h)), gone);
+      Atlas.toast(gone.length === 1 ? 'Highlight removed.' : `${gone.length} highlights removed.`, { action: 'Undo', onAction: undo });
+      return;
+    }
     if (cancelled || !T) return;
     if (!g.moved) {
       const hits = highlightsAt(g.start);
@@ -1592,7 +1619,7 @@
         <button type="button" data-menu="note">${icon('note', 16)} ${h.data.n ? 'Edit note' : 'Note'}</button>
         <button type="button" data-menu="scribble">${svgIcon('plus', 16)} Scribble below</button>
         <button type="button" data-menu="copy">Copy</button>
-        <button type="button" data-menu="delete" class="danger">Delete</button></div>
+        <button type="button" data-menu="delete" class="danger">${svgIcon('trash', 16)} Remove</button></div>
       ${h.data.n ? `<div class="menu-text">${esc(h.data.n)}</div>` : ''}`;
     m.addEventListener('click', async (e) => {
       const b = e.target.closest('[data-menu]');
@@ -1618,7 +1645,7 @@
       } else if (act === 'delete') {
         await commit([deleted(cur)], [cur]);
         closeMenus();
-        Atlas.toast('Highlight deleted.', { action: 'Undo', onAction: undo });
+        Atlas.toast('Highlight removed.', { action: 'Undo', onAction: undo });
       } else if (act === 'note') {
         openNoteEditor(cur, rect);
       } else if (act === 'scribble') {
@@ -1835,20 +1862,32 @@
   function syncDock() {
     dock.hidden = !T;
     if (!T) return;
-    dock.className = `${tool.hl ? 'hl-on' : ''} ${insertMode ? 'inserting' : ''}`.trim();
+    dock.className = `${tool.hl ? 'hl-on' : ''} ${tool.hl && hlErase ? 'hl-erasing' : ''} ${insertMode ? 'inserting' : ''}`.replace(/\s+/g, ' ').trim();
     dock.innerHTML = `
-      ${tool.hl ? `<div class="dock-colors" role="group" aria-label="Highlighter colour">${HL.map((c) => `<button type="button" class="swatch hl-${c}${tool.hlColor === c ? ' on' : ''}" data-dock="color" data-v="${c}" aria-label="${c}"></button>`).join('')}</div>` : ''}
-      <button type="button" class="dock-btn dock-hl hl-${esc(tool.hlColor)}" data-dock="hl" aria-pressed="${tool.hl}">
-        ${svgIcon('highlighter', 20)}<span>${tool.hl ? 'Highlighter on' : 'Highlighter'}</span></button>
-      <button type="button" class="dock-btn dock-sc" data-dock="scribble" aria-pressed="${insertMode}">
-        ${svgIcon(insertMode ? 'x' : 'scribble', 20)}<span>${insertMode ? 'Done' : 'Scribble'}</span></button>`;
+      ${
+        tool.hl
+          ? `<div class="dock-colors" role="group" aria-label="Highlighter colour">${HL.map((c) => `<button type="button" class="swatch hl-${c}${!hlErase && tool.hlColor === c ? ' on' : ''}" data-dock="color" data-v="${c}" aria-label="${c} highlighter"></button>`).join('')}
+          <button type="button" class="dock-erase" data-dock="unhl" aria-pressed="${hlErase}" aria-label="Remove highlights" title="Remove highlights">${svgIcon('eraser', 17)}</button></div>`
+          : ''
+      }
+      <button type="button" class="dock-btn dock-hl hl-${esc(tool.hlColor)}" data-dock="hl" aria-pressed="${tool.hl}" aria-label="Highlighter" title="Highlighter (H)">${svgIcon('highlighter', 21)}</button>
+      <button type="button" class="dock-btn dock-sc" data-dock="scribble" aria-pressed="${insertMode}" aria-label="${insertMode ? 'Done adding scribble boxes' : 'Add a scribble box'}" title="Scribble (S)">${svgIcon(insertMode ? 'x' : 'scribble', 21)}</button>`;
   }
 
   function setHighlighter(on) {
     tool.hl = !!on;
+    if (!tool.hl) hlErase = false;
     saveTool();
     syncDock();
-    if (tool.hl) Atlas.toast('Highlighter on — swipe the Pencil over text.', { ms: 1800 });
+    if (tool.hl) Atlas.toast('Highlighter on — swipe the Pencil over text. Tap a highlight to change or remove it.', { ms: 2600 });
+  }
+
+  function setHighlightEraser(on) {
+    hlErase = !!on;
+    if (hlErase && !tool.hl) tool.hl = true;
+    saveTool();
+    syncDock();
+    if (hlErase) Atlas.toast('Swipe or tap the Pencil over a highlight to remove it.', { ms: 2200 });
   }
 
   dock.addEventListener('click', (e) => {
@@ -1856,8 +1895,10 @@
     if (!b) return;
     if (b.dataset.dock === 'hl') setHighlighter(!tool.hl);
     else if (b.dataset.dock === 'scribble') setInsertMode(!insertMode);
+    else if (b.dataset.dock === 'unhl') setHighlightEraser(!hlErase);
     else if (b.dataset.dock === 'color') {
       tool.hlColor = b.dataset.v;
+      hlErase = false;
       saveTool();
       syncDock();
     }
@@ -1874,7 +1915,7 @@
     if (e.metaKey || e.ctrlKey || e.altKey) return;
     if (e.key === 'h') setHighlighter(!tool.hl);
     else if (e.key === 's') setInsertMode(!insertMode);
-    else if (e.key === 'e') toggleEraser();
+    else if (e.key === 'e') tool.hl ? setHighlightEraser(!hlErase) : toggleEraser();
     else if (e.key === 'Escape') {
       if (insertMode) setInsertMode(false);
       pendingPlace = null;
@@ -1928,8 +1969,8 @@
     const toggle = (key, on) => `<button type="button" class="btn small" data-pencil="${key}" aria-pressed="${on}">${on ? 'On' : 'Off'}</button>`;
     slot.innerHTML = `<section class="block"><h2>Pencil</h2>
       <div class="list">
-        <div class="set-row"><div><b>Highlighter</b><small>Turn it on with the button at the bottom right of a topic, then swipe the Pencil over text. Your finger always scrolls; select text with a finger to highlight it any time.</small></div></div>
-        <div class="set-row"><div><b>Scribble boxes</b><small>Tap Scribble, then a ＋ after any paragraph. The Pencil writes inside the box; fingers scroll past it. Two-finger tap inside a box switches the eraser.</small></div></div>
+        <div class="set-row"><div><b>Highlighter</b><small>Turn it on with the highlighter icon at the bottom right of a topic, then swipe the Pencil over text. To remove one, pick the eraser next to the colours and swipe over it, or tap the highlight and choose Remove. Your finger always scrolls; select text with a finger to highlight it any time.</small></div></div>
+        <div class="set-row"><div><b>Scribble boxes</b><small>Tap the scribble icon, then a ＋ after any paragraph. The Pencil writes inside the box; fingers scroll past it. Two-finger tap inside a box switches the eraser.</small></div></div>
         <div class="set-row"><div><b>Draw with a finger in boxes</b><small>For when the Pencil isn’t with you. Fingers then draw instead of scrolling while inside a box.</small></div>${toggle('finger', tool.finger)}</div>
         <div class="set-row"><div><b>Start boxes collapsed</b><small>Keeps topics clean for reading; tap a box to open it.</small></div>${toggle('collapsed', tool.collapsed)}</div>
         <div class="set-row stack"><div><b>Paper for new boxes</b></div><div class="seg full">${PAPERS.map((p) => `<button type="button" data-pencil="paper" data-v="${p}" class="${tool.paper === p ? 'on' : ''}">${p[0].toUpperCase() + p.slice(1)}</button>`).join('')}</div></div>
@@ -2137,8 +2178,9 @@
 
   window.AtlasInk = {
     // for diagnostics and tests
-    state: () => ({ gesture: gesture ? gesture.type : null, hl: tool.hl, eraser, insertMode, pendingPlace, topic: T ? T.slug : null }),
+    state: () => ({ gesture: gesture ? gesture.type : null, hl: tool.hl, hlErase, eraser, insertMode, pendingPlace, topic: T ? T.slug : null }),
     setHighlighter,
+    setHighlightEraser,
     setInsertMode,
   };
 

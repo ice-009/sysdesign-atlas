@@ -1183,7 +1183,7 @@
           <span><kbd>\\</kbd></span><span>Show / hide the sidebar</span>
           <span><kbd>H</kbd></span><span>Highlighter on / off</span>
           <span><kbd>S</kbd></span><span>Add a scribble box</span>
-          <span><kbd>E</kbd></span><span>Eraser in scribble boxes (or a two-finger tap)</span>
+          <span><kbd>E</kbd></span><span>Eraser — removes highlights while the highlighter is on, strokes in scribble boxes otherwise (or a two-finger tap in a box)</span>
           <span><kbd>⌘</kbd> <kbd>Z</kbd> / <kbd>⇧</kbd> <kbd>⌘</kbd> <kbd>Z</kbd></span><span>Undo / redo</span>
           <span><kbd>Esc</kbd></span><span>Close panels</span>
         </div></div>

@@ -36,9 +36,11 @@ for *Available offline* in the sidebar. After that it runs fully offline — rea
 bookmarks and notes are all on-device. Content updates download in the background next time it's
 online.
 
-**Highlighter and scribble boxes.** On any topic, the dock at the bottom right has *Highlighter*
-(swipe the Pencil over text to highlight it; swipes that miss the text do nothing) and *Scribble*
-(＋ markers appear between paragraphs; tap one to drop a Notes-like writing box there). The app
+**Highlighter and scribble boxes.** On any topic, the dock at the bottom right has two icons: the
+highlighter (swipe the Pencil over text to highlight it; swipes that miss the text do nothing) and
+scribble (＋ markers appear between paragraphs; tap one to drop a Notes-like writing box there).
+With the highlighter on, the eraser beside its colours removes any highlight the Pencil swipes or
+taps; tapping a highlight also opens a menu with colours, a note, and *Remove*. The app
 only takes over a touch when the Pencil lands in a box or on text with the highlighter on — fingers
 always scroll. Highlights are anchored to the words and re-found after topic edits; boxes follow
 their paragraph and store strokes relative to their own width, so they never distort. Every stroke
