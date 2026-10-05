@@ -39,6 +39,8 @@ export const SYNC_KINDS = [
   'time', //   one device's reading seconds for one day (topic = YYYY-MM-DD)
   'review', // review schedule for a topic
   'goal', //   the reader's track goal (topic = "main")
+  // HLD + LLD plan (lib/prep.ts)
+  'prep', //   one plan item's status (topic = item id), or the plan settings (topic = "settings")
 ] as const;
 const KINDS = new Set<string>(SYNC_KINDS);
 const CLOCK = /^[0-9a-z]{9}-[0-9a-z]{4}-[\w-]{1,40}$/;
@@ -275,6 +277,19 @@ async function backfillRows(tx: Tx, userId: string) {
   return rows.filter((r) => SLUG.test(r.topic));
 }
 
+/* The first write for a user — from a device, or a plan tick on the website —
+   starts their sync log from what the website tables already hold. */
+async function ensureSyncState(tx: Tx, userId: string) {
+  if (await tx.syncState.findUnique({ where: { userId } })) return;
+  await tx.syncState.create({ data: { userId } });
+  const rows = await backfillRows(tx, userId);
+  if (rows.length) {
+    const s = await tx.syncState.update({ where: { userId }, data: { seq: { increment: rows.length } } });
+    let seq = s.seq - BigInt(rows.length);
+    await tx.syncRecord.createMany({ data: rows.map((r) => ({ ...r, userId, seq: ++seq })) });
+  }
+}
+
 /* ---------- the sync transaction ---------- */
 
 export async function runSync(userId: string, cursor: bigint, incoming: Change[]) {
@@ -288,15 +303,7 @@ export async function runSync(userId: string, cursor: bigint, incoming: Change[]
 
   return prisma.$transaction(
     async (tx) => {
-      if (!(await tx.syncState.findUnique({ where: { userId } }))) {
-        await tx.syncState.create({ data: { userId } });
-        const rows = await backfillRows(tx, userId);
-        if (rows.length) {
-          const s = await tx.syncState.update({ where: { userId }, data: { seq: { increment: rows.length } } });
-          let seq = s.seq - BigInt(rows.length);
-          await tx.syncRecord.createMany({ data: rows.map((r) => ({ ...r, userId, seq: ++seq })) });
-        }
-      }
+      await ensureSyncState(tx, userId);
 
       // UPDATE … RETURNING: reserves a block of sequence numbers and holds the
       // row lock until commit, so no other write for this user interleaves.
@@ -394,4 +401,35 @@ export async function logWebChange(
   } catch (err) {
     console.error('[ipad-sync] could not log website change', err);
   }
+}
+
+/* ---------- the HLD + LLD plan from the website ----------
+   Plan state has no website table: the sync log is where it lives, so a tick
+   on the dashboard is written straight into it (and reaches the devices on
+   their next sync). */
+
+export async function readPlanState(userId: string) {
+  const rows = await prisma.syncRecord.findMany({ where: { userId, kind: 'prep' } });
+  const states: Record<string, unknown> = {};
+  let settings: unknown = null;
+  for (const r of rows) {
+    if (r.deleted) continue;
+    if (r.topic === 'settings') settings = r.data;
+    else states[r.topic] = r.data;
+  }
+  return { states, settings };
+}
+
+export async function writePlanState(userId: string, topic: string, data: Prisma.InputJsonValue) {
+  await prisma.$transaction(async (tx) => {
+    await ensureSyncState(tx, userId);
+    const { seq } = await tx.syncState.update({ where: { userId }, data: { seq: { increment: 1 } } });
+    const id = `prep:${topic}`;
+    const clock = serverClock();
+    await tx.syncRecord.upsert({
+      where: { userId_id: { userId, id } },
+      create: { userId, id, kind: 'prep', topic, data, clock, deleted: false, seq },
+      update: { kind: 'prep', data, clock, deleted: false, seq },
+    });
+  });
 }

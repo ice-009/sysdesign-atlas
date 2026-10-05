@@ -51,14 +51,25 @@ is written to IndexedDB on pen-up.
 schedule driven by your Shaky / Okay / Solid ratings, and a track goal with a daily pace. Home shows
 the highlights of it; the Progress page shows the rest.
 
+**Plan.** The HLD and LLD tabs of the switch-prep tracker workbook (plus its HLD mocks), laid out
+day by day: Home shows today's list, the Plan page shows what spilled over and when it gets caught
+up (auto: the shortest of 3 days / 1 week / 2 weeks that keeps days under 2½ hours, else a re-plan to
+the last day), the next six days, the sheet's nine weeks, and a revisit / stuck / partial check.
+Each item opens a sheet with status, revisit, a timer, notes, moving it to another day, and the Atlas
+topics that teach it; CSV export puts your progress back in the tracker's columns. The website
+dashboard shows the same plan and can tick items off. The plan is `lib/prep-plan.json`, made by
+`python3 scripts/prep/import-tracker.py <workbook.xlsx>` (re-run it when the sheet changes); the
+scheduler is `lib/prep.ts`, which the iPad build transpiles so both sides schedule identically.
+
 **Sync.** Settings → Sync & backup signs the iPad in with a normal Atlas account. Marks, progress,
-bookmarks, notes and tracking upload whenever the app is open and online; the website shows the same
+bookmarks, notes, tracking and the plan upload whenever the app is open and online; the website shows the same
 progress, and iPad reading time feeds the website's activity heatmap. The server side is `lib/ipad-sync.ts` with `/api/ipad/session` and `/api/ipad/sync`;
 signed-in iPads are listed (and revocable) on `/account`. The sync tables (`DeviceToken`,
 `SyncRecord`, `SyncState`) need `npx prisma db push` once per database.
 
-Sources: `ipad/` (shell, styles, `app.js`, `store.js`, `track.js`, `sync.js`, `annotate.js`, service
-worker, icons) and `scripts/ipad/build.mjs`.
+Sources: `ipad/` (shell, styles, `app.js`, `store.js`, `track.js`, `plan.js`, `sync.js`,
+`annotate.js`, service worker, icons), `lib/prep.ts` + `lib/prep-plan.json`, and
+`scripts/ipad/build.mjs`.
 
 ## Deployment
 

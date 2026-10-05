@@ -1,0 +1,1381 @@
+{
+ "source": "switch_prep_tracker (1).xlsx",
+ "start": "2026-09-20",
+ "end": "2026-11-21",
+ "weeks": [
+  {
+   "n": 1,
+   "from": "2026-09-20",
+   "to": "2026-09-26"
+  },
+  {
+   "n": 2,
+   "from": "2026-09-27",
+   "to": "2026-10-03"
+  },
+  {
+   "n": 3,
+   "from": "2026-10-04",
+   "to": "2026-10-10"
+  },
+  {
+   "n": 4,
+   "from": "2026-10-11",
+   "to": "2026-10-17"
+  },
+  {
+   "n": 5,
+   "from": "2026-10-18",
+   "to": "2026-10-24"
+  },
+  {
+   "n": 6,
+   "from": "2026-10-25",
+   "to": "2026-10-31"
+  },
+  {
+   "n": 7,
+   "from": "2026-11-01",
+   "to": "2026-11-07"
+  },
+  {
+   "n": 8,
+   "from": "2026-11-08",
+   "to": "2026-11-14"
+  },
+  {
+   "n": 9,
+   "from": "2026-11-15",
+   "to": "2026-11-21"
+  }
+ ],
+ "items": [
+  {
+   "id": "hld-1",
+   "track": "hld",
+   "num": 1,
+   "week": 1,
+   "topic": "Interview Method",
+   "title": "How to run a system design interview",
+   "type": "Learn",
+   "difficulty": "",
+   "minutes": 40,
+   "hint": "",
+   "link": "https://karanpratapsingh.com/courses/system-design/system-design-interviews",
+   "read": [
+    {
+     "sec": "appendix",
+     "slug": "framework"
+    },
+    {
+     "sec": "appendix",
+     "slug": "what-interviewers-score"
+    }
+   ],
+   "seed": {
+    "s": "done",
+    "at": "2026-09-24"
+   }
+  },
+  {
+   "id": "hld-2",
+   "track": "hld",
+   "num": 2,
+   "week": 1,
+   "topic": "Fundamentals",
+   "title": "Scalability: vertical vs horizontal",
+   "type": "Learn",
+   "difficulty": "",
+   "minutes": 40,
+   "hint": "",
+   "link": "https://karanpratapsingh.com/courses/system-design/scalability",
+   "read": [
+    {
+     "sec": "fundamentals",
+     "slug": "scalability-basics"
+    }
+   ],
+   "seed": {
+    "s": "done",
+    "at": "2026-09-24"
+   }
+  },
+  {
+   "id": "hld-3",
+   "track": "hld",
+   "num": 3,
+   "week": 1,
+   "topic": "Fundamentals",
+   "title": "Load balancing: layers, algorithms, redundancy",
+   "type": "Learn",
+   "difficulty": "",
+   "minutes": 40,
+   "hint": "",
+   "link": "https://karanpratapsingh.com/courses/system-design/load-balancing",
+   "read": [
+    {
+     "sec": "building-blocks",
+     "slug": "load-balancing"
+    }
+   ]
+  },
+  {
+   "id": "hld-4",
+   "track": "hld",
+   "num": 4,
+   "week": 2,
+   "topic": "Caching",
+   "title": "Caching strategies, invalidation & eviction",
+   "type": "Learn",
+   "difficulty": "",
+   "minutes": 40,
+   "hint": "",
+   "link": "https://karanpratapsingh.com/courses/system-design/caching",
+   "read": [
+    {
+     "sec": "building-blocks",
+     "slug": "caching"
+    }
+   ]
+  },
+  {
+   "id": "hld-5",
+   "track": "hld",
+   "num": 5,
+   "week": 2,
+   "topic": "Caching",
+   "title": "CDNs: push vs pull",
+   "type": "Learn",
+   "difficulty": "",
+   "minutes": 40,
+   "hint": "",
+   "link": "https://karanpratapsingh.com/courses/system-design/content-delivery-network",
+   "read": [
+    {
+     "sec": "building-blocks",
+     "slug": "cdn"
+    }
+   ]
+  },
+  {
+   "id": "hld-6",
+   "track": "hld",
+   "num": 6,
+   "week": 2,
+   "topic": "Networking",
+   "title": "Proxies: forward vs reverse",
+   "type": "Learn",
+   "difficulty": "",
+   "minutes": 40,
+   "hint": "",
+   "link": "https://karanpratapsingh.com/courses/system-design/proxy",
+   "read": [
+    {
+     "sec": "building-blocks",
+     "slug": "load-balancing",
+     "anchor": "what-else-lives-here"
+    },
+    {
+     "sec": "building-blocks",
+     "slug": "api-gateway",
+     "anchor": "the-edge-tier"
+    }
+   ]
+  },
+  {
+   "id": "hld-7",
+   "track": "hld",
+   "num": 7,
+   "week": 3,
+   "topic": "Databases",
+   "title": "SQL vs NoSQL: how to choose",
+   "type": "Learn",
+   "difficulty": "",
+   "minutes": 40,
+   "hint": "",
+   "link": "https://karanpratapsingh.com/courses/system-design/sql-vs-nosql-databases",
+   "read": [
+    {
+     "sec": "building-blocks",
+     "slug": "sql-vs-nosql"
+    }
+   ]
+  },
+  {
+   "id": "hld-8",
+   "track": "hld",
+   "num": 8,
+   "week": 3,
+   "topic": "Databases",
+   "title": "Replication: master-slave & master-master",
+   "type": "Learn",
+   "difficulty": "",
+   "minutes": 40,
+   "hint": "",
+   "link": "https://karanpratapsingh.com/courses/system-design/database-replication",
+   "read": [
+    {
+     "sec": "building-blocks",
+     "slug": "replication"
+    }
+   ]
+  },
+  {
+   "id": "hld-9",
+   "track": "hld",
+   "num": 9,
+   "week": 3,
+   "topic": "Databases",
+   "title": "Indexes: dense vs sparse",
+   "type": "Learn",
+   "difficulty": "",
+   "minutes": 40,
+   "hint": "",
+   "link": "https://karanpratapsingh.com/courses/system-design/indexes",
+   "read": [
+    {
+     "sec": "building-blocks",
+     "slug": "indexing"
+    }
+   ]
+  },
+  {
+   "id": "hld-10",
+   "track": "hld",
+   "num": 10,
+   "week": 4,
+   "topic": "Scaling Data",
+   "title": "Sharding & partitioning strategies",
+   "type": "Learn",
+   "difficulty": "",
+   "minutes": 40,
+   "hint": "",
+   "link": "https://karanpratapsingh.com/courses/system-design/sharding",
+   "read": [
+    {
+     "sec": "building-blocks",
+     "slug": "sharding"
+    }
+   ]
+  },
+  {
+   "id": "hld-11",
+   "track": "hld",
+   "num": 11,
+   "week": 4,
+   "topic": "Scaling Data",
+   "title": "Consistent hashing & virtual nodes",
+   "type": "Learn",
+   "difficulty": "",
+   "minutes": 40,
+   "hint": "",
+   "link": "https://karanpratapsingh.com/courses/system-design/consistent-hashing",
+   "read": [
+    {
+     "sec": "building-blocks",
+     "slug": "consistent-hashing"
+    }
+   ]
+  },
+  {
+   "id": "hld-12",
+   "track": "hld",
+   "num": 12,
+   "week": 5,
+   "topic": "Consistency",
+   "title": "CAP theorem & the consistency-availability tradeoff",
+   "type": "Learn",
+   "difficulty": "",
+   "minutes": 40,
+   "hint": "",
+   "link": "https://karanpratapsingh.com/courses/system-design/cap-theorem",
+   "read": [
+    {
+     "sec": "fundamentals",
+     "slug": "cap-pacelc"
+    }
+   ]
+  },
+  {
+   "id": "hld-13",
+   "track": "hld",
+   "num": 13,
+   "week": 5,
+   "topic": "Consistency",
+   "title": "ACID vs BASE",
+   "type": "Learn",
+   "difficulty": "",
+   "minutes": 40,
+   "hint": "",
+   "link": "https://karanpratapsingh.com/courses/system-design/acid-and-base-consistency-models",
+   "read": [
+    {
+     "sec": "data",
+     "slug": "transactions-isolation",
+     "anchor": "acid-precisely"
+    },
+    {
+     "sec": "fundamentals",
+     "slug": "consistency-models"
+    }
+   ]
+  },
+  {
+   "id": "hld-14",
+   "track": "hld",
+   "num": 14,
+   "week": 6,
+   "topic": "Async",
+   "title": "Message brokers & event streaming",
+   "type": "Learn",
+   "difficulty": "",
+   "minutes": 40,
+   "hint": "",
+   "link": "https://karanpratapsingh.com/courses/system-design/message-brokers",
+   "read": [
+    {
+     "sec": "building-blocks",
+     "slug": "message-queues"
+    },
+    {
+     "sec": "data",
+     "slug": "stream-processing"
+    }
+   ]
+  },
+  {
+   "id": "hld-15",
+   "track": "hld",
+   "num": 15,
+   "week": 6,
+   "topic": "Async",
+   "title": "Publish-subscribe model",
+   "type": "Learn",
+   "difficulty": "",
+   "minutes": 40,
+   "hint": "",
+   "link": "https://karanpratapsingh.com/courses/system-design/publish-subscribe",
+   "read": [
+    {
+     "sec": "building-blocks",
+     "slug": "pub-sub"
+    }
+   ]
+  },
+  {
+   "id": "hld-16",
+   "track": "hld",
+   "num": 16,
+   "week": 7,
+   "topic": "Architecture",
+   "title": "Monoliths vs microservices",
+   "type": "Learn",
+   "difficulty": "",
+   "minutes": 40,
+   "hint": "",
+   "link": "https://karanpratapsingh.com/courses/system-design/monoliths-microservices",
+   "read": [
+    {
+     "sec": "building-blocks",
+     "slug": "api-gateway",
+     "anchor": "service-to-service-communication"
+    }
+   ]
+  },
+  {
+   "id": "hld-17",
+   "track": "hld",
+   "num": 17,
+   "week": 7,
+   "topic": "Architecture",
+   "title": "API gateway & BFF pattern",
+   "type": "Learn",
+   "difficulty": "",
+   "minutes": 40,
+   "hint": "",
+   "link": "https://karanpratapsingh.com/courses/system-design/api-gateway",
+   "read": [
+    {
+     "sec": "building-blocks",
+     "slug": "api-gateway",
+     "anchor": "backend-for-frontend-bff"
+    }
+   ]
+  },
+  {
+   "id": "hld-18",
+   "track": "hld",
+   "num": 18,
+   "week": 7,
+   "topic": "APIs",
+   "title": "REST vs GraphQL vs gRPC",
+   "type": "Learn",
+   "difficulty": "",
+   "minutes": 40,
+   "hint": "",
+   "link": "https://karanpratapsingh.com/courses/system-design/rest-graphql-grpc",
+   "read": [
+    {
+     "sec": "building-blocks",
+     "slug": "api-gateway",
+     "anchor": "rest-vs-grpc-vs-graphql"
+    }
+   ]
+  },
+  {
+   "id": "hld-19",
+   "track": "hld",
+   "num": 19,
+   "week": 8,
+   "topic": "Realtime",
+   "title": "Long polling, WebSockets & SSE",
+   "type": "Learn",
+   "difficulty": "",
+   "minutes": 40,
+   "hint": "",
+   "link": "https://karanpratapsingh.com/courses/system-design/long-polling-websockets-server-sent-events",
+   "read": [
+    {
+     "sec": "building-blocks",
+     "slug": "realtime"
+    }
+   ]
+  },
+  {
+   "id": "hld-20",
+   "track": "hld",
+   "num": 20,
+   "week": 8,
+   "topic": "Consistency",
+   "title": "Distributed transactions: 2PC, 3PC, sagas",
+   "type": "Learn",
+   "difficulty": "",
+   "minutes": 40,
+   "hint": "",
+   "link": "https://karanpratapsingh.com/courses/system-design/distributed-transactions",
+   "read": [
+    {
+     "sec": "distributed",
+     "slug": "distributed-transactions"
+    }
+   ]
+  },
+  {
+   "id": "hld-21",
+   "track": "hld",
+   "num": 21,
+   "week": 9,
+   "topic": "Resilience",
+   "title": "Circuit breaker & failure isolation",
+   "type": "Learn",
+   "difficulty": "",
+   "minutes": 40,
+   "hint": "",
+   "link": "https://karanpratapsingh.com/courses/system-design/circuit-breaker",
+   "read": [
+    {
+     "sec": "fundamentals",
+     "slug": "failure-modes"
+    },
+    {
+     "sec": "distributed",
+     "slug": "backpressure"
+    }
+   ]
+  },
+  {
+   "id": "hld-22",
+   "track": "hld",
+   "num": 22,
+   "week": 9,
+   "topic": "Resilience",
+   "title": "Availability, SLA / SLO / SLI",
+   "type": "Learn",
+   "difficulty": "",
+   "minutes": 40,
+   "hint": "",
+   "link": "https://karanpratapsingh.com/courses/system-design/sla-slo-sli",
+   "read": [
+    {
+     "sec": "fundamentals",
+     "slug": "availability-slas"
+    }
+   ]
+  },
+  {
+   "id": "hld-23",
+   "track": "hld",
+   "num": 23,
+   "week": 1,
+   "topic": "Fundamentals",
+   "title": "Design a URL Shortener (TinyURL)",
+   "type": "Design",
+   "difficulty": "Medium",
+   "minutes": 75,
+   "hint": "",
+   "link": "https://karanpratapsingh.com/courses/system-design/url-shortener",
+   "read": [
+    {
+     "sec": "case-studies",
+     "slug": "url-shortener"
+    }
+   ]
+  },
+  {
+   "id": "hld-24",
+   "track": "hld",
+   "num": 24,
+   "week": 1,
+   "topic": "Fundamentals",
+   "title": "Design Pastebin",
+   "type": "Design",
+   "difficulty": "Medium",
+   "minutes": 75,
+   "hint": "",
+   "link": "https://github.com/donnemartin/system-design-primer/blob/master/solutions/system_design/pastebin/README.md",
+   "read": [
+    {
+     "sec": "builds",
+     "slug": "pastebin"
+    }
+   ]
+  },
+  {
+   "id": "hld-25",
+   "track": "hld",
+   "num": 25,
+   "week": 2,
+   "topic": "Traffic Control",
+   "title": "Design a Distributed Rate Limiter",
+   "type": "Design",
+   "difficulty": "Medium",
+   "minutes": 75,
+   "hint": "",
+   "link": "https://karanpratapsingh.com/courses/system-design/rate-limiting",
+   "read": [
+    {
+     "sec": "case-studies",
+     "slug": "rate-limiter"
+    },
+    {
+     "sec": "building-blocks",
+     "slug": "rate-limiting"
+    }
+   ]
+  },
+  {
+   "id": "hld-26",
+   "track": "hld",
+   "num": 26,
+   "week": 2,
+   "topic": "Storage",
+   "title": "Design a Distributed Key-Value Store",
+   "type": "Design",
+   "difficulty": "Hard",
+   "minutes": 100,
+   "hint": "",
+   "link": "https://www.allthingsdistributed.com/files/amazon-dynamo-sosp2007.pdf",
+   "read": [
+    {
+     "sec": "case-studies",
+     "slug": "key-value-store"
+    }
+   ]
+  },
+  {
+   "id": "hld-27",
+   "track": "hld",
+   "num": 27,
+   "week": 3,
+   "topic": "Crawling & Indexing",
+   "title": "Design a Web Crawler",
+   "type": "Design",
+   "difficulty": "Medium",
+   "minutes": 75,
+   "hint": "",
+   "link": "https://www.hellointerview.com/learn/system-design/problem-breakdowns/web-crawler",
+   "read": [
+    {
+     "sec": "case-studies",
+     "slug": "web-crawler"
+    }
+   ]
+  },
+  {
+   "id": "hld-28",
+   "track": "hld",
+   "num": 28,
+   "week": 3,
+   "topic": "Feeds",
+   "title": "Design a News Feed (Twitter/X timeline)",
+   "type": "Design",
+   "difficulty": "Hard",
+   "minutes": 100,
+   "hint": "",
+   "link": "https://karanpratapsingh.com/courses/system-design/twitter",
+   "read": [
+    {
+     "sec": "case-studies",
+     "slug": "news-feed"
+    },
+    {
+     "sec": "builds",
+     "slug": "twitter"
+    }
+   ]
+  },
+  {
+   "id": "hld-29",
+   "track": "hld",
+   "num": 29,
+   "week": 4,
+   "topic": "Messaging",
+   "title": "Design a Chat System (WhatsApp)",
+   "type": "Design",
+   "difficulty": "Hard",
+   "minutes": 100,
+   "hint": "",
+   "link": "https://www.hellointerview.com/learn/system-design/problem-breakdowns/whatsapp",
+   "read": [
+    {
+     "sec": "case-studies",
+     "slug": "chat-system"
+    },
+    {
+     "sec": "builds",
+     "slug": "whatsapp"
+    }
+   ]
+  },
+  {
+   "id": "hld-30",
+   "track": "hld",
+   "num": 30,
+   "week": 4,
+   "topic": "Messaging",
+   "title": "Design a Notification / Push Service",
+   "type": "Design",
+   "difficulty": "Medium",
+   "minutes": 75,
+   "hint": "",
+   "link": "https://www.geeksforgeeks.org/system-design/design-notification-services-system-design/",
+   "read": [
+    {
+     "sec": "case-studies",
+     "slug": "notification-system"
+    }
+   ]
+  },
+  {
+   "id": "hld-31",
+   "track": "hld",
+   "num": 31,
+   "week": 5,
+   "topic": "Media",
+   "title": "Design YouTube (video upload & streaming)",
+   "type": "Design",
+   "difficulty": "Hard",
+   "minutes": 100,
+   "hint": "",
+   "link": "https://www.hellointerview.com/learn/system-design/problem-breakdowns/youtube",
+   "read": [
+    {
+     "sec": "case-studies",
+     "slug": "video-streaming"
+    },
+    {
+     "sec": "builds",
+     "slug": "netflix"
+    }
+   ]
+  },
+  {
+   "id": "hld-32",
+   "track": "hld",
+   "num": 32,
+   "week": 5,
+   "topic": "Media",
+   "title": "Design Instagram (photo sharing + feed)",
+   "type": "Design",
+   "difficulty": "Medium",
+   "minutes": 75,
+   "hint": "",
+   "link": "https://www.hellointerview.com/learn/system-design/problem-breakdowns/instagram",
+   "read": [
+    {
+     "sec": "builds",
+     "slug": "instagram"
+    }
+   ]
+  },
+  {
+   "id": "hld-33",
+   "track": "hld",
+   "num": 33,
+   "week": 6,
+   "topic": "Geo & Realtime",
+   "title": "Design Uber (ride matching & dispatch)",
+   "type": "Design",
+   "difficulty": "Hard",
+   "minutes": 100,
+   "hint": "",
+   "link": "https://www.hellointerview.com/learn/system-design/problem-breakdowns/uber",
+   "read": [
+    {
+     "sec": "case-studies",
+     "slug": "ride-sharing"
+    },
+    {
+     "sec": "builds",
+     "slug": "uber"
+    }
+   ]
+  },
+  {
+   "id": "hld-34",
+   "track": "hld",
+   "num": 34,
+   "week": 6,
+   "topic": "Geo & Realtime",
+   "title": "Design Google Maps / nearby search",
+   "type": "Design",
+   "difficulty": "Hard",
+   "minutes": 100,
+   "hint": "",
+   "link": "https://karanpratapsingh.com/courses/system-design/geohashing-and-quadtrees",
+   "read": [
+    {
+     "sec": "building-blocks",
+     "slug": "geospatial"
+    }
+   ]
+  },
+  {
+   "id": "hld-35",
+   "track": "hld",
+   "num": 35,
+   "week": 7,
+   "topic": "Infra Building Blocks",
+   "title": "Design a Distributed Cache (Redis-like)",
+   "type": "Design",
+   "difficulty": "Medium",
+   "minutes": 75,
+   "hint": "",
+   "link": "https://www.geeksforgeeks.org/system-design/design-distributed-cache-system-design/",
+   "read": [
+    {
+     "sec": "case-studies",
+     "slug": "distributed-cache"
+    }
+   ]
+  },
+  {
+   "id": "hld-36",
+   "track": "hld",
+   "num": 36,
+   "week": 7,
+   "topic": "Infra Building Blocks",
+   "title": "Design a Message Queue (Kafka-like)",
+   "type": "Design",
+   "difficulty": "Hard",
+   "minutes": 100,
+   "hint": "",
+   "link": "https://karanpratapsingh.com/courses/system-design/message-queues",
+   "read": [
+    {
+     "sec": "building-blocks",
+     "slug": "message-queues"
+    }
+   ]
+  },
+  {
+   "id": "hld-37",
+   "track": "hld",
+   "num": 37,
+   "week": 8,
+   "topic": "Storage & Search",
+   "title": "Design Dropbox / Google Drive",
+   "type": "Design",
+   "difficulty": "Hard",
+   "minutes": 100,
+   "hint": "",
+   "link": "https://www.hellointerview.com/learn/system-design/problem-breakdowns/dropbox",
+   "read": [
+    {
+     "sec": "building-blocks",
+     "slug": "object-storage"
+    }
+   ]
+  },
+  {
+   "id": "hld-38",
+   "track": "hld",
+   "num": 38,
+   "week": 8,
+   "topic": "Storage & Search",
+   "title": "Design Search Autocomplete (typeahead)",
+   "type": "Design",
+   "difficulty": "Medium",
+   "minutes": 75,
+   "hint": "",
+   "link": "https://www.geeksforgeeks.org/system-design/googles-search-autocomplete-high-level-designhld/",
+   "read": [
+    {
+     "sec": "case-studies",
+     "slug": "autocomplete"
+    }
+   ]
+  },
+  {
+   "id": "hld-39",
+   "track": "hld",
+   "num": 39,
+   "week": 9,
+   "topic": "Transactions & Scale",
+   "title": "Design a Payment System (idempotency & ledgers)",
+   "type": "Design",
+   "difficulty": "Hard",
+   "minutes": 100,
+   "hint": "",
+   "link": "https://www.geeksforgeeks.org/system-design/designing-upi-system-design/",
+   "read": [
+    {
+     "sec": "case-studies",
+     "slug": "payment-system"
+    },
+    {
+     "sec": "builds",
+     "slug": "stripe"
+    }
+   ]
+  },
+  {
+   "id": "hld-40",
+   "track": "hld",
+   "num": 40,
+   "week": 9,
+   "topic": "Transactions & Scale",
+   "title": "Design Ticketmaster (inventory & booking locks)",
+   "type": "Design",
+   "difficulty": "Hard",
+   "minutes": 100,
+   "hint": "",
+   "link": "https://www.hellointerview.com/learn/system-design/problem-breakdowns/ticketmaster",
+   "read": [
+    {
+     "sec": "case-studies",
+     "slug": "ticket-booking"
+    }
+   ]
+  },
+  {
+   "id": "hld-41",
+   "track": "hld",
+   "num": 41,
+   "week": 9,
+   "topic": "Transactions & Scale",
+   "title": "Design a Distributed Job Scheduler",
+   "type": "Design",
+   "difficulty": "Medium",
+   "minutes": 75,
+   "hint": "",
+   "link": "https://www.geeksforgeeks.org/system-design/design-distributed-job-scheduler-system-design/",
+   "read": [
+    {
+     "sec": "case-studies",
+     "slug": "job-scheduler"
+    }
+   ]
+  },
+  {
+   "id": "hld-42",
+   "track": "hld",
+   "num": 42,
+   "week": 9,
+   "topic": "Transactions & Scale",
+   "title": "Design a Metrics & Monitoring System",
+   "type": "Design",
+   "difficulty": "Medium",
+   "minutes": 75,
+   "hint": "",
+   "link": "https://www.geeksforgeeks.org/system-design/distributed-systems-monitoring/",
+   "read": [
+    {
+     "sec": "case-studies",
+     "slug": "ad-click-aggregator"
+    }
+   ]
+  },
+  {
+   "id": "lld-1",
+   "track": "lld",
+   "num": 1,
+   "week": 1,
+   "topic": "Principles",
+   "title": "SOLID principles with real examples",
+   "type": "Learn",
+   "difficulty": "",
+   "minutes": 40,
+   "hint": "",
+   "link": "https://www.geeksforgeeks.org/system-design/solid-principle-in-programming-understand-with-real-life-examples/",
+   "read": [
+    {
+     "sec": "lld",
+     "slug": "solid"
+    }
+   ]
+  },
+  {
+   "id": "lld-2",
+   "track": "lld",
+   "num": 2,
+   "week": 1,
+   "topic": "Modelling",
+   "title": "UML class diagrams",
+   "type": "Learn",
+   "difficulty": "",
+   "minutes": 40,
+   "hint": "",
+   "link": "https://www.geeksforgeeks.org/system-design/unified-modeling-language-uml-class-diagrams/",
+   "read": [
+    {
+     "sec": "lld",
+     "slug": "oop-refresher"
+    },
+    {
+     "sec": "lld",
+     "slug": "lld-interview-method"
+    }
+   ]
+  },
+  {
+   "id": "lld-3",
+   "track": "lld",
+   "num": 3,
+   "week": 2,
+   "topic": "Design Patterns",
+   "title": "Creational patterns: Factory, Builder, Singleton",
+   "type": "Learn",
+   "difficulty": "",
+   "minutes": 40,
+   "hint": "",
+   "link": "https://refactoring.guru/design-patterns/creational-patterns",
+   "read": [
+    {
+     "sec": "lld",
+     "slug": "design-patterns",
+     "anchor": "factory-one-place-that-knows-how-to-build-things"
+    },
+    {
+     "sec": "lld",
+     "slug": "design-patterns",
+     "anchor": "builder-construction-with-many-options"
+    }
+   ]
+  },
+  {
+   "id": "lld-4",
+   "track": "lld",
+   "num": 4,
+   "week": 3,
+   "topic": "Design Patterns",
+   "title": "Structural patterns: Adapter, Decorator, Facade",
+   "type": "Learn",
+   "difficulty": "",
+   "minutes": 40,
+   "hint": "",
+   "link": "https://refactoring.guru/design-patterns/structural-patterns",
+   "read": [
+    {
+     "sec": "lld",
+     "slug": "design-patterns",
+     "anchor": "decorator-wrap-to-add-behaviour"
+    },
+    {
+     "sec": "lld",
+     "slug": "design-patterns",
+     "anchor": "adapter-command-repository-the-quick-three"
+    }
+   ]
+  },
+  {
+   "id": "lld-5",
+   "track": "lld",
+   "num": 5,
+   "week": 4,
+   "topic": "Design Patterns",
+   "title": "Behavioral patterns: Strategy, Observer, State",
+   "type": "Learn",
+   "difficulty": "",
+   "minutes": 40,
+   "hint": "",
+   "link": "https://refactoring.guru/design-patterns/behavioral-patterns",
+   "read": [
+    {
+     "sec": "lld",
+     "slug": "design-patterns",
+     "anchor": "strategy-the-one-youll-use-most"
+    },
+    {
+     "sec": "lld",
+     "slug": "design-patterns",
+     "anchor": "observer-announce-it-dont-call-everyone"
+    }
+   ]
+  },
+  {
+   "id": "lld-6",
+   "track": "lld",
+   "num": 6,
+   "week": 5,
+   "topic": "Refactoring",
+   "title": "Code smells and how to refactor them",
+   "type": "Learn",
+   "difficulty": "",
+   "minutes": 40,
+   "hint": "",
+   "link": "https://refactoring.guru/refactoring/smells",
+   "read": [
+    {
+     "sec": "lld",
+     "slug": "solid"
+    }
+   ]
+  },
+  {
+   "id": "lld-7",
+   "track": "lld",
+   "num": 7,
+   "week": 6,
+   "topic": "Method",
+   "title": "LLD interview approach + worked examples repo",
+   "type": "Learn",
+   "difficulty": "",
+   "minutes": 40,
+   "hint": "",
+   "link": "https://github.com/ashishps1/awesome-low-level-design",
+   "read": [
+    {
+     "sec": "lld",
+     "slug": "lld-interview-method"
+    },
+    {
+     "sec": "lld",
+     "slug": "three-day-plan"
+    }
+   ]
+  },
+  {
+   "id": "lld-8",
+   "track": "lld",
+   "num": 8,
+   "week": 1,
+   "topic": "OOP Foundations",
+   "title": "Parking Lot system",
+   "type": "Practice",
+   "difficulty": "Medium",
+   "minutes": 60,
+   "hint": "LC1603 Design Parking System (Easy)",
+   "link": "https://leetcode.com/problems/design-parking-system/",
+   "read": [
+    {
+     "sec": "lld",
+     "slug": "parking-lot"
+    }
+   ]
+  },
+  {
+   "id": "lld-9",
+   "track": "lld",
+   "num": 9,
+   "week": 2,
+   "topic": "State Machines",
+   "title": "Vending Machine",
+   "type": "Practice",
+   "difficulty": "Medium",
+   "minutes": 60,
+   "hint": "",
+   "link": "https://github.com/ashishps1/awesome-low-level-design/blob/main/problems/vending-machine.md",
+   "read": [
+    {
+     "sec": "lld",
+     "slug": "design-patterns",
+     "anchor": "state-when-behaviour-depends-on-what-happened-before"
+    },
+    {
+     "sec": "lld",
+     "slug": "elevator-system"
+    }
+   ]
+  },
+  {
+   "id": "lld-10",
+   "track": "lld",
+   "num": 10,
+   "week": 3,
+   "topic": "State Machines",
+   "title": "Elevator / Lift control system",
+   "type": "Practice",
+   "difficulty": "Hard",
+   "minutes": 90,
+   "hint": "",
+   "link": "https://github.com/ashishps1/awesome-low-level-design/blob/main/problems/elevator-system.md",
+   "read": [
+    {
+     "sec": "lld",
+     "slug": "elevator-system"
+    }
+   ]
+  },
+  {
+   "id": "lld-11",
+   "track": "lld",
+   "num": 11,
+   "week": 4,
+   "topic": "OOP Foundations",
+   "title": "Library Management System",
+   "type": "Practice",
+   "difficulty": "Medium",
+   "minutes": 60,
+   "hint": "",
+   "link": "https://github.com/ashishps1/awesome-low-level-design/blob/main/problems/library-management-system.md",
+   "read": [
+    {
+     "sec": "lld",
+     "slug": "oop-refresher"
+    }
+   ]
+  },
+  {
+   "id": "lld-12",
+   "track": "lld",
+   "num": 12,
+   "week": 5,
+   "topic": "Game Design",
+   "title": "Chess game (board, pieces, moves)",
+   "type": "Practice",
+   "difficulty": "Hard",
+   "minutes": 90,
+   "hint": "",
+   "link": "https://github.com/ashishps1/awesome-low-level-design/blob/main/problems/chess-game.md",
+   "read": [
+    {
+     "sec": "lld",
+     "slug": "oop-refresher"
+    }
+   ]
+  },
+  {
+   "id": "lld-13",
+   "track": "lld",
+   "num": 13,
+   "week": 6,
+   "topic": "Ledgers",
+   "title": "Splitwise (expense sharing & settle-up)",
+   "type": "Practice",
+   "difficulty": "Hard",
+   "minutes": 90,
+   "hint": "",
+   "link": "https://github.com/ashishps1/awesome-low-level-design/blob/main/problems/splitwise.md",
+   "read": [
+    {
+     "sec": "lld",
+     "slug": "splitwise"
+    }
+   ]
+  },
+  {
+   "id": "lld-14",
+   "track": "lld",
+   "num": 14,
+   "week": 7,
+   "topic": "Booking Systems",
+   "title": "BookMyShow (seat selection & locking)",
+   "type": "Practice",
+   "difficulty": "Hard",
+   "minutes": 90,
+   "hint": "LC1386 Cinema Seat Allocation (Medium)",
+   "link": "https://leetcode.com/problems/cinema-seat-allocation/",
+   "read": [
+    {
+     "sec": "hld-bridge",
+     "slug": "seat-booking"
+    },
+    {
+     "sec": "lld",
+     "slug": "concurrency-in-lld"
+    }
+   ]
+  },
+  {
+   "id": "lld-15",
+   "track": "lld",
+   "num": 15,
+   "week": 7,
+   "topic": "Booking Systems",
+   "title": "ATM machine (withdrawal flow)",
+   "type": "Practice",
+   "difficulty": "Medium",
+   "minutes": 60,
+   "hint": "LC2241 Design an ATM Machine (Medium)",
+   "link": "https://leetcode.com/problems/design-an-atm-machine/",
+   "read": [
+    {
+     "sec": "lld",
+     "slug": "design-patterns",
+     "anchor": "state-when-behaviour-depends-on-what-happened-before"
+    }
+   ]
+  },
+  {
+   "id": "lld-16",
+   "track": "lld",
+   "num": 16,
+   "week": 8,
+   "topic": "Design Patterns",
+   "title": "In-memory Cache with TTL + eviction policy",
+   "type": "Practice",
+   "difficulty": "Medium",
+   "minutes": 60,
+   "hint": "LC460 LFU Cache (Hard)",
+   "link": "https://leetcode.com/problems/lfu-cache/",
+   "read": [
+    {
+     "sec": "lld",
+     "slug": "lru-cache"
+    },
+    {
+     "sec": "lld",
+     "slug": "concurrency-in-lld"
+    }
+   ]
+  },
+  {
+   "id": "lld-17",
+   "track": "lld",
+   "num": 17,
+   "week": 8,
+   "topic": "Design Patterns",
+   "title": "Logging framework (appenders, levels)",
+   "type": "Practice",
+   "difficulty": "Medium",
+   "minutes": 60,
+   "hint": "",
+   "link": "https://github.com/ashishps1/awesome-low-level-design/blob/main/problems/logging-framework.md",
+   "read": [
+    {
+     "sec": "lld",
+     "slug": "design-patterns"
+    }
+   ]
+  },
+  {
+   "id": "lld-18",
+   "track": "lld",
+   "num": 18,
+   "week": 9,
+   "topic": "Game Design",
+   "title": "Snake and Ladder",
+   "type": "Practice",
+   "difficulty": "Easy",
+   "minutes": 45,
+   "hint": "LC909 Snakes and Ladders (Medium)",
+   "link": "https://leetcode.com/problems/snakes-and-ladders/",
+   "read": [
+    {
+     "sec": "lld",
+     "slug": "oop-refresher"
+    }
+   ]
+  },
+  {
+   "id": "lld-19",
+   "track": "lld",
+   "num": 19,
+   "week": 9,
+   "topic": "Design Patterns",
+   "title": "Alerting system (Observer pattern)",
+   "type": "Practice",
+   "difficulty": "Medium",
+   "minutes": 60,
+   "hint": "",
+   "link": "https://github.com/ashishps1/awesome-low-level-design/blob/main/problems/pub-sub-system.md",
+   "read": [
+    {
+     "sec": "lld",
+     "slug": "design-patterns",
+     "anchor": "observer-announce-it-dont-call-everyone"
+    }
+   ]
+  },
+  {
+   "id": "mile-5",
+   "track": "mile",
+   "num": 5,
+   "week": 5,
+   "topic": "Mock",
+   "title": "HLD mock #1 — URL shortener end-to-end on a whiteboard",
+   "type": "Milestone",
+   "difficulty": "",
+   "minutes": 60,
+   "hint": "",
+   "link": "",
+   "read": [
+    {
+     "sec": "case-studies",
+     "slug": "url-shortener"
+    },
+    {
+     "sec": "appendix",
+     "slug": "annotated-mock"
+    }
+   ]
+  },
+  {
+   "id": "mile-7",
+   "track": "mile",
+   "num": 7,
+   "week": 7,
+   "topic": "Mock",
+   "title": "HLD mock #2 — chat system, 60 min with follow-ups",
+   "type": "Milestone",
+   "difficulty": "",
+   "minutes": 60,
+   "hint": "",
+   "link": "",
+   "read": [
+    {
+     "sec": "case-studies",
+     "slug": "chat-system"
+    },
+    {
+     "sec": "appendix",
+     "slug": "framework"
+    }
+   ]
+  },
+  {
+   "id": "mile-9",
+   "track": "mile",
+   "num": 9,
+   "week": 9,
+   "topic": "Checkpoint",
+   "title": "Final dry run — full loop (DSA + HLD + LLD + SQL + ML) + story polish",
+   "type": "Milestone",
+   "difficulty": "",
+   "minutes": 90,
+   "hint": "",
+   "link": "",
+   "read": [
+    {
+     "sec": "hld-bridge",
+     "slug": "final-checklist"
+    },
+    {
+     "sec": "appendix",
+     "slug": "question-bank"
+    }
+   ]
+  }
+ ]
+}

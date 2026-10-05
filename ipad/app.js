@@ -258,6 +258,7 @@
     trash: '<path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/>',
     plane: '<path d="M21 15.5v-2l-8-5V3.8a1.5 1.5 0 0 0-3 0v4.7l-8 5v2l8-2.5v5l-2 1.5V21l3.5-1 3.5 1v-1.5l-2-1.5v-5Z"/>',
     chart: '<path d="M4 20V11M10 20V5M16 20v-6M22 20H2"/>',
+    calendar: '<rect x="3.5" y="5" width="17" height="15.5" rx="2.5"/><path d="M3.5 10h17M8 3v4M16 3v4"/><path d="M8 14h2M14 14h2M8 17h2"/>',
     ribbon: '<path d="M7 3h10v18l-5-3.5L7 21Z"/>',
   };
 
@@ -285,6 +286,7 @@
     if (parts[0] === 'library') return { name: 'library' };
     if (parts[0] === 'settings') return { name: 'settings' };
     if (parts[0] === 'progress') return { name: 'progress' };
+    if (parts[0] === 'plan') return { name: 'plan', sub: parts[1] || '', id: parts[2] || '' };
     return { name: 'missing' };
   }
 
@@ -376,6 +378,9 @@
     } else if (route.name === 'progress') {
       html = progressView();
       title = 'Progress';
+    } else if (route.name === 'plan') {
+      html = planView();
+      title = 'Plan';
     } else {
       html = missingView();
     }
@@ -668,6 +673,7 @@
     } else if (route.name === 'library') name = 'Library';
     else if (route.name === 'settings') name = 'Settings';
     else if (route.name === 'progress') name = 'Progress';
+    else if (route.name === 'plan') name = 'Plan';
 
     titleEl.style.setProperty('--a', accent || 'var(--text-dim)');
     titleEl.innerHTML = `${kicker ? `<span class="bar-kicker">${esc(kicker)}</span>` : ''}<span class="bar-name">${esc(name)}</span>`;
@@ -703,6 +709,7 @@
   function buildSidebar() {
     $('#atlas-sb-main').innerHTML = [
       ['#/', 'home', 'Home', 'home'],
+      ['#/plan', 'plan', 'Plan', 'calendar'],
       ['#/library', 'library', 'Library', 'bookmark'],
       ['#/progress', 'progress', 'Progress', 'chart'],
       ['#/settings', 'settings', 'Settings', 'settings'],
@@ -710,7 +717,11 @@
       .map(
         ([h, key, label, ic]) =>
           `<a href="${h}" data-nav="${key}">${icon(ic, 19)}<span>${label}</span>${
-            key === 'library' ? '<span class="sb-badge" id="atlas-saved-count" hidden></span>' : ''
+            key === 'library'
+              ? '<span class="sb-badge" id="atlas-saved-count" hidden></span>'
+              : key === 'plan'
+                ? '<span class="sb-badge" id="atlas-plan-count" hidden></span>'
+                : ''
           }</a>`
       )
       .join('');
@@ -895,6 +906,7 @@
 
       ${installCard()}
 
+      <div data-slot="home-plan"></div>
       <div class="home-grid">
         ${continueCard()}
         <div data-slot="home-today"></div>
@@ -1040,6 +1052,7 @@
       <div class="badges">${badges}</div>
       ${prereq}
       ${resume}
+      <div data-slot="plan-chip"></div>
       <div data-slot="recap"></div>
       <div class="prose">${body}</div>
       ${finishHtml(t)}
@@ -1193,6 +1206,15 @@
         <div class="list"><div class="set-row"><div><b>SysDesign Atlas · offline edition</b>
           <small>${TOPICS.length} topics · ${SECTIONS.length} tracks · about ${Math.round(TOTAL_MIN / 60)} hours of reading. Content is identical to the website.</small></div></div></div>
       </section>
+    </div>`;
+  }
+
+  /* ---------- views: plan (filled by plan.js) ---------- */
+
+  function planView() {
+    return `<div class="wrap">
+      <header class="page-head"><h1>Plan</h1><p>Your HLD and LLD plan from the switch-prep tracker, day by day: what's on today, what spilled over and when it gets caught up.</p></header>
+      <div data-slot="plan"></div>
     </div>`;
   }
 

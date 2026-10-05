@@ -5,6 +5,8 @@ import { motion } from 'motion/react';
 import Reveal from './Reveal';
 import ProgressRing from './ProgressRing';
 import { SectionIcon, IconFlame, IconBookmark, IconArrow, IconTarget } from './Icons';
+import PlanPanel from './PlanPanel';
+import type { States } from '@/lib/prep';
 
 type Stats = {
   done: number;
@@ -18,6 +20,7 @@ type Stats = {
 export default function DashboardView({
   name,
   stats,
+  plan,
   perSection,
   review,
   recent,
@@ -26,6 +29,7 @@ export default function DashboardView({
 }: {
   name: string;
   stats: Stats;
+  plan: { states: Record<string, unknown>; settings: unknown };
   perSection: { slug: string; title: string; accent: string; icon: string; done: number; total: number }[];
   review: { slug: string; title: string; href: string; confidence: number; accent: string }[];
   recent: { title: string; href: string; completed: boolean; accent: string }[];
@@ -68,6 +72,8 @@ export default function DashboardView({
               }`}
         </p>
       </Reveal>
+
+      <PlanPanel initialStates={plan.states as States} initialSettings={plan.settings} />
 
       {/* stat tiles */}
       <div className="mt-8 grid gap-3.5 sm:grid-cols-2 lg:grid-cols-4">

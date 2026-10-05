@@ -3,6 +3,7 @@ import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { SECTIONS, getAllTopics } from '@/lib/content';
 import DashboardView from '@/components/DashboardView';
+import { readPlanState } from '@/lib/ipad-sync';
 
 export const metadata = { title: 'Dashboard — SysDesign Atlas' };
 export const dynamic = 'force-dynamic';
@@ -12,11 +13,12 @@ export default async function DashboardPage() {
   const userId = (session?.user as { id?: string } | undefined)?.id;
   if (!userId) redirect('/signin');
 
-  const [rows, bookmarks, notes, activity] = await Promise.all([
+  const [rows, bookmarks, notes, activity, planState] = await Promise.all([
     prisma.progress.findMany({ where: { userId } }),
     prisma.bookmark.findMany({ where: { userId }, orderBy: { createdAt: 'desc' }, take: 12 }),
     prisma.note.findMany({ where: { userId }, orderBy: { updatedAt: 'desc' }, take: 8 }),
     prisma.activity.findMany({ where: { userId }, orderBy: { day: 'desc' }, take: 120 }),
+    readPlanState(userId),
   ]);
 
   const topics = getAllTopics();
@@ -97,6 +99,7 @@ export default async function DashboardPage() {
         bookmarks: bookmarks.length,
         notes: notes.length,
       }}
+      plan={planState}
       perSection={perSection}
       review={review}
       recent={recent}

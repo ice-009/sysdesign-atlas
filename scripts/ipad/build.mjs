@@ -115,6 +115,7 @@ function toText(html) {
 
 const topicMeta = [];
 const searchDocs = [];
+const headingIds = new Map(); // "section/slug" → heading ids, for checking links into topics
 let fragmentBytes = 0;
 
 for (const t of topics) {
@@ -123,6 +124,7 @@ for (const t of topics) {
 
   const html = rewriteLinks(full.html, t);
   fragmentBytes += html.length;
+  headingIds.set(`${t.section.slug}/${t.slug}`, new Set(full.headings.map((h) => h.id)));
 
   topicMeta.push({
     slug: t.slug,
@@ -185,11 +187,36 @@ if (overrides === undefined) throw new Error('ipad/app.css is missing its /* @pr
 const cssFile = emitHashed('app.css', `${vars}\n${proseCss}\n${overrides}`);
 
 const dataFile = emitHashed('data.js', dataBody);
+
+/* ---------- prep plan ---------- */
+
+/* The HLD + LLD plan from the switch-prep tracker (lib/prep-plan.json, made
+   by scripts/prep/import-tracker.py) and the scheduler that lays it out day
+   by day. The scheduler is lib/prep.ts — the website imports the same file —
+   transpiled here for the browser. Every topic and heading the plan points
+   at must exist, or the build stops. */
+const plan = JSON.parse(fs.readFileSync(path.join(ROOT, 'lib/prep-plan.json'), 'utf8'));
+for (const it of plan.items) {
+  for (const r of it.read) {
+    const key = `${r.sec}/${r.slug}`;
+    if (!known.has(key)) throw new Error(`lib/prep-plan.json: ${it.id} points at a missing topic ${key}`);
+    if (r.anchor && !headingIds.get(key).has(r.anchor)) throw new Error(`lib/prep-plan.json: ${it.id} points at a missing heading ${key}#${r.anchor}`);
+  }
+}
+const { default: ts } = await import('typescript');
+const prepJs = ts.transpileModule(fs.readFileSync(path.join(ROOT, 'lib/prep.ts'), 'utf8'), {
+  compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020 },
+}).outputText;
+const prepFile = emitHashed(
+  'prep.js',
+  `/* lib/prep.ts and lib/prep-plan.json, bundled by scripts/ipad/build.mjs */\n(function () {\nvar exports = {};\n${prepJs}\nwindow.AtlasPrepCore = exports;\nwindow.ATLAS_PREP = ${JSON.stringify(plan)};\n})();\n`
+);
 const script = (name) => emitHashed(name, fs.readFileSync(path.join(SRC, name), 'utf8'));
-// Load order matters: store → app → track → sync → annotate (see ipad/index.html).
+// Load order matters: store → app → track → prep → plan → sync → annotate (see ipad/index.html).
 const storeFile = script('store.js');
 const jsFile = script('app.js');
 const trackFile = script('track.js');
+const planFile = script('plan.js');
 const syncFile = script('sync.js');
 const annotateFile = script('annotate.js');
 
@@ -232,6 +259,8 @@ const index = fs
   .replaceAll('{{STORE}}', storeFile)
   .replaceAll('{{JS}}', jsFile)
   .replaceAll('{{TRACK}}', trackFile)
+  .replaceAll('{{PREP}}', prepFile)
+  .replaceAll('{{PLAN}}', planFile)
   .replaceAll('{{SYNC}}', syncFile)
   .replaceAll('{{ANNOTATE}}', annotateFile);
 if (/\{\{\w+\}\}/.test(index)) throw new Error(`ipad/index.html has an unfilled placeholder: ${index.match(/\{\{\w+\}\}/)[0]}`);
@@ -247,6 +276,8 @@ const shellFiles = [
   storeFile,
   jsFile,
   trackFile,
+  prepFile,
+  planFile,
   syncFile,
   annotateFile,
   'manifest.webmanifest',
