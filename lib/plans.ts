@@ -37,7 +37,8 @@ export const PLANS: Record<PlanId, Plan> = {
     features: [],
     noteLimit: 10,
     bullets: [
-      'All 66 topics and 16 case studies',
+      // {topics} and {caseStudies} are filled in from the live topic index.
+      'All {topics} topics and {caseStudies} case studies',
       'Progress and completion tracking',
       'Confidence ratings and review queue',
       'Timed practice mode',

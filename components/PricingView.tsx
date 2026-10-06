@@ -142,7 +142,9 @@ export default function PricingView({
                 </div>
 
                 <ul className="mt-6 grid flex-1 gap-2.5">
-                  {p.bullets.map((b) => (
+                  {p.bullets
+                    .map((b) => b.replace('{topics}', String(topicCount)).replace('{caseStudies}', String(caseStudyCount)))
+                    .map((b) => (
                     <li key={b} className="flex items-start gap-2.5">
                       <span className="mt-[3px] shrink-0" style={{ color: p.accent }}>
                         <IconCheck size={13} strokeWidth={3} />
