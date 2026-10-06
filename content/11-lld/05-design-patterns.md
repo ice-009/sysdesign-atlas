@@ -52,7 +52,7 @@ class HourlyFee implements ParkingFeeStrategy {
 class FlatDayFee implements ParkingFeeStrategy { /* ... */ }
 
 class ExitTerminal {
-    private final ParkingFeeStrategy pricing;             // handed in, not created here
+    private final ParkingFeeStrategy pricing;   // handed in, not created here
     Money checkout(Ticket t) { return pricing.calculate(t.duration(), t.size()); }
 }
 ```
@@ -134,8 +134,12 @@ class Created implements OrderState {
 }
 
 class Shipped implements OrderState {
-    public OrderState pay(Order o)    { throw new IllegalTransitionException("already paid"); }
-    public OrderState cancel(Order o) { throw new IllegalTransitionException("already in transit"); }
+    public OrderState pay(Order o) {
+        throw new IllegalTransitionException("already paid");
+    }
+    public OrderState cancel(Order o) {
+        throw new IllegalTransitionException("already in transit");
+    }
 }
 ```
 
@@ -164,7 +168,7 @@ class Milk extends CoffeeAddOn {
     public String description() { return inner.description() + " + milk"; }
 }
 
-Coffee order = new Milk(new Caramel(new Espresso()));   // composes instead of exploding
+Coffee order = new Milk(new Caramel(new Espresso()));  // no class explosion
 ```
 
 Two real examples worth mentioning: Java's `new BufferedInputStream(new FileInputStream(...))`, and web middleware chains (auth → logging → rate limit → handler), which are the same idea one level up.

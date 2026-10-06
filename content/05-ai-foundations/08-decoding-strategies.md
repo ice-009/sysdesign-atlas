@@ -8,6 +8,12 @@ prereqs: [transformer-as-a-system, inference-arithmetic]
 unlocks: Controlling output shape and cutting latency without touching the model.
 ---
 
+:::predict Guess first
+1. If you set temperature to 0, will a model always give exactly the same answer to the same prompt?
+2. A model sometimes returns broken JSON. Is there a way to make invalid JSON literally impossible, not just unlikely?
+3. Could a small model's guesses ever make a large model produce text faster without changing what it would say?
+:::
+
 ## The last step of every forward pass
 
 A forward pass doesn't end with a word. It ends with a score for *every* token in the vocabulary — one number each, maybe 100,000 of them, called **logits**. Something then has to convert those scores into a single chosen token, and that choice is the **decoding strategy**.
@@ -81,7 +87,7 @@ It makes *sampling* deterministic. The output can still vary, for reasons that l
 - **MoE routing.** Capacity-based token dropping depends on what else is in the batch.
 - **Hardware and kernel versions.** A different GPU or an upgraded inference engine changes numerics.
 
-Genuine reproducibility requires pinning the model version, the engine version, the hardware, and often the batch size. If you need determinism for testing, assert on structure and semantics, not on exact strings.
+Genuine reproducibility requires pinning the model version, the engine version, the hardware, and often the batch size. Batch-invariant kernels — which fix the reduction order regardless of batch size, an approach Thinking Machines described in 2025 — remove the batch-composition source, at some cost in speed. If you need determinism for testing, assert on structure and semantics, not on exact strings.
 :::
 
 ## Constrained decoding
@@ -174,6 +180,8 @@ Variants that avoid needing a separate draft model:
 
 - **Medusa** — extra prediction heads on the target model itself, each guessing a future position.
 - **EAGLE** — draft at the feature level rather than the token level; higher acceptance rates.
+- **EAGLE-3** (2025) — drops EAGLE's feature-prediction constraint and fuses features from several layers of the target model; acceptance rises further, and it's widely supported in serving engines.
+- **Multi-token prediction heads** — trained alongside the model itself (DeepSeek-V3 does this), so the model ships with its own drafter.
 - **Lookahead / n-gram** — draft by copying from the prompt. Extremely effective for code editing and summarisation, where much of the output is verbatim from the input.
 - **Self-speculative** — skip layers to form a cheap draft from the same weights.
 
@@ -205,6 +213,34 @@ Beam search also costs *b* times the memory and compute, which for an LLM means 
 
 *Fast Inference from Transformers via Speculative Decoding* (Leviathan, Kalman & Matias, ICML 2023) and *Accelerating Large Language Model Decoding with Speculative Sampling* (Chen et al., 2023) are the two simultaneous originals, including the proof that the output distribution is preserved. *Medusa* (Cai et al., 2024) and *EAGLE* (Li et al., 2024) are the draft-model-free variants.
 :::
+
+## Check yourself
+
+```recall
+Q: What does temperature do?
+A: It divides logits before softmax: below 1 sharpens the distribution, above 1 flattens it, 0 is greedy argmax — which is not "best" and tends to loop.
+
+Q: Why is top-p a better default than top-k?
+A: Top-p keeps the smallest set reaching cumulative probability p, adapting to confidence (2 tokens when sure, hundreds when uncertain); top-k keeps a fixed count either way.
+
+Q: Why isn't temperature 0 deterministic?
+A: Batch composition changes floating-point reduction order, MoE routing depends on the batch, and hardware or kernel versions change numerics. Pin versions or use batch-invariant kernels; test on structure, not exact strings.
+
+Q: How does constrained decoding work, and what does it guarantee?
+A: A schema or grammar compiles to a state machine; at each step tokens that would break validity get −∞ logits. Format is guaranteed (0.98²⁰ ≈ 67% clean agent runs becomes 100%) — content is not.
+
+Q: How does speculative decoding work?
+A: A cheap drafter proposes k tokens; the large model verifies all in one pass (nearly free, since decode is bandwidth-bound); keep the longest matching prefix plus its correction.
+
+Q: Does speculative decoding change the output?
+A: No — rejection sampling (accept with probability min(1, p_target/p_draft), else resample from the residual) keeps the distribution identical to the large model alone.
+
+Q: Why disable speculative decoding at high batch?
+A: It uses idle compute to cut single-request latency. At high batch the GPU isn't idle, so verification competes with real work and can reduce throughput — enable it adaptively.
+
+Q: Why did beam search lose for open-ended text?
+A: Maximising total likelihood produces short, generic, repetitive text — human writing is measurably surprising — and it costs b× the KV cache.
+```
 
 ## What to carry forward
 

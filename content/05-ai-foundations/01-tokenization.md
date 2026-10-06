@@ -8,6 +8,12 @@ prereqs: [back-of-envelope]
 unlocks: Reasoning about model cost and context limits in the units the system actually uses.
 ---
 
+:::predict Guess first
+1. Would a model work better reading single characters, whole words, or something in between?
+2. The same sentence in English and in Thai — would you expect them to cost the same number of tokens?
+3. Why might a model struggle to count the letter "r" in "strawberry"?
+:::
+
 ## Why this is the first page
 
 A language model does not process text. It processes a sequence of integers, and everything downstream — how much GPU memory a request consumes, how long it takes, what it costs, whether it fits in the context window — is measured in those integers.
@@ -196,6 +202,34 @@ That second point is why chat products cap history length, summarise older turns
 
 Andrej Karpathy's "Let's build the GPT Tokenizer" video builds BPE from scratch and is the clearest available explanation of the failure modes above.
 :::
+
+## Check yourself
+
+```recall
+Q: Why do models use subword tokens?
+A: Characters make sequences 4–5× longer (attention is quadratic); whole words need huge vocabularies and turn unseen words into <UNK>. Subwords keep common words whole, split rare ones, and can represent anything.
+
+Q: How does BPE build a vocabulary?
+A: Start from 256 bytes, repeatedly merge the most frequent adjacent pair into a new token until the target size (32K–200K). Encoding replays the merges; decoding is a lookup.
+
+Q: What is the working token estimate for English, and where is it wrong?
+A: 1 token ≈ 4 characters ≈ 0.75 words. Code is ~1.5× worse, JSON ~2×, non-Latin scripts up to 4×, base64 and UUIDs near worst case — measure with the real tokenizer.
+
+Q: Why are cost and context language-dependent?
+A: The vocabulary reflects a mostly-English training corpus, so other languages need 3–5× more tokens: they pay more, fit less in the window and hit rate limits sooner.
+
+Q: Name two behaviours tokenization explains.
+A: Inconsistent arithmetic (numbers split unevenly), letter-counting failures (the model sees str + aw + berry), trailing-whitespace degradation, and glitch tokens with untrained embeddings.
+
+Q: Which system quantities are measured in tokens?
+A: Cost (input and output priced separately), latency (output length dominates), KV-cache memory, the context limit, rate limits, and attention cost (quadratic in length).
+
+Q: Why does a chat conversation get more expensive each turn?
+A: History is re-sent as input every turn, so input dominates (~6× output in the example) and later turns cost far more — hence summarising history and prefix caching.
+
+Q: Why put stable content first in a prompt?
+A: Prefix caching reuses an unchanged prefix instead of recomputing it, so a fixed system prompt first and volatile content last makes most of each request a cache hit.
+```
 
 ## What to carry forward
 

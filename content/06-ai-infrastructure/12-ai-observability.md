@@ -8,6 +8,12 @@ prereqs: [inference-engines, ai-cost-model]
 unlocks: Knowing your AI system is degrading before your users tell you.
 ---
 
+:::predict Guess first
+1. Error rate 0.01%, p99 latency fine, every response is "200 OK" — could the AI system still be failing badly?
+2. One request generates 2,000 tokens and another 100. If the system performed identically for both, what would p99 total latency mostly measure?
+3. Your bill doubles overnight with no deploy and no traffic change. What might have broken?
+:::
+
 ## The gap ordinary monitoring leaves
 
 Standard observability answers: is it up, is it fast, is it erroring. All three can be perfectly green while an AI system is failing badly.
@@ -171,6 +177,34 @@ No canonical paper. OpenTelemetry's GenAI semantic conventions are becoming the 
 
 For the quality side, the practical literature is mostly vendor and practitioner writing — Eugene Yan's posts on evaluating LLM products are the most useful single body of it. *Hidden Technical Debt in Machine Learning Systems* (Sculley et al., 2015) is the origin of "you cannot monitor an ML system like a service."
 :::
+
+## Check yourself
+
+```recall
+Q: Why isn't traditional monitoring enough for AI systems?
+A: Error rate, latency and status codes can all be green while the model is confidently wrong, answers got shorter, the KV cache is full, or every reply is a refusal.
+
+Q: Which serving metrics matter?
+A: TTFT and TPOT separately, input and output throughput, goodput, KV-cache utilisation (the real capacity signal), batch size, preemption rate and queue wait.
+
+Q: Why is end-to-end p99 latency misleading?
+A: It mostly measures how long the longest responses were — a change in user behaviour, not system performance. Alert on TTFT and TPOT; use latency per output token if you want one number.
+
+Q: What should every trace span carry?
+A: Model and version, cached and uncached input tokens, output tokens, cost, sampling parameters, prompt template version and retry flag. Keep 1–5% of traces plus 100% of anomalies.
+
+Q: Name five quality proxies that need no ground truth.
+A: Output-length distribution, tool-call or JSON validity, refusal rate, retry/regeneration rate and cost per request — build their baselines from day one.
+
+Q: What direct quality signals exist?
+A: Explicit thumbs (sparse, biased), implicit feedback (copied, accepted, continued), task success (lags hours or days) and an LLM judge on a live sample, itself validated against humans.
+
+Q: Why alert on the cached-input ratio?
+A: A collapsing cache hit rate — say, a timestamp moved to the front of a prompt — can double the bill with no other symptom.
+
+Q: How should AI alerts be written?
+A: On rates and distribution shifts against a rolling baseline, never absolute counts. Page on SLA breaches, KV pressure, cost spikes and validity drops; ticket gradual drift.
+```
 
 ## What to carry forward
 

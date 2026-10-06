@@ -8,6 +8,12 @@ prereqs: [data-parallelism, interconnect-and-collectives]
 unlocks: Designing the parallelism layout for a model too large for any single device.
 ---
 
+:::predict Guess first
+1. Splitting each layer's matrices across GPUs means they must exchange results inside every layer. Should those GPUs be in the same server or different ones?
+2. Giving different layers to different GPUs is like an assembly line. What happens at the start and end of each batch?
+3. For serving one user faster, which helps: splitting each layer across GPUs, or giving each GPU different layers?
+:::
+
 ## Three ways to cut a model
 
 [Data parallelism](data-parallelism.html) splits the *batch*. When the model itself won't fit, you split the model — and there are three orthogonal axes to split along.
@@ -76,6 +82,8 @@ Split the weight matrices themselves. The clever part is choosing splits so that
      the number of GPUs sharing an NVSwitch.
 ```
 :::
+
+The real limit is the **NVLink domain**, not the box. On rack-scale systems where 72 GPUs share one NVLink fabric, tensor and expert parallelism can stretch well beyond 8 — the rule is unchanged, only the size of the fast tier moved.
 
 **The upside is unique: tensor parallelism reduces single-request latency.** Every other form of parallelism buys throughput. TP splits the *work for one token* across GPUs, so each reads only its slice of the weights — which is exactly what [decode latency](../05-ai-foundations/inference-arithmetic.html) depends on. This makes it the primary tool for inference latency, not just for fitting large models.
 
@@ -221,6 +229,34 @@ Train a 175B model on 512 GPUs of 80 GB — 64 nodes × 8, NVLink within, Infini
 
 *GPipe* (Huang et al., NeurIPS 2019) and *PipeDream* (Narayanan et al., SOSP 2019) are the pipeline scheduling originals. *Ring Attention with Blockwise Transformers* (Liu, Zaharia & Abbeel, 2023) is context parallelism.
 :::
+
+## Check yourself
+
+```recall
+Q: Name the three ways to split a model.
+A: Tensor parallel splits each weight matrix (communicates every layer), pipeline parallel splits the layers into stages (communicates at boundaries), sequence parallel splits the token positions (communicates within attention).
+
+Q: How does tensor parallelism split a transformer layer?
+A: FFN: W₁ column-wise then W₂ row-wise, so one all-reduce sums the partials; attention splits by head with one all-reduce after W_o — 2 all-reduces per layer.
+
+Q: Why does tensor parallelism stay inside the NVLink domain?
+A: Its all-reduces move the full activation tensor twice per layer — ~86 GB per forward pass in the example: ~95 ms on NVLink, ~1.7 s over InfiniBand.
+
+Q: What is the pipeline bubble, and how is it reduced?
+A: Idle time while stages fill and drain: (stages − 1) / (micro-batches + stages − 1). Keep micro-batches ≥ 4× stages and use 1F1B (or interleaved 1F1B) scheduling.
+
+Q: How does ring attention handle long sequences?
+A: Each GPU holds a block of Q, K, V; K/V blocks rotate around the ring while each GPU attends to the block it holds, overlapping communication with compute.
+
+Q: What rule generates every parallelism layout?
+A: Match communication frequency to link speed: tensor (every layer) on the fastest link, pipeline (per boundary) across nearby nodes, data (once per step) on whatever is left.
+
+Q: ZeRO-3 or pipeline parallelism?
+A: Start with ZeRO-3 — simpler, no bubble — up to ~100B on fast interconnect; add pipeline only once you've shown you're network-bound or beyond ~200B.
+
+Q: Which parallelism reduces inference latency?
+A: Only tensor parallelism — each GPU reads a slice of the weights per token, and the KV cache shards too. Pipeline doesn't help latency; beyond the NVLink domain, add replicas instead.
+```
 
 ## What to carry forward
 

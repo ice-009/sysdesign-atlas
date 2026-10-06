@@ -62,7 +62,8 @@ Five of them, one interface. Know the trade-offs — this table is the part that
 
 ```java
 class TokenBucketAlgorithm implements RateLimitAlgorithm {
-    public RateLimitDecision check(KeyState s, int permits, Instant now, LimitConfig cfg) {
+    public RateLimitDecision check(KeyState s, int permits,
+                                   Instant now, LimitConfig cfg) {
         // Lazy refill: no timer. Just work out what would have accumulated by now.
         long elapsedNanos = Duration.between(s.lastRefill(), now).toNanos();
         double refilled = elapsedNanos * cfg.permitsPerNano();
@@ -74,7 +75,8 @@ class TokenBucketAlgorithm implements RateLimitAlgorithm {
         }
         double shortfall = permits - tokens;
         s.set(tokens, now);
-        return RateLimitDecision.reject(Duration.ofNanos((long) (shortfall / cfg.permitsPerNano())));
+        long waitNanos = (long) (shortfall / cfg.permitsPerNano());
+        return RateLimitDecision.reject(Duration.ofNanos(waitNanos));
     }
 }
 ```
@@ -92,14 +94,15 @@ Two things to point at while writing this:
 
 ```java
 class InMemoryRateLimiter implements RateLimiter {
-    private final ConcurrentHashMap<String, KeyState> states = new ConcurrentHashMap<>();
+    private final Map<String, KeyState> states = new ConcurrentHashMap<>();
     private final RateLimitAlgorithm algorithm;
     private final LimitResolver limits;        // key → which limit applies
     private final Clock clock;
 
     public RateLimitDecision tryAcquire(String key, int permits) {
         LimitConfig cfg = limits.resolve(key);
-        KeyState state = states.computeIfAbsent(key, k -> KeyState.fresh(cfg, clock.instant()));
+        KeyState state = states.computeIfAbsent(key,
+                k -> KeyState.fresh(cfg, clock.instant()));
         synchronized (state) {                 // lock this key, not the whole map
             return algorithm.check(state, permits, clock.instant(), cfg);
         }
@@ -119,12 +122,13 @@ Three deliberate decisions worth naming:
 // A filter, so business code never knows rate limiting exists.
 class RateLimitFilter implements Filter {
     public void doFilter(Request req, Response res, FilterChain chain) {
-        String key = keyExtractor.extract(req);          // user id, API key, or IP address
+        String key = keyExtractor.extract(req);          // user ID, API key or IP
         RateLimitDecision d = limiter.tryAcquire(key, 1);
 
         res.setHeader("X-RateLimit-Remaining", String.valueOf(d.remaining()));
         if (!d.allowed()) {
-            res.setHeader("Retry-After", String.valueOf(d.retryAfter().toSeconds()));
+            long retry = d.retryAfter().toSeconds();
+            res.setHeader("Retry-After", String.valueOf(retry));
             res.setStatus(429);                          // Too Many Requests
             return;
         }

@@ -134,7 +134,8 @@ Use an atomic conditional claim, not a read-then-write:
 
 ```sql
 UPDATE job_runs
-SET status='running', worker_id=:w, claimed_at=now(), lease_until=now()+interval '60s'
+SET status='running', worker_id=:w, claimed_at=now(),
+    lease_until=now()+interval '60s'
 WHERE run_id=:r AND status='pending';
 -- 0 rows affected → someone else claimed it. Move on.
 ```

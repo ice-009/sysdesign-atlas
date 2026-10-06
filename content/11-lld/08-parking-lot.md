@@ -100,8 +100,10 @@ class LowestFloorFirstAllocator implements SpotAllocationStrategy { }
 interface PricingStrategy {
     Money price(Ticket ticket, Instant exitTime);
 }
-class HourlyPricing implements PricingStrategy { }            // round up, minimum one hour
-class ProgressiveHourlyPricing implements PricingStrategy { } // ₹20 first hour, ₹10 after
+// round up, minimum one hour
+class HourlyPricing implements PricingStrategy { }
+// ₹20 for the first hour, ₹10 for each hour after
+class ProgressiveHourlyPricing implements PricingStrategy { }
 class FlatDayPricing implements PricingStrategy { }
 
 /** Varies 3: how the money moves. */
@@ -121,7 +123,7 @@ class ParkingLotService {
     private final PaymentProcessor payments;
     private final TicketRepository tickets;
     private final SpotRepository spots;
-    private final Clock clock;                    // passed in, so tests can control time
+    private final Clock clock;                    // passed in so tests control time
 
     Ticket park(Vehicle vehicle, Gate entry) {
         ParkingSpot spot = allocator.allocate(vehicle.size(), entry)

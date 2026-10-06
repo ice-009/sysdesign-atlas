@@ -89,7 +89,8 @@ enum CarState {
         OUT_OF_SERVICE, EnumSet.of(IDLE));
 
     void checkTransition(CarState to) {
-        if (!ALLOWED.get(this).contains(to)) throw new IllegalTransitionException(this, to);
+        if (!ALLOWED.get(this).contains(to))
+            throw new IllegalTransitionException(this, to);
     }
 }
 
@@ -142,21 +143,21 @@ class NearestCarDispatch implements DispatchStrategy {
 }
 
 class LeastLoadedDispatch implements DispatchStrategy { }   // fewest stops pending
-class ZonedDispatch implements DispatchStrategy { }         // each car owns a floor range
+class ZonedDispatch implements DispatchStrategy { }         // each car owns a zone
 ```
 
 **(b) The order within one lift** is the classic **lift algorithm** (also called SCAN — it's the same algorithm used for disk head scheduling, which is a nice thing to name):
 
 ```java
 class Elevator {
-    private final TreeSet<Integer> up   = new TreeSet<>();   // stops above, ascending
+    private final TreeSet<Integer> up   = new TreeSet<>();   // above, ascending
     private final TreeSet<Integer> down = new TreeSet<>(reverseOrder());
 
     void addRequest(int floor) {
         (floor > currentFloor ? up : down).add(floor);
     }
 
-    Optional<Integer> nextStop() {                            // finish this way, then turn
+    Optional<Integer> nextStop() {                            // finish, then turn
         if (direction == UP)   return firstOf(up).or(() -> firstOf(down));
         if (direction == DOWN) return firstOf(down).or(() -> firstOf(up));
         return firstOf(up).or(() -> firstOf(down));
@@ -187,7 +188,7 @@ class ElevatorController implements Runnable {
         while (running) {
             Request r = inbox.poll(TICK_MS, MILLISECONDS);
             if (r != null) car.addRequest(r.floor());
-            car.step();                            // move a floor, or open, or close
+            car.step();                            // move a floor, open or close
         }
     }
 }

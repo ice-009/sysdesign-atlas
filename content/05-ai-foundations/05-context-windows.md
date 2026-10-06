@@ -8,6 +8,12 @@ prereqs: [attention-and-kv-cache, inference-arithmetic]
 unlocks: Deciding between long context and retrieval on cost and quality grounds rather than marketing.
 ---
 
+:::predict Guess first
+1. If you double a prompt's length, does attention work double — or more?
+2. Shuffle the words "dog bites man". Would raw attention, with no position information, notice the difference?
+3. A model advertises a 200,000-token window. Is information in the middle of a long prompt used as well as information at the start?
+:::
+
 ## Two different costs, often conflated
 
 "Context window" is quoted as a single number, but extending it stresses two separate resources with different growth rates.
@@ -186,6 +192,34 @@ A legal product needs to answer questions over contract sets. Typical set: 50 co
 
 *Efficient Streaming Language Models with Attention Sinks* (Xiao et al., ICLR 2024) is the sink phenomenon. *Lost in the Middle* (Liu et al., TACL 2024) is the positional-degradation study, and *RULER* (Hsieh et al., 2024) shows how far effective context falls short of advertised context.
 :::
+
+## Check yourself
+
+```recall
+Q: Which two costs does a longer context raise?
+A: Attention compute grows O(n²) — doubling context is 4× the work — and KV-cache memory grows O(n). Memory limits concurrency in serving; compute sets prefill time.
+
+Q: What does a million-token request cost?
+A: About 164 GB of KV cache for one request (80 layers, GQA, FP8) and ~70 seconds of prefill on an 8-GPU node before the first token.
+
+Q: How does RoPE encode position?
+A: It rotates queries and keys by an angle proportional to position, so their dot product depends only on relative distance — which is what makes extending context possible.
+
+Q: How is a trained model's context extended?
+A: Position interpolation (compresses local resolution), NTK-aware frequency scaling, or YaRN (the standard) — each with a short long-sequence fine-tune. None removes the quadratic cost.
+
+Q: What are attention sinks?
+A: Models dump excess attention on the first few tokens; evicting them in a sliding window collapses quality. Keeping ~4 initial tokens plus the window restores it (StreamingLLM).
+
+Q: Long context or retrieval?
+A: Usually retrieval into a long window. Stuffing a 2.5M-token corpus costs ~1,000× retrieving 5,000 tokens per request; long context earns its cost for one big uploaded document, whole-repo coding or agent trajectories.
+
+Q: What degrades before the advertised limit?
+A: Lost in the middle (weaker recall mid-context), multi-fact reasoning failing where single-needle retrieval passes, and distraction from irrelevant content.
+
+Q: What did big windows actually change for retrieval?
+A: Retrieval can be less precise — return 20 chunks instead of 3 and let the model sort them — an improvement to retrieval, not a replacement.
+```
 
 ## What to carry forward
 

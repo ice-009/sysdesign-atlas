@@ -8,6 +8,12 @@ prereqs: [lakehouse-and-batch, tokenization, bloom-filters]
 unlocks: Building the data infrastructure that a training run actually depends on.
 ---
 
+:::predict Guess first
+1. Of all the web pages downloaded for training, roughly what fraction do you think ends up in the final training data?
+2. Comparing every pair of 10 billion documents to find near-duplicates — how long might that take?
+3. If a benchmark's questions are on the public web, could they end up in a model's training data?
+:::
+
 ## Why this matters more than the model
 
 The consistent finding across the last several years of published work: **at a fixed compute budget, data quality moves benchmark results more than architecture does.** Comparable architectures trained on differently-curated corpora differ substantially; architecture variations at the same data quality mostly don't.
@@ -107,9 +113,11 @@ Two levels:
 
       P(candidate) = 1 − (1 − s^r)^b     for similarity s
 
-      With b=20, r=5:  s=0.9 → 99.7% caught
-                       s=0.5 →  8% caught
-      → a tunable S-curve threshold
+      With b=20, r=10 (200 hashes):
+                       s=0.9 → 99.98% caught
+                       s=0.8 →    90% caught
+                       s=0.5 →     2% caught
+      → a tunable S-curve, steepest near (1/b)^(1/r) ≈ 0.74
 
    4. Verify candidates exactly, then cluster and keep one.
 ```
@@ -221,6 +229,34 @@ Build a 3-trillion-token corpus from web crawl plus code plus books.
 
 *Deduplicating Training Data Makes Language Models Better* (Lee et al., ACL 2022) is the dedup quality result. *Scaling Laws and Interpretability of Learning from Repeated Data* (Hernandez et al., 2022) covers the epoch limit. *FineWeb* (Penedo et al., 2024) documents the filtering ablations in unusual detail.
 :::
+
+## Check yourself
+
+```recall
+Q: Why does the data pipeline matter so much?
+A: At fixed compute, data quality moves results more than architecture. And the pipeline is mostly a filter: roughly 1% of crawled bytes survive.
+
+Q: Name the pipeline stages.
+A: Acquire, extract text (boilerplate removal), filter (language, heuristics, perplexity, classifiers, safety, decontamination), deduplicate, tokenize and shard, mix.
+
+Q: Why does extraction quality affect deduplication?
+A: Boilerplate — cookie banners, navigation — repeated across millions of pages becomes millions of near-duplicates the model over-learns.
+
+Q: How do you handle benchmark contamination?
+A: Flag training documents sharing long n-grams (e.g. 13-grams) with evaluation sets — imperfect — and keep a private evaluation set that was never published.
+
+Q: How do MinHash and LSH find near-duplicates?
+A: Shingle documents; MinHash signatures agree with probability equal to Jaccard similarity; banding makes documents candidates if any band matches (P = 1 − (1 − s^r)^b), turning O(N²) into roughly O(N).
+
+Q: Why pack documents into fixed-length shards?
+A: Training sequences are fixed length; padding each document wastes compute. Concatenate with separators into ~500 MB uint32 shards that need no parsing, with an index of document boundaries.
+
+Q: How is the training mixture chosen?
+A: Weighted sources (web, code, books, papers, Wikipedia, Q&A, multilingual) as tuned hyperparameters; upsample small high-quality sources up to ~4 epochs, and anneal toward high-quality data at the end.
+
+Q: What provenance must be built in from day one?
+A: Content-addressed inputs and outputs per stage, versioned filters and configs, dataset snapshots with time travel, and a manifest of source IDs — needed for takedowns, contamination checks and reproduction.
+```
 
 ## What to carry forward
 

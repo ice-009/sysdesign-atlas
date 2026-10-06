@@ -8,6 +8,12 @@ prereqs: [transformer-as-a-system, inference-arithmetic]
 unlocks: Understanding why frontier models are sparse, and what that does to your serving infrastructure.
 ---
 
+:::predict Guess first
+1. A model has 64 copies of its feed-forward block but each token uses only 2. How do its parameter count and its compute per token compare with a normal model?
+2. Can you load only the experts the next token will need, to save memory?
+3. If a router is left to learn freely, would it spread tokens evenly across experts?
+:::
+
 ## The constraint MoE breaks
 
 In an ordinary — **dense** — transformer, every one of the model's parameters is used for every token. Knowledge and cost are therefore welded together: ten times the parameters means ten times the work per token.
@@ -92,6 +98,8 @@ Left alone, routing collapses. A slightly better expert gets picked more often, 
 ```
 
 The standard fix: alongside the goal of predicting well, give training a second goal of spreading tokens evenly, and penalise imbalance. That extra objective is an **auxiliary loss** — auxiliary because it isn't what you actually want from the model, just a corrective pressure applied during training. It works, and it trades a little model quality for balance — a genuine cost, since you're optimising for something other than prediction.
+
+DeepSeek-V3 (2024) showed a way around that cost: **auxiliary-loss-free balancing**. Each expert gets a bias added to its routing score, used only to *choose* experts, not to weight their outputs. After each training step the bias is nudged up for under-used experts and down for over-used ones. Balance comes from that feedback loop rather than from a second objective pulling against prediction quality.
 
 **Capacity factor** is the other mechanism: cap how many tokens any single expert may accept per batch. Tokens beyond the cap are *dropped* — they skip the FFN entirely and pass through on the residual connection.
 
@@ -196,6 +204,34 @@ Model A: dense, 70B parameters. Model B: MoE, 8 experts, top-2, 300B total, ~55B
 
 *GShard* (Lepikhin et al., 2021) introduced capacity factors and expert parallelism. *Mixtral of Experts* (Jiang et al., 2024) and the *DeepSeek-V3 Technical Report* (2024) document the fine-grained plus shared-expert design now in use.
 :::
+
+## Check yourself
+
+```recall
+Q: What does mixture of experts decouple?
+A: Capacity from compute per token: many expert FFNs with a router choosing top-k per token — e.g. 64 experts, top-2 gives 32× the capacity for 2× the compute.
+
+Q: What is MoE's central trade for serving?
+A: It converts a compute problem into a memory problem: all experts must stay resident, because routing is decided per token, per layer, and can't be predicted.
+
+Q: Why does MoE routing collapse without help?
+A: A slightly better expert gets picked more, trains more and wins nearly all traffic. An auxiliary balancing loss (or DeepSeek-V3's bias-based loss-free balancing) spreads tokens evenly.
+
+Q: What is token dropping, and why is it a correctness issue at inference?
+A: A capacity factor caps tokens per expert; overflow tokens skip the FFN. Batch composition then changes outputs, so inference uses large capacity or drop-free routing — check this if temperature-0 outputs vary.
+
+Q: What does expert parallelism cost?
+A: Two all-to-all collectives per MoE layer (send tokens to experts, return results) — 120 per pass for 60 layers — so keep it inside a node on NVLink.
+
+Q: Why does inference load imbalance hurt MoE?
+A: One batch can route most tokens to one GPU's experts; the step waits for it while others idle. Mitigate with bigger batches, replicated hot experts and dynamic placement.
+
+Q: What design did recent frontier MoEs converge on?
+A: Many fine-grained experts plus a shared expert every token uses — better balance and specialisation than a few large experts.
+
+Q: When is MoE the wrong choice?
+A: Batch-1, memory-limited, single-GPU or latency-critical serving — you pay for all parameters and all-to-all latency. It wins at high batch on multi-GPU nodes with fast interconnect.
+```
 
 ## What to carry forward
 

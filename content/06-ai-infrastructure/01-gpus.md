@@ -8,6 +8,12 @@ prereqs: [hardware-numbers, inference-arithmetic]
 unlocks: Reading a GPU spec sheet and predicting how your workload will actually perform on it.
 ---
 
+:::predict Guess first
+1. A CPU avoids waiting on memory with big caches. What do you think a GPU does instead?
+2. GPU A has twice the TFLOPS of GPU B but the same memory bandwidth. Which generates tokens faster for one user?
+3. One 8-GPU server draws around 10–14 kW. How does that compare with what a traditional datacenter rack can supply?
+:::
+
 ## What a GPU is, structurally
 
 A CPU is optimised for latency on one thread: deep pipelines, huge caches, aggressive branch prediction and speculation, all to finish a single instruction stream as fast as possible.
@@ -151,6 +157,8 @@ A modern accelerator draws up to ~1,200 W. Eight in a node is ~10 kW before CPUs
        shortage wearing a different name
 ```
 
+The newest systems go further and treat the **rack** as the unit. NVIDIA's GB200 NVL72 (2025) puts 72 GPUs in one liquid-cooled rack drawing roughly 120 kW, all joined by NVLink into a single high-bandwidth domain. That changes parallelism as well as plumbing: tensor and expert parallelism, which used to stop at the 8-GPU node, can now span the whole rack.
+
 This is why capacity planning for AI infrastructure involves megawatts and lead times measured in quarters, not an autoscaling group. It's also why [autoscaling GPU capacity is slow](gpu-cluster-scheduling.html) in a way that has no equivalent in stateless web serving.
 
 ## Multi-instance GPU and sharing
@@ -201,6 +209,34 @@ The NVIDIA CUDA C++ Programming Guide's memory-hierarchy chapters are the primar
 
 *FlashAttention* (Dao et al., NeurIPS 2022) is the clearest demonstration of trading FLOPs for HBM traffic. *In-Datacenter Performance Analysis of a Tensor Processing Unit* (Jouppi et al., ISCA 2017) is the TPU paper and an unusually good piece of systems writing on why the architecture looks the way it does.
 :::
+
+## Check yourself
+
+```recall
+Q: How does a GPU hide slow memory?
+A: With massive parallelism rather than caches: ~2,000 threads per SM ready to run, so whenever one group waits on data another executes.
+
+Q: What are SMs and HBM?
+A: SMs are the ~100 independent processing units of a GPU, each running thousands of threads. HBM is the stacked on-package main memory (80–192 GB, 2–8 TB/s) where weights live.
+
+Q: Why is shared memory the lever in GPU programming?
+A: It's a programmer-managed scratchpad ~100× faster than HBM; fast kernels tile work to reuse data there. FlashAttention computes attention in SRAM tiles, doing more FLOPs but far less HBM traffic.
+
+Q: What do tensor cores accelerate, and what are the gotchas?
+A: Only small matrix multiply-accumulates (D = A×B + C) in one instruction — about 10× for matmul. Softmax and norms don't benefit, dimensions must align to tiles, and lower precision means more throughput.
+
+Q: What utilisation do real workloads reach?
+A: Training 35–55% of peak (50% MFU is excellent), prefill 40–60%, decode at batch 1 under 1% — so judge inference GPUs on bandwidth, capacity and interconnect.
+
+Q: Why are power and cooling architectural constraints?
+A: An 8-GPU node draws 10–14 kW — a whole conventional rack — and rack-scale systems ~120 kW, so liquid cooling and power delivery limit how many GPUs a building holds.
+
+Q: Which GPU sharing mechanism gives real isolation?
+A: MIG — hardware partitions with separate SMs, cache slices and memory paths. Time slicing and MPS share hardware, so neighbours affect each other's latency.
+
+Q: What is the bet behind Groq and Cerebras, and what is CUDA's moat?
+A: Keep weights in huge on-chip SRAM to remove the HBM bottleneck, for models that fit. CUDA's moat is fifteen years of kernels and tooling — cheaper silicon carries a porting bill.
+```
 
 ## What to carry forward
 

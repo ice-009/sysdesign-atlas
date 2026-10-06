@@ -81,14 +81,16 @@ class ShowSeat {
     /** Exactly one of several racing callers gets true. */
     boolean tryHold(UserId user, Instant now, Duration ttl) {
         SeatState current = state.get();
-        if (!current.isAvailableAt(now)) return false;        // booked, or held and still valid
+        // taken: booked, or held by a hold that hasn't expired
+        if (!current.isAvailableAt(now)) return false;
         SeatState held = SeatState.heldBy(user, now.plus(ttl));
-        return state.compareAndSet(current, held);            // loses cleanly if someone raced us
+        // fails cleanly if someone changed it first
+        return state.compareAndSet(current, held);
     }
 
     boolean tryConfirm(UserId user, Instant now) {
         SeatState current = state.get();
-        if (!current.isHeldBy(user, now)) return false;       // expired, or not yours
+        if (!current.isHeldBy(user, now)) return false;  // expired, or not yours
         return state.compareAndSet(current, SeatState.booked(user));
     }
 }
@@ -103,18 +105,20 @@ Someone picking four seats side by side must get all four or nothing.
 ```java
 class BookingService {
     HoldResult hold(ShowId showId, List<SeatId> requested, UserId user) {
-        List<ShowSeat> seats = seatsFor(showId, sorted(requested));   // sorted = no deadlock
+        // sorted, so overlapping requests can't deadlock
+        List<ShowSeat> seats = seatsFor(showId, sorted(requested));
         List<ShowSeat> acquired = new ArrayList<>();
 
         for (ShowSeat seat : seats) {
             if (seat.tryHold(user, clock.instant(), HOLD_TTL)) {
                 acquired.add(seat);
             } else {
-                acquired.forEach(ShowSeat::release);      // give back what we took, then fail
+                acquired.forEach(ShowSeat::release);  // give back what we took
                 return HoldResult.unavailable(seat.id());
             }
         }
-        Hold hold = Hold.create(showId, requested, user, clock.instant().plus(HOLD_TTL));
+        Hold hold = Hold.create(showId, requested, user,
+                                clock.instant().plus(HOLD_TTL));
         holds.save(hold);
         return HoldResult.ok(hold);
     }
@@ -161,11 +165,13 @@ This is the switch the interviewer is waiting for. `AtomicReference` lives in on
 ```sql
 -- The same compare-and-set, written in SQL.
 UPDATE show_seats
-   SET status = 'HELD', holder_id = :user, hold_expires_at = :now + interval '8 minutes'
+   SET status = 'HELD', holder_id = :user,
+       hold_expires_at = :now + interval '8 minutes'
  WHERE show_id = :show
    AND seat_id = :seat
    AND (status = 'AVAILABLE'
-        OR (status = 'HELD' AND hold_expires_at < :now));   -- an expired hold is available
+        -- an expired hold counts as available
+        OR (status = 'HELD' AND hold_expires_at < :now));
 -- Then check how many rows changed. 1 = you got it. 0 = someone else did.
 ```
 

@@ -8,6 +8,12 @@ prereqs: [inference-arithmetic]
 unlocks: The highest-leverage single knob in inference deployment.
 ---
 
+:::predict Guess first
+1. Storing a model's weights in 8 bits instead of 16 obviously saves memory. Would it also make generating text faster?
+2. BF16 and FP16 are both 16 bits. Why might training prefer the one with less precision?
+3. With a fixed memory budget, would you choose a 70B model squeezed to 4 bits or a 13B model at full 16-bit precision?
+:::
+
 ## Why precision is an infrastructure decision
 
 **Quantization** means storing each of the model's numbers in fewer bits — 8 instead of 16, or even 4 — accepting a little imprecision in exchange for a much smaller model. The names below are just bit widths: FP32 is 32 bits per number, BF16 is 16, INT4 is 4.
@@ -132,6 +138,22 @@ For aggressive weight quantization (INT4 and below), the good methods use a smal
 ```
 :::
 
+## FP4 and microscaling: group scales in hardware
+
+The newest accelerators (NVIDIA Blackwell, 2025) build the group-scale idea into the tensor cores. **Block-scaled FP4** stores each number in 4 bits — E2M1, only 16 possible values — and shares one scale across a small block:
+
+```diagram
+   MXFP4 (OCP standard)   32 values per block
+                          scale = a power of two (8 bits)
+   NVFP4 (NVIDIA)         16 values per block
+                          scale = FP8 (E4M3), plus one FP32 scale
+                          per tensor
+
+   NVFP4 cost:  (16 × 4 + 8) / 16  =  4.5 bits per value
+```
+
+Smaller blocks and a finer-grained scale make NVFP4 noticeably more accurate than MXFP4 at almost the same size. Because the hardware multiplies in FP4 directly, it speeds up compute-bound prefill as well — not only memory-bound decode, which is all that weight-only INT4 helps. Open-weight models now ship this way: OpenAI's gpt-oss (2025) stores its expert weights in MXFP4, which lets a ~120B-parameter model fit on one 80 GB GPU. Treat FP4 like INT4 for quality: measure on your task, and keep sensitive layers at higher precision.
+
 ## Quality: what you actually lose
 
 Rough guidance, with the strong caveat that it varies by model and task:
@@ -167,7 +189,7 @@ A reasonable default for a serving deployment today:
 1. **Weights at FP8** — near-zero quality cost, halves memory and decode latency versus BF16, hardware-supported on current accelerators.
 2. **KV cache at FP8** — roughly doubles concurrency; tends to matter more than the weight saving once you're serving many users.
 3. **Compute at FP8** for prefill where the hardware supports it; BF16 accumulate.
-4. **INT4 weights** when you are memory-constrained and have measured that your task tolerates it.
+4. **INT4 or FP4 weights** (NVFP4 where the hardware supports it) when you are memory-constrained and have measured that your task tolerates it.
 5. **Keep sensitive layers higher precision** — the embedding, the unembedding, and often the first and last transformer blocks. They're a small fraction of parameters and disproportionately sensitive.
 
 :::exercise Choose a configuration
@@ -185,6 +207,34 @@ You must serve a 70B model on a single 80 GB GPU (3 TB/s bandwidth), targeting 1
 
 *A Study of BFLOAT16 for Deep Learning Training* (Kalamkar et al., 2019) is the range-versus-precision argument in full.
 :::
+
+## Check yourself
+
+```recall
+Q: What three wins does quantization give?
+A: Fewer GPUs to hold the model, faster decode (time ∝ bytes read), and more memory for KV cache — which raises concurrency, batch size and throughput.
+
+Q: Why did BF16 beat FP16 for training?
+A: BF16 keeps FP32's 8-bit exponent (range) and gives up mantissa (precision). Gradients span many magnitudes; FP16 overflows or underflows and needs loss scaling, while noise from lost precision is harmless.
+
+Q: What gets quantized, and which is hardest?
+A: Weights (static, easy, biggest win), KV cache (FP8 roughly doubles concurrency) and activations (dynamic and outlier-prone — the hard part).
+
+Q: What is the outlier problem, and its three fixes?
+A: A few activation channels carry huge values, so one scale must cover them and the rest collapse into a few levels. Fixes: keep outliers in FP16 (LLM.int8()), migrate scale to weights (SmoothQuant), or rotate to spread them (QuaRot, SpinQuant).
+
+Q: What do GPTQ, AWQ and group scales do?
+A: GPTQ compensates remaining weights for each column's rounding error; AWQ protects the ~1% of channels with large activations; one scale per 64–128 weights localises range. INT4 really costs ~4.25 bits per weight.
+
+Q: What are MXFP4 and NVFP4?
+A: Block-scaled 4-bit floats handled in hardware: MXFP4 shares a power-of-two scale across 32 values; NVFP4 an FP8 scale across 16 (~4.5 bits per value), more accurate and fast for prefill too.
+
+Q: Why is perplexity a poor quantization check?
+A: It's dominated by easy, confident tokens that noise doesn't affect, while multi-step reasoning, code and structured output degrade first. Evaluate on your task.
+
+Q: What is a sensible default serving configuration?
+A: FP8 weights and FP8 KV cache, FP8 compute for prefill where supported, INT4/FP4 only when memory-bound and measured, and sensitive layers (embeddings, first and last blocks) kept at higher precision.
+```
 
 ## What to carry forward
 

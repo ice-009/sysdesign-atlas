@@ -8,6 +8,12 @@ prereqs: [attention-and-kv-cache, queueing-theory, backpressure]
 unlocks: Understanding and tuning the component that determines your serving cost.
 ---
 
+:::predict Guess first
+1. A batch waits for its longest reply (500 tokens) while the others finish at 20. What happens to the finished requests' slots?
+2. Someone pastes a 32,000-token document while 60 others are mid-stream. Could their streams stutter?
+3. To decide whether a new request fits in memory, the scheduler would like to know how long its answer will be. Does it know?
+:::
+
 ## What an inference engine does
 
 Between your HTTP handler and the GPU sits a scheduler making one decision, thousands of times a second: **which requests run in the next forward pass?**
@@ -105,6 +111,22 @@ This is the same idea as spreading a database checkpoint over its interval rathe
 
 **Disaggregation** takes it further — run prefill and decode on *different GPU pools*, transferring the KV cache between them. Each pool can then be sized, batched, and even hardware-matched for its own characteristics. It costs a KV cache transfer over the interconnect and is developed further in [KV cache management](kv-cache-management.html).
 
+### Disaggregation became the default at scale
+
+By 2025–26, large deployments routinely split serving into separate roles:
+
+```diagram
+   router ──► prefill pool    compute-heavy; big batches of prompt tokens
+     │            │
+     │            │  KV cache shipped over NVLink / RDMA
+     │            ▼
+     └──────► decode pool     bandwidth-heavy; many concurrent streams
+```
+
+Open-source orchestration layers above the engines — NVIDIA Dynamo, and the Kubernetes-native llm-d, accepted into the CNCF in 2026 — supply the pieces: a **KV-aware router** that sends each request to a replica already holding its prefix, a **transfer library** (NVIDIA's NIXL) that moves KV blocks between GPUs and storage tiers, and **independent scaling** of the prefill and decode pools. The ratio of prefill to decode GPUs becomes a tuning knob set by your traffic: long prompts with short answers need more prefill capacity, chatty generation needs more decode. Research systems push the split further, putting MoE models' attention and expert layers on different GPUs.
+
+The trade is a KV transfer per request — hundreds of megabytes for a long prompt — and more moving parts. For one node or modest traffic, chunked prefill on shared GPUs is still the simpler answer.
+
 ## The scheduler's decisions
 
 Every iteration, the scheduler must decide:
@@ -194,6 +216,7 @@ The related operational point: **GPU autoscaling takes minutes**, because a node
 | **SGLang** | RadixAttention for aggressive prefix caching; strong on structured and multi-turn workloads |
 | **TGI** | Hugging Face's server; good ergonomics and ecosystem integration |
 | **llama.cpp** | CPU and consumer GPU, aggressive quantization, local deployment |
+| **Dynamo / llm-d** | Not engines but the layer above them: disaggregated prefill/decode, KV-aware routing, KV transfer between pools |
 
 They differ far less than they used to — continuous batching and paged KV are table stakes. Current differentiation is in prefix caching sophistication, quantization support, structured output, and how well the scheduler handles mixed workloads.
 
@@ -213,6 +236,34 @@ A 70B model on 8 GPUs. 200 concurrent users. Prompts average 2,000 tokens (p99: 
 
 *Efficient Memory Management for LLM Serving with PagedAttention* (Kwon et al., SOSP 2023) is vLLM. *SARATHI* (Agrawal et al., 2023) is chunked prefill and the interference analysis. *DistServe* (Zhong et al., OSDI 2024) is prefill/decode disaggregation.
 :::
+
+## Check yourself
+
+```recall
+Q: Why does static batching waste the GPU?
+A: The batch runs until its slowest member finishes; output lengths vary 10–50×, so finished requests idle in their slots and new arrivals wait for the batch to drain.
+
+Q: What is continuous batching?
+A: Iteration-level scheduling: after every decode step, evict finished requests and admit waiting ones, so the batch stays full — typically 2–4× throughput.
+
+Q: Why doesn't adding a request slow the others in decode?
+A: Step time is set by reading the weights once; extra token vectors cost almost nothing until compute or KV memory saturates. So batch as much as memory allows.
+
+Q: What is prefill/decode interference, and its fixes?
+A: A long prefill in the same step stalls every streaming decode (a 32K prompt ≈ 2 s). Chunked prefill interleaves ~512-token chunks with decode steps; disaggregation moves prefill to a separate pool.
+
+Q: What does disaggregated serving add?
+A: Separate prefill and decode pools linked by KV-cache transfer, a KV-aware router, and independent scaling with a prefill:decode ratio tuned to your traffic (Dynamo, llm-d).
+
+Q: How does admission work without knowing output length?
+A: Optimistic admission with preemption (best throughput), conservative reservation for max_tokens (underutilised), or prediction. Most engines are optimistic; honest max_tokens helps.
+
+Q: Recompute or swap when preempting?
+A: Recompute drops KV and re-prefills later (cheap for short contexts); swap copies KV to host memory over PCIe (better for long contexts). Regular preemption means admission is too loose.
+
+Q: Which scheduling policies resolve fairness and the TTFT tension?
+A: Priority lanes — interactive with small batches and admission preference, batch traffic in leftover capacity — plus per-tenant token budgets with weighted fair queueing.
+```
 
 ## What to carry forward
 

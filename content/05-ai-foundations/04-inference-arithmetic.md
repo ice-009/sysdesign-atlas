@@ -8,6 +8,12 @@ prereqs: [attention-and-kv-cache, hardware-numbers, back-of-envelope]
 unlocks: Predicting throughput, latency, and cost from a model spec and a GPU spec.
 ---
 
+:::predict Guess first
+1. A GPU can do about 1,000 trillion operations a second but fetch only about 3 trillion bytes. How many operations must you do per byte to keep it busy?
+2. Serving 64 users at once instead of one — does each user's time per token get slower?
+3. Should you compare GPUs for inference mainly on their TFLOPS rating?
+:::
+
 ## The two numbers a GPU has
 
 Every performance question about inference reduces to a comparison between two hardware capabilities: how fast the chip can calculate, and how fast it can fetch the numbers to calculate with.
@@ -238,6 +244,34 @@ Worth checking: in (4) most people find *memory* binds before they reach compute
 
 *Efficiently Scaling Transformer Inference* (Pope et al., MLSys 2023) is the definitive analytical treatment of inference cost, including the batch-size and parallelism tradeoffs. Kipply Chen's "Transformer Inference Arithmetic" is the most accessible write-up of the same maths.
 :::
+
+## Check yourself
+
+```recall
+Q: What is machine balance, and why does it matter?
+A: Compute ÷ bandwidth — about 1,000 TFLOP/s ÷ 3 TB/s ≈ 330 FLOP per byte. Workloads below it wait on memory; above it they wait on maths.
+
+Q: What is the arithmetic intensity of prefill and of decode?
+A: Prefill: batch × prompt length (thousands — compute-bound). Decode: exactly the batch size — 1 at batch 1, which is ~0.3% utilisation.
+
+Q: How do you estimate time per output token?
+A: TPOT ≈ weight bytes ÷ memory bandwidth (×1.3–1.6 for overheads). A 70B model is ~47 ms in BF16, ~23 ms in FP8, ~6 ms split four ways by tensor parallelism.
+
+Q: What changes TPOT, and what doesn't?
+A: Quantization and tensor parallelism reduce it (fewer bytes per GPU); batch size doesn't, because one weight read serves the whole batch — so throughput is nearly free until memory runs out.
+
+Q: How do you estimate time to first token?
+A: Queue wait + 2 × parameters × prompt tokens ÷ effective FLOPS. It scales with prompt length — a 32K-token prompt on a 70B model is ~1.9 s — so stuffing long context is a TTFT decision.
+
+Q: Why are throughput and TTFT in tension?
+A: Bigger batches raise intensity and throughput (cheaper tokens) but lengthen queues (worse TTFT). Systems split interactive and bulk lanes — hence discounted batch APIs.
+
+Q: What dominates cost per token?
+A: Utilisation: an 8-GPU node at ~$30/hour serving 64,000 tokens/s costs ~$0.13 per million output tokens at full load, ~$0.33 at 40%. Input is cheaper; cached input cheaper still.
+
+Q: Which GPU specs predict inference performance?
+A: Memory bandwidth (TPOT), memory capacity (concurrency) and interconnect bandwidth (tensor-parallel scaling) — not peak TFLOPS, which decode never approaches.
+```
 
 ## What to carry forward
 

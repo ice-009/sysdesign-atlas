@@ -8,6 +8,12 @@ prereqs: [tokenization, hardware-numbers]
 unlocks: Reasoning about model execution as a resource-consumption problem rather than a black box.
 ---
 
+:::predict Guess first
+1. Inside a transformer, which part holds most of the parameters — attention or the feed-forward network?
+2. Producing one token for one user means reading every weight. Could the same read produce tokens for 64 users?
+3. If you store a model's weights in 1 byte instead of 2, would generating text get faster even though the maths is the same?
+:::
+
 ## What we need from this
 
 You do not need to be able to derive the training mathematics to design AI infrastructure. You need to know, precisely:
@@ -209,6 +215,34 @@ Check your reasoning on (4): you read essentially all the weights, so ~14 GB at 
 
 For the infrastructure-relevant view: *FlashAttention* (Dao et al., 2022) on why the quadratic score matrix is never materialised, and *GQA: Training Generalized Multi-Query Transformer Models* (Ainslie et al., 2023) for the KV cache reduction.
 :::
+
+## Check yourself
+
+```recall
+Q: What four things does infrastructure need from the transformer?
+A: Where the parameters live (memory), where the arithmetic happens (compute), what state persists across tokens (the KV cache), and which operations are compute- versus bandwidth-bound (batching).
+
+Q: What is the one place tokens interact?
+A: Attention. Feed-forward, normalisation and embedding lookups work on each position independently, which is why only attention needs past state.
+
+Q: What is the residual stream?
+A: A running vector of d_model numbers carried by each position; every block reads it and adds its result back. It makes deep networks trainable and is why LoRA and activation steering work.
+
+Q: Why can past keys and values be cached?
+A: Causal masking means a position's K and V never change as the sequence grows, so compute them once — the KV cache, the dominant consumer of serving memory.
+
+Q: Where do the parameters live in a layer?
+A: About 12d² per layer: attention 4d² (Q, K, V, O) and the FFN 8d². The FFN holds two thirds of parameters and FLOPs.
+
+Q: How much memory does a 70B-class model need for weights?
+A: About 266 GB in FP32, 133 GB in BF16, 67 GB in FP8 and 33 GB in INT4 — precision decides how many GPUs you need.
+
+Q: Why is batching the most important idea in serving?
+A: Decode streams every weight to produce one token, leaving compute idle; the same weight read can serve a whole batch at almost no extra cost.
+
+Q: What does decode latency scale with?
+A: Bytes of weights read, not FLOPs — so a model quantized from BF16 to FP8 decodes about 2× faster. Grouped-query attention shrinks the KV cache several-fold.
+```
 
 ## What to carry forward
 

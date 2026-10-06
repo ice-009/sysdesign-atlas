@@ -8,6 +8,12 @@ prereqs: [inference-engines, caching, consistent-hashing]
 unlocks: The highest-leverage optimisation available in a production LLM serving stack.
 ---
 
+:::predict Guess first
+1. Eight replicas serve a chat product with round-robin routing. What is the chance a conversation's next turn lands where its earlier turns were cached?
+2. Is it ever faster to fetch cached attention data from an SSD than to recompute it on the GPU?
+3. After a model upgrade, could old cached prefixes still be used safely?
+:::
+
 ## Where the leverage is
 
 From [attention and the KV cache](../05-ai-foundations/attention-and-kv-cache.html): concurrency on a GPU is set by how much KV cache fits alongside the weights. So every megabyte you save or reuse converts directly into more users served on the same hardware.
@@ -224,6 +230,34 @@ A coding assistant: 30,000 daily users, each with sessions averaging 40 requests
 
 *DistServe: Disaggregating Prefill and Decoding* (Zhong et al., OSDI 2024) and *Splitwise* (Patel et al., ISCA 2024) are the disaggregation papers. *Mooncake* (Qin et al., 2024) is a production KV-cache-centric architecture with tiering, from Moonshot AI.
 :::
+
+## Check yourself
+
+```recall
+Q: What are the three KV-cache levers?
+A: Make it smaller (GQA, quantized cache, MLA), don't recompute it (prefix caching), and put it somewhere else (tiering to DRAM and NVMe, disaggregated pools). They multiply.
+
+Q: Why use a radix tree for prefix caching?
+A: Each branch point is where prompts diverged, so every shared prefix at every length is reused — not just exact repeats. Nodes hold ref-counted blocks; evict leaves by LRU.
+
+Q: What is prefix caching worth in chat?
+A: An 8-turn conversation with a 2,000-token system prompt prefills ~6,000 tokens instead of ~34,000 — 5.7× less compute-bound work, and much lower TTFT after turn 1.
+
+Q: How does cache-affinity routing work?
+A: Hash the conversation ID to a preferred replica; use it while its load is within a threshold of the fleet average, otherwise pick the least loaded. It trades balance for hit rate — quantify the ratio.
+
+Q: How do you decide which tier a cached prefix belongs in?
+A: Compare transfer time with recompute time: 328 MB of KV takes ~5 ms over PCIe and ~66 ms from NVMe versus ~120 ms to recompute, but 328 ms over a 1 GB/s network loses.
+
+Q: Why disaggregate prefill and decode?
+A: Each pool runs homogeneous work at its own optimum, TPOT stops being disturbed by other users' prefills, and pools scale independently — at the cost of a fast KV transfer.
+
+Q: What is the KV-cache invalidation trap?
+A: Cached blocks are valid only for the exact weights, adapter and quantization that produced them. Key by (model version, adapter, quantization, tokens) and flush on any change — stale blocks fail silently.
+
+Q: How should cached prefixes be evicted?
+A: Never evict blocks in use; weigh recency, prefix length, hit frequency and recompute cost. In practice, pin known-hot prefixes (system prompts, tool definitions) and run LRU over the rest.
+```
 
 ## What to carry forward
 

@@ -8,6 +8,12 @@ prereqs: [transformer-as-a-system, indexing]
 unlocks: The representation underneath every retrieval, recommendation, and clustering system.
 ---
 
+:::predict Guess first
+1. "How do I reset my password" and "forgot my login credentials" share no words. Could a search system still know they mean the same thing?
+2. Model A says two passages have similarity 0.85; model B says 0.4. Which pair is more similar?
+3. You switch to a better embedding model. Can new queries search the vectors made by the old model?
+:::
+
 ## The idea
 
 An embedding maps a piece of content — text, an image, a product — to a fixed-length vector of floats, arranged so that **geometric closeness corresponds to semantic similarity**.
@@ -184,6 +190,34 @@ A support knowledge base: 2 million articles, average 1,200 words. Queries are u
 
 *Dense Passage Retrieval* (Karpukhin et al., EMNLP 2020) is the in-batch negatives technique. *Learning Transferable Visual Models From Natural Language Supervision* (Radford et al., ICML 2021) is CLIP. *Matryoshka Representation Learning* (Kusupati et al., NeurIPS 2022) is the truncatable-dimension idea.
 :::
+
+## Check yourself
+
+```recall
+Q: What does an embedding do?
+A: Maps content to a fixed-length vector so geometric closeness means semantic similarity — connecting "reset password" to "forgot credentials" with no shared words.
+
+Q: How are embedding models trained, and why do batch sizes matter?
+A: Contrastive learning (InfoNCE): pull positives close, push negatives apart. Every other example in a batch is a free negative, so bigger batches — and mined hard negatives — sharpen quality.
+
+Q: Cosine, dot product or Euclidean?
+A: Cosine (angle only) is the default; dot product lets magnitude encode popularity in recommenders. For normalised vectors all three rank identically.
+
+Q: Why can't you compare similarity scores across models?
+A: Each model occupies a different region of its space, so thresholds like "above 0.8" break on upgrade. Calibrate per model on your data, or use rank instead of score.
+
+Q: What does dimensionality cost, and how do you cut it?
+A: 100M docs at 3,072 dims is ~1.2 TB before index overhead versus ~154 GB at 384. Matryoshka embeddings let you search a truncated index then re-rank with full vectors; int8 is 4× smaller, binary 32×.
+
+Q: Name four things embeddings are bad at.
+A: Negation, exact identifiers (codes, SKUs, names), numeric and date filters, long documents averaged into mush — plus domain shift, often fixed by in-domain fine-tuning.
+
+Q: Why is re-embedding the hard operational problem?
+A: Vectors from different models are incomparable, so an upgrade means re-embedding the whole corpus, rebuilding the index and running two indexes at once.
+
+Q: What must you design in from day one for re-embedding?
+A: Keep the source text, store the model version per vector, build the new index alongside the old with dual writes, shadow-evaluate, then cut over atomically per index.
+```
 
 ## What to carry forward
 

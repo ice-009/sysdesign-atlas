@@ -8,6 +8,12 @@ prereqs: [inference-arithmetic, back-of-envelope, gpus]
 unlocks: Making the build-versus-buy decision with numbers instead of intuition.
 ---
 
+:::predict Guess first
+1. The same GPUs, model and code — could cost per token differ by 4× between two companies?
+2. An API charges $3 per million output tokens; self-hosting might cost $0.28. Does that make self-hosting the obvious choice?
+3. A chat message costs about 2,500 tokens. Roughly how many might one agent task consume?
+:::
+
 ## Building the model from the bottom
 
 Cost per token is derivable from three quantities you already know how to compute.
@@ -189,6 +195,8 @@ A chat request costs a bounded, predictable amount. An [agent](../07-ai-systems/
 The consequences: a per-request cost ceiling is mandatory, not optional; token budgets must be enforced in the agent loop itself; and a runaway loop needs a circuit breaker. Several companies have discovered this through a five-figure bill from a single stuck agent.
 :::
 
+**Reasoning models move cost to the output side.** A model that thinks before answering can generate 5,000–50,000 hidden reasoning tokens on a hard question, billed as output — the most expensive token type — and served by the bandwidth-bound decode phase. Most such models expose a reasoning-effort or thinking-budget setting: use a low budget for routine traffic and a high one only where accuracy pays for it, and track reasoning tokens as their own line in cost attribution.
+
 ## Pricing a product on top
 
 If you resell, the unit economics have to be worked out per user, not per token.
@@ -232,6 +240,34 @@ There's no canonical paper here — this is operational knowledge. The most usef
 
 For the general discipline, the FinOps Foundation's material on unit economics transfers directly, with tokens in place of requests.
 :::
+
+## Check yourself
+
+```recall
+Q: What is the cost-per-token formula?
+A: Node price per hour ÷ (3,600 × sustained tokens/s × utilisation). A $22/hour node at 48,800 tokens/s is ~$0.13 per million output tokens at full load, ~$0.28 at 45%.
+
+Q: Why does utilisation dominate cost?
+A: It swings cost 2–4× (90% → $0.14, 20% → $0.63), far more than a heroic 15% kernel win. Levers: batch lanes, multi-tenancy, follow-the-sun traffic, right-sized replicas.
+
+Q: Why are input and cached tokens cheaper?
+A: Prefill is compute-bound and batches at high intensity (~4–8× more tokens/s than decode); cached input skips prefill entirely.
+
+Q: What is model routing, and its risk?
+A: A cheap classifier sends simple requests to small models and hard ones to the frontier model — cutting cost by more than half when most traffic is simple. Misrouting gives bad answers, so route conservatively and watch escalations.
+
+Q: Where is the API-versus-self-host break-even?
+A: With ~$46K/month fixed (node plus 1.5 engineers) and $2.72 saved per million tokens: ~17 billion output tokens a month, ~500M a day — a large product.
+
+Q: When is self-hosting right despite the arithmetic?
+A: Genuinely huge volume, data that can't leave your infrastructure, a custom model no API serves, colocation for latency, or idle training GPUs that inference can backfill.
+
+Q: What should cost attribution record?
+A: Per request: tenant, model and version, cached and uncached input, output (and reasoning) tokens, feature and cost — to find the top 1% of users, unprofitable features and runaway loops.
+
+Q: Why do agents and reasoning models break flat pricing?
+A: Agents re-send growing context each step (300,000+ tokens per task versus 2,500 per chat message) and reasoning models emit thousands of hidden output tokens. Meter, cap or budget them.
+```
 
 ## What to carry forward
 

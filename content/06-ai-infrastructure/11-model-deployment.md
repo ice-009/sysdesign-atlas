@@ -8,6 +8,12 @@ prereqs: [object-storage, inference-engines]
 unlocks: Rolling out a model change without a quality regression or a cold-start outage.
 ---
 
+:::predict Guess first
+1. A new model version is 4% worse at writing code. Will your error-rate dashboards catch it during the rollout?
+2. Rolling out 140 GB of weights to 200 servers straight from object storage — roughly how long might that take, and what does it mean for rolling back?
+3. A model server process starts listening on its port. Is it ready for real users?
+:::
+
 ## Why this isn't a normal deployment
 
 A container image is a few hundred megabytes, starts in seconds, and is either correct or throws an exception. A model deployment breaks every one of those assumptions.
@@ -196,6 +202,34 @@ No canonical paper; this is operational practice. *Hidden Technical Debt in Mach
 
 For the mechanics: the `safetensors` format documentation on zero-copy loading, and the Dragonfly / Kraken projects for P2P artifact distribution.
 :::
+
+## Check yourself
+
+```recall
+Q: Why is a model deploy unlike a service deploy?
+A: 70–500 GB of weights take minutes to load, quality is a distribution rather than pass/fail, regressions are silent, and rollback needs the old weights somewhere fast.
+
+Q: What belongs in a model artifact?
+A: Weights, tokenizer, config, generation defaults, the exact chat template and metadata (base model, data snapshot, eval results, quantization recipe, engine compatibility), content-addressed.
+
+Q: Why is the chat template the most common silent failure?
+A: A model learned one exact format; serving with a drifted copy degrades quality with no error. Ship it in the artifact and smoke-test the rendered token IDs, not the string.
+
+Q: How do you distribute huge weights quickly?
+A: Parallel range requests, regional mirrors, P2P distribution (replicas seed each other — minutes instead of ~23), and lazy mmap loading of safetensors so serving starts almost immediately.
+
+Q: Why warm up before marking a replica ready?
+A: Kernel autotuning, memory pools and an empty prefix cache make first requests 3–10× slower. Run representative synthetic requests, pre-populate system prompts, and have the readiness probe test "warm", not "up".
+
+Q: What is shadow mode good for?
+A: Mirroring real traffic to the new model and comparing outputs with zero user risk and real distribution coverage — though it can't measure user feedback.
+
+Q: Which canary signals catch model regressions?
+A: Output length distribution, refusal rate, tool-call validity (the best fast indicator), task success, retries and regenerations, thumbs feedback and an LLM judge on a live sample.
+
+Q: How should rollback and A/B testing be set up?
+A: Keep the old weights on local NVMe or warm replicas, with a written, automatable rollback trigger. Randomise A/B tests by user, not request, and run long enough for slow metrics.
+```
 
 ## What to carry forward
 

@@ -8,6 +8,12 @@ prereqs: [interconnect-and-collectives, transformer-as-a-system]
 unlocks: The default parallelism strategy, and knowing exactly where it stops working.
 ---
 
+:::predict Guess first
+1. Training a 7B model needs about 112 GB of memory but its weights are only 14 GB. What do you think fills the rest?
+2. With 64 GPUs each holding an identical copy of the optimizer's statistics, is there a way to stop storing 64 copies?
+3. If you double the number of GPUs and keep the per-GPU batch, has the training changed — or only got faster?
+:::
+
 ## The simple version
 
 Put a full copy of the model on every GPU and give each one a different slice of the training examples. Each computes its **gradients** — the adjustments it thinks the weights need, based on the examples it saw. Average those across all GPUs, and every copy applies the identical average, so the replicas never drift apart.
@@ -217,6 +223,34 @@ Train a 13B model on 128 GPUs of 80 GB, BF16, Adam. NVLink within 8-GPU nodes, I
 
 *PyTorch FSDP: Experiences on Scaling Fully Sharded Data Parallel* (Zhao et al., VLDB 2023) is the production write-up. *Training Deep Nets with Sublinear Memory Cost* (Chen et al., 2016) is activation checkpointing. *An Empirical Model of Large-Batch Training* (McCandlish et al., 2018) is the critical-batch-size result.
 :::
+
+## Check yourself
+
+```recall
+Q: What is the memory bill for training with Adam?
+A: ~16 bytes per parameter: BF16 weights and gradients (2 + 2), FP32 momentum and variance (4 + 4) and FP32 master weights (4). For 7B that's 112 GB, 75% of it optimizer state.
+
+Q: What insight does ZeRO exploit?
+A: Every data-parallel GPU holds an identical copy of optimizer state, gradients and parameters. Shard them across the group and gather each piece only when needed.
+
+Q: Give the ZeRO stages and their memory per GPU.
+A: Stage 1 shards optimizer state (4P + 12P/N), stage 2 adds gradients (2P + 14P/N), stage 3 adds parameters (16P/N) — 7B on 64 GPUs drops from 112 GB to ~1.8 GB.
+
+Q: What does ZeRO-3 cost, and what is the practical rule?
+A: About 1.5× DDP's communication — all-gathers in forward and backward plus a reduce-scatter — in many small operations. Use the lowest stage that fits.
+
+Q: What is activation checkpointing?
+A: Save only each block's input and recompute the rest during backward: ~33% more compute for a large memory cut. Activations can exceed parameter memory at long sequence lengths.
+
+Q: How does data parallelism change training dynamics?
+A: It multiplies the global batch: scale the learning rate (linear scaling with warmup), watch the critical batch size beyond which sample efficiency drops, and use gradient accumulation to decouple batch from GPU count.
+
+Q: Why report MFU instead of GPU count?
+A: Useful FLOPs ÷ peak is honest and comparable; 60% scaling efficiency on 512 GPUs is 307 GPUs of work. 40–50% MFU is good, under 30% means investigate.
+
+Q: When do you move beyond data parallelism?
+A: When ZeRO-3 is network-bound or a single layer doesn't fit (add tensor parallelism in-node), too many nodes (add pipeline), or sequence length binds (sequence parallelism).
+```
 
 ## What to carry forward
 

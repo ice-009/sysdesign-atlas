@@ -8,6 +8,12 @@ prereqs: [transformer-as-a-system, quantization]
 unlocks: Deciding between prompting, retrieval, and training — and knowing what the training option costs to serve.
 ---
 
+:::predict Guess first
+1. A model doesn't know about your company's products. Is fine-tuning the best way to teach it?
+2. A 7B model runs on one GPU for inference. Would fine-tuning all its weights also fit on one GPU?
+3. Instead of training a separate full model per customer, could many customers share one base model?
+:::
+
 ## First: should you fine-tune at all?
 
 Most fine-tuning projects should have been prompt engineering or retrieval projects. The honest decision table:
@@ -173,6 +179,8 @@ The alternative — **merging** the adapter into the base weights — gives zero
 
 Variants worth recognising: **IPO** (fixes a DPO overfitting failure mode), **KTO** (works from thumbs-up/down rather than pairs — much easier data to collect), and **GRPO** (group-relative, used for reasoning training, dispenses with the value model).
 
+**Reasoning models changed the picture in 2025.** DeepSeek-R1 showed that reinforcement learning with **verifiable rewards** — grading maths answers against the known result, or code against its tests, instead of asking a learned reward model — can teach long step-by-step reasoning. The infrastructure looks like PPO's, with generation inside the training loop (and generation often dominating the cost), but there is no reward model to train or host. GRPO is the usual algorithm. The limit is the reward itself: it only works where an answer can be checked automatically.
+
 :::trap Catastrophic forgetting is the default outcome
 Fine-tune on 5,000 customer-support examples and the model gets better at support and measurably worse at everything else — arithmetic, code, general reasoning. The weights moved, and nothing was holding the rest in place.
 
@@ -208,6 +216,34 @@ You classify support tickets into 40 categories. Currently: a frontier model wit
 
 *Training Language Models to Follow Instructions with Human Feedback* (Ouyang et al., 2022) is InstructGPT/RLHF. *Direct Preference Optimization* (Rafailov et al., NeurIPS 2023) is DPO. *LIMA: Less Is More for Alignment* (Zhou et al., 2023) is the data-quality argument.
 :::
+
+## Check yourself
+
+```recall
+Q: When is fine-tuning the right tool?
+A: For voice, tone or domain style, and for narrow high-volume tasks served by a small model. Missing knowledge is a retrieval problem; wrong format is a constrained-decoding problem.
+
+Q: What is the strongest economic case for fine-tuning?
+A: Distillation: use a frontier model to label data for a narrow task, then fine-tune and serve a small model at a fraction of the cost and latency.
+
+Q: How much memory does full fine-tuning need?
+A: ~16–20 bytes per parameter — weights, gradients, two FP32 Adam states and FP32 master weights — versus ~2 for inference. A 7B model needs ~120–150 GB.
+
+Q: How does LoRA work?
+A: Freeze W and learn ΔW = B·A with rank r ≪ d (8–64): with r = 16 a 4096×4096 update needs 131K numbers instead of 16.8M. A 7B LoRA fine-tune fits ~22 GB; QLoRA with an NF4 base ~10 GB.
+
+Q: Why does LoRA matter for serving?
+A: Adapters are tens of megabytes and many can share one base model in memory, batched together with per-row adapters (S-LoRA, Punica). Merge into the base only when serving one tuned model at volume.
+
+Q: PPO versus DPO?
+A: PPO needs four models (policy, reference, reward, value) and generation inside training — 4–8× SFT cost and unstable. DPO turns preferences into a classification loss with two models and no RL loop.
+
+Q: What are verifiable rewards?
+A: RL that grades outputs automatically — maths answers, code against tests — instead of with a reward model. DeepSeek-R1 used it with GRPO to train reasoning; it only works where answers can be checked.
+
+Q: How do you limit catastrophic forgetting?
+A: Low-rank LoRA, 10–30% general data mixed in, a low learning rate and 1–3 epochs, and evaluation on general benchmarks as well as your task.
+```
 
 ## What to carry forward
 

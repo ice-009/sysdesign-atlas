@@ -8,6 +8,12 @@ prereqs: [gpus, networking]
 unlocks: Choosing a parallelism strategy from the shape of the interconnect rather than by convention.
 ---
 
+:::predict Guess first
+1. GPUs inside one server talk at ~900 GB/s; across servers at ~50 GB/s. Which kind of model parallelism should go where?
+2. In a ring all-reduce, does each GPU send more data when you add more GPUs?
+3. One GPU in a 1,000-GPU job runs 10% slower. How much slower does the whole job run?
+:::
+
 ## The hierarchy that decides everything
 
 Multi-GPU work is constrained by a bandwidth hierarchy spanning three orders of magnitude.
@@ -113,6 +119,8 @@ Two properties of the node-to-node fabric matter as much as raw bandwidth:
 
 **Lossless delivery.** InfiniBand provides credit-based flow control, so packets are never dropped due to congestion. Collectives are extremely sensitive to loss: a single retransmission stalls every participant, because all-reduce cannot complete until the slowest member arrives. RoCE needs Priority Flow Control configured correctly to approximate this, and misconfigured PFC is one of the classic causes of a cluster that trains at half its expected speed.
 
+Ethernet has been closing the gap. Meta built two 24,000-GPU clusters for Llama 3 — one on InfiniBand, one on RoCE — and reported comparable training performance once the RoCE fabric was tuned. The Ultra Ethernet Consortium published its 1.0 specification in 2025: a transport designed for AI traffic, with multipath packet spraying and congestion control that tolerate loss better than classic RoCE. Expect Ethernet-based fabrics to be the common choice for new clusters, with InfiniBand where its maturity is worth the price.
+
 ## Topology
 
 ```diagram
@@ -214,6 +222,34 @@ Training a 30B model, BF16, across 64 GPUs — 8 nodes of 8. NVLink 900 GB/s wit
 
 *Horovod* (Sergeev & Del Balso, 2018) is the practical system. The NCCL documentation on algorithms and protocols is the reference for what actually runs. Meta's OPT-175B logbook is the best public account of what goes wrong at scale.
 :::
+
+## Check yourself
+
+```recall
+Q: What is the bandwidth hierarchy, and the rule that follows?
+A: GPU memory 2–8 TB/s, NVLink 400–1,800 GB/s, PCIe ~64 GB/s, InfiniBand 25–100 GB/s per GPU, WAN under 1 GB/s. Put chatty communication (tensor parallel) on fast tiers, infrequent (pipeline, data) on slow ones.
+
+Q: Name the main collectives and their uses.
+A: All-reduce (gradient averaging), reduce-scatter and all-gather (its two halves; ZeRO/FSDP use them), all-to-all (MoE routing, the hardest), broadcast (initial weights).
+
+Q: What does a ring all-reduce cost?
+A: Each GPU sends about 2S bytes whatever N is — why data parallelism scales — plus a latency term of 2(N−1) hops. A 14 GB gradient takes ~31 ms over NVLink, ~560 ms over InfiniBand.
+
+Q: Why do large clusters use hierarchical all-reduce?
+A: The ring's latency term grows with N (10 ms at 1,000 GPUs); reducing within nodes over NVLink first, then across a small ring of nodes, cuts hops to O(nodes) or O(log N).
+
+Q: Why do RDMA and lossless delivery matter?
+A: GPUDirect RDMA lets a NIC write straight into a remote GPU's memory with no CPU copy; a dropped packet stalls every participant in a collective, so misconfigured RoCE flow control silently halves throughput.
+
+Q: What is a rail-optimised network?
+A: GPU i of every node connects to switch i, because data-parallel peers share a rank — most of full bisection's benefit at a fraction of the switch cost.
+
+Q: How is communication overlapped with compute?
+A: Start all-reducing a layer's gradients as soon as its backward pass finishes, in ~25 MB buckets. If communication exceeds compute, change the parallelism strategy.
+
+Q: How do you diagnose a slow distributed job?
+A: Run nccl-tests on the exact allocation, check placement, look at the per-rank step-time distribution for stragglers, and compare compute with communication time.
+```
 
 ## What to carry forward
 

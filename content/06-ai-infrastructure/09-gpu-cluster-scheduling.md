@@ -8,6 +8,12 @@ prereqs: [training-at-scale, queueing-theory]
 unlocks: Running a shared GPU fleet without either idle capacity or perpetually queued jobs.
 ---
 
+:::predict Guess first
+1. Two jobs each need 64 GPUs on a 64-GPU cluster. One grabs 40 and the other 24. What happens next?
+2. A job asks for "8 GPUs". Does it matter whether they're on one server or eight?
+3. A research notebook holds a GPU while its owner is at lunch. Across a big cluster, how much might idle sessions cost?
+:::
+
 ## Why a normal scheduler fails
 
 A web workload is elastic, fungible, and fast to start. Bin-pack it anywhere; if a pod is slow to schedule, nobody notices.
@@ -83,6 +89,8 @@ A job specification should say: 64 GPUs, arranged as 8 nodes of 8, with the 8-GP
 
 This is the same class of problem as rack-aware replica placement in a database — the scheduler must model the physical topology because the workload's performance depends on it. The difference is that here the penalty is 5× rather than 5%.
 :::
+
+Kubernetes itself is catching up. **Dynamic Resource Allocation** (DRA), generally available since Kubernetes 1.34 in 2025, lets a pod request devices by attributes and constraints — "four GPUs in the same NVLink domain" — instead of a bare count of `nvidia.com/gpu`. Gang scheduling and quotas still come from Kueue or Volcano in most clusters.
 
 ## Sharing a GPU
 
@@ -206,6 +214,34 @@ A 512-GPU cluster shared by three teams: inference (needs 150 GPUs, latency-crit
 
 *Gandiva* (Xiao et al., OSDI 2018) and *Tiresias* (Gu et al., NSDI 2019) are the deep-learning-specific schedulers, covering job introspection and time-slicing. The Volcano and Kueue documentation are the practical Kubernetes references.
 :::
+
+## Check yourself
+
+```recall
+Q: Why do normal schedulers fail for GPU jobs?
+A: Distributed jobs are useless until every GPU is ready, placement changes speed several-fold, startup takes minutes, eviction destroys work, and GPUs are exclusive.
+
+Q: What is gang scheduling, and why is it mandatory?
+A: Allocate all of a job's resources together or none. Without it, two jobs can each hold part of the cluster and wait forever — 100% allocated, 0% productive. Kubernetes needs Volcano or Kueue for it.
+
+Q: How should placement differ for training and inference?
+A: Training packs tightly — tensor-parallel groups on one node, data-parallel peers on the same rail. Inference spreads replicas across nodes and racks for fault tolerance.
+
+Q: Which GPU sharing gives real isolation?
+A: Only MIG. Time slicing and MPS share hardware, and "0.5 GPU" requests in Kubernetes plugins are scheduling arithmetic with no enforcement.
+
+Q: How do hierarchical quotas work?
+A: Each team gets a guarantee (always available, reclaimed by preempting borrowers) and a burst limit using others' idle capacity — high utilisation without starvation.
+
+Q: What must preempting a training job include?
+A: A warning signal, a grace period long enough to write a checkpoint (minutes, not the 30-second default), a clean exit, and automatic re-queue and resume.
+
+Q: How is GPU capacity planned unlike cloud compute?
+A: Hardware takes weeks to quarters and power is your limit, so reserve capacity (40–70% cheaper), use spot only for checkpointed training, and push utilisation.
+
+Q: Why is utilisation the whole cost story?
+A: 256 GPUs at $2/hour cost $5/useful hour at 40% utilisation versus $2.22 at 90%; reaching 75% saves ~$1.9M a year — via backfill, reclaiming idle sessions, right-sizing and defragmentation.
+```
 
 ## What to carry forward
 

@@ -64,7 +64,7 @@ Why the list must be **doubly** linked: to remove a node from the middle in cons
 
 ```java
 class Node<K, V> {
-    K key; V value;                  // the key is stored so eviction can clean the map
+    K key; V value;                  // key kept so eviction can clean the map
     long expiresAtNanos;             // 0 = never
     Node<K, V> prev, next;
 }
@@ -103,7 +103,9 @@ interface ExpiryPolicy {
 interface CacheLoader<K, V> { V load(K key); }
 
 /** Varies 4: who wants to know something was evicted. */
-interface EvictionListener<K, V> { void onEvicted(K key, V value, EvictionCause cause); }
+interface EvictionListener<K, V> {
+    void onEvicted(K key, V value, EvictionCause cause);
+}
 ```
 
 Now the rules become independent classes:
@@ -147,13 +149,14 @@ Start with the honest simple answer, then improve it. That sequence is itself th
 
 ```java
 class StripedCache<K, V> implements Cache<K, V> {
-    private final Segment<K, V>[] segments;         // each: map + list + its own lock
+    private final Segment<K, V>[] segments;         // each: map, list, own lock
 
     private Segment<K, V> segmentFor(K key) {
         return segments[spread(key.hashCode()) & (segments.length - 1)];
     }
 
-    public Optional<V> get(K key) { return segmentFor(key).get(key); }   // one short lock
+    // one short lock, on this key's segment only
+    public Optional<V> get(K key) { return segmentFor(key).get(key); }
 }
 ```
 

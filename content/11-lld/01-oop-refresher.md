@@ -36,7 +36,8 @@ class Account {
     private long balanceMinor;   // money in paise/cents, never a double
 
     void withdraw(long amount) {
-        if (amount <= 0) throw new IllegalArgumentException("amount must be positive");
+        if (amount <= 0)
+            throw new IllegalArgumentException("amount must be positive");
         if (amount > balanceMinor) throw new InsufficientFundsException(id, amount);
         balanceMinor -= amount;
     }
@@ -150,7 +151,8 @@ Two people called Ravi Sharma are two users, even with identical details — so 
 // A value object: cannot change, checks itself, compared by value.
 record Money(long minorUnits, Currency currency) {
     Money {
-        if (currency == null) throw new IllegalArgumentException("currency required");
+        if (currency == null)
+            throw new IllegalArgumentException("currency required");
     }
     Money plus(Money other) {
         if (!currency.equals(other.currency)) throw new CurrencyMismatchException();

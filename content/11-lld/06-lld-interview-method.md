@@ -90,12 +90,12 @@ Three moves, in order.
 
 ```java
 class ParkingLotService {
-    private final SpotAllocator allocator;     // interface: nearest / random / lowest floor
+    private final SpotAllocator allocator;     // nearest, random or lowest floor
     private final ParkingFeeStrategy pricing;  // interface
     private final TicketRepository tickets;    // interface
 
-    Ticket park(Vehicle v, Gate entry) { /* find a spot, issue a ticket, save it */ }
-    Receipt unpark(String ticketId, PaymentMethod m) { /* price it, charge, free the spot */ }
+    Ticket park(Vehicle v, Gate entry) { /* find spot, issue ticket, save */ }
+    Receipt unpark(String ticketId, PaymentMethod m) { /* price, charge, free */ }
 }
 ```
 

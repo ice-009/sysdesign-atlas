@@ -11,6 +11,8 @@
      - :::callout blocks are closed and use a known kind
      - ```viz blocks contain parseable JSON with a known type
      - ```recall blocks: every card has a question and an answer, no repeats
+     - code and diagram lines are at most 84 characters, so nothing scrolls
+       sideways on a portrait iPad
      - the learning layer — a :::predict "guess first" box at the top, a
        ```recall block of 5–8 cards, and a "What to carry forward" section —
        is present in every topic of the sections listed in LEARNING_REQUIRED
@@ -61,7 +63,7 @@ const CALLOUT_KINDS = new Set([
 /* Sections whose every topic must carry the learning layer. Grows as each
    section gets its pass; when every section is listed, the whole atlas is
    held to it. */
-const LEARNING_REQUIRED = new Set(['01-foundations', '02-building-blocks', '03-distributed', '04-data', '11-lld', '12-hld-bridge', '08-case-studies', '09-builds']);
+const LEARNING_REQUIRED = new Set(['01-foundations', '02-building-blocks', '03-distributed', '04-data', '11-lld', '12-hld-bridge', '08-case-studies', '09-builds', '05-ai-foundations', '06-ai-infrastructure']);
 const MIN_CARDS = 5;
 const MAX_CARDS = 8;
 
@@ -211,6 +213,21 @@ for (const t of topics) {
     }
   });
   if (open) errors.push(`${t.rel}:${openLine} — ":::${open}" never closed`);
+
+  // Code and diagram lines: 84 characters is what fits a portrait iPad without
+  // the block scrolling sideways.
+  {
+    let fence = null;
+    t.body.split('\n').forEach((line, i) => {
+      if (line.startsWith('```')) {
+        fence = fence === null ? line.slice(3).trim() : null;
+        return;
+      }
+      if (fence !== null && fence !== 'recall' && fence !== 'viz' && [...line].length > 84) {
+        errors.push(`${t.rel} — line ${i + 1} of a code block is ${[...line].length} characters; keep it to 84`);
+      }
+    });
+  }
 
   // recall fences: Q:/A: cards (same rules as parseRecall in lib/markdown.ts).
   t.cards = 0;

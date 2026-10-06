@@ -8,6 +8,12 @@ prereqs: [transformer-as-a-system, caching]
 unlocks: The central constraint of LLM serving — scheduling memory, not compute.
 ---
 
+:::predict Guess first
+1. Generating 1,000 tokens by reprocessing everything at each step — roughly how much more work is that than necessary?
+2. Two requests start with the same 2,000-token system prompt. Could they share the same stored attention data exactly, or only approximately?
+3. A prompt begins with the current timestamp, followed by a long fixed system prompt. What might that do to caching?
+:::
+
 ## The problem the cache solves
 
 Generation is **autoregressive** — each new token is produced by feeding everything written so far back in, so the model is always predicting the next word given all the previous ones. Done naively, that means reprocessing every earlier token at every single step.
@@ -203,6 +209,34 @@ A model has 60 layers, 8 KV heads, head_dim 128, and is served in BF16 on an 80 
 
 *Fast Transformer Decoding: One Write-Head is All You Need* (Shazeer, 2019) introduced MQA; *GQA* (Ainslie et al., EMNLP 2023) is the grouped generalisation. *SGLang / RadixAttention* (Zheng et al., 2024) covers prefix caching as a radix tree.
 :::
+
+## Check yourself
+
+```recall
+Q: What does the KV cache turn quadratic into?
+A: Naive generation reprocesses every earlier token each step — O(N²), 500× the work for 1,000 tokens. Caching each position's K and V makes each step O(1) compute and total generation O(N).
+
+Q: What is the KV cache size formula?
+A: bytes per token = 2 × layers × kv_heads × head_dim × bytes per value. With 80 layers, 64 heads of 128 in BF16 that's ~2.5 MB per token — 10 GB for a 4,000-token conversation.
+
+Q: What sets how many requests a GPU can serve concurrently?
+A: How much KV cache fits beside the weights — you schedule memory, not compute. A 100K-token request should be admitted as though it were twenty short ones.
+
+Q: What do GQA, MQA, quantized cache and MLA do?
+A: GQA shares K/V across query-head groups (~8× smaller, near-free); MQA uses one K/V head (64×, slight loss); FP8/INT8 cache halves or quarters it; MLA compresses K and V into a low-rank latent.
+
+Q: Why can identical prefixes share cache blocks exactly?
+A: Causal attention makes a position's K and V independent of anything after it, so identical prefixes produce bit-identical values — 1,000 users with one system prompt need one copy.
+
+Q: Why does prompt order decide the cache hit rate?
+A: Only a prefix can be shared, so one variable token at the front (a timestamp) invalidates everything after it. Put stable content first and volatile content last.
+
+Q: How does paged KV allocation work?
+A: Fixed-size blocks (e.g. 16 tokens) tracked by a per-request block table — like OS page tables — so no reservation waste or fragmentation, and shared prefixes use copy-on-write blocks. PagedAttention reported 2–4× more concurrency.
+
+Q: Under memory pressure, why not just evict?
+A: An active request needs its whole cache for the next token. The real choices are preempt (drop and re-prefill later), swap blocks to CPU memory, or reject at admission.
+```
 
 ## What to carry forward
 

@@ -62,11 +62,11 @@ If exactly one thread ever touches a piece of data, no protection is needed at a
 ```java
 class ElevatorController {
     private final BlockingQueue<Request> inbox = new LinkedBlockingQueue<>();
-    private final Elevator elevator;                    // touched only by the loop below
+    private final Elevator elevator;                    // only run() touches this
 
     void submit(Request r) { inbox.put(r); }            // any thread may call this
 
-    void run() {                                        // exactly one thread runs this
+    void run() {                                        // one thread runs this
         while (running) {
             Request r = inbox.poll(100, MILLISECONDS);
             if (r != null) elevator.accept(r);
@@ -112,7 +112,7 @@ The collection equivalents matter just as much:
 
 :::trap Check-then-act is the bug you'll actually write
 ```java
-if (!map.containsKey(k)) map.put(k, newValue());   // two threads both pass the check
+if (!map.containsKey(k)) map.put(k, newValue());   // two threads can both pass
 ```
 Any **check** followed by an **act** on shared data is a race, even when each operation is individually thread-safe. `computeIfAbsent(k, this::newValue)` makes it a single atomic step.
 
@@ -129,7 +129,8 @@ You need an actual lock when the rule spans **more than one object** — moving 
 
 ```java
 void transfer(Account from, Account to, Money amount) {
-    Account first  = from.id().compareTo(to.id()) < 0 ? from : to;   // always same order
+    // always lock in the same order, by ID
+    Account first  = from.id().compareTo(to.id()) < 0 ? from : to;
     Account second = (first == from) ? to : from;
     synchronized (first) {
         synchronized (second) {

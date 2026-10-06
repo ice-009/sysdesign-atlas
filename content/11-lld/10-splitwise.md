@@ -42,7 +42,7 @@ Assume: groups and one-off expenses, four split types, one currency, plus a "sim
    User        id, name, email
    Group       id, name, members[]
    Expense     id, description, Money amount, paidBy, splits[], createdAt, groupId?
-   Split       user, Money amount            (the resolved share, never a percentage)
+   Split       user, Money amount            (resolved share, never a percentage)
    Settlement  from, to, Money amount, settledAt
    BalanceSheet  who owes whom, kept up to date
 
@@ -56,8 +56,14 @@ Two decisions worth narrating:
 ```java
 record Money(long minor, Currency currency) implements Comparable<Money> {
     static Money of(long minor) { return new Money(minor, Currency.INR); }
-    Money plus(Money o)  { requireSame(o); return new Money(minor + o.minor, currency); }
-    Money minus(Money o) { requireSame(o); return new Money(minor - o.minor, currency); }
+    Money plus(Money o) {
+        requireSame(o);
+        return new Money(minor + o.minor, currency);
+    }
+    Money minus(Money o) {
+        requireSame(o);
+        return new Money(minor - o.minor, currency);
+    }
     Money negate()       { return new Money(-minor, currency); }
 }
 ```
@@ -109,12 +115,12 @@ class ExactSplit implements SplitStrategy {          // check: the parts add up
     }
 }
 
-class PercentageSplit implements SplitStrategy {     // check: percentages add to 100
+class PercentageSplit implements SplitStrategy {     // percentages sum to 100
     // Work out each share, then give the leftover to the largest share, so the
     // parts still add up exactly.
 }
 
-class ShareSplit implements SplitStrategy { }        // "Alice 2 shares, Bob 1 share"
+class ShareSplit implements SplitStrategy { }        // Alice 2 shares, Bob 1
 ```
 
 **Validation belongs inside each strategy**, not in the service. That's "one job per class" in a form you can point at: *"the service doesn't know what makes a percentage split valid — the percentage strategy does."*
@@ -136,8 +142,10 @@ Then the representation, and the trick that halves it:
 
 ```java
 class BalanceSheet {
-    /** A positive number under (a, b) means a owes b. Only one direction is stored. */
-    private final Map<UserId, Map<UserId, Money>> balances = new ConcurrentHashMap<>();
+    /** A positive amount under (a, b) means a owes b.
+        Only one direction is stored. */
+    private final Map<UserId, Map<UserId, Money>> balances =
+            new ConcurrentHashMap<>();
 
     void record(UserId debtor, UserId creditor, Money amount) {
         if (debtor.equals(creditor)) return;
@@ -160,7 +168,8 @@ class ExpenseService {
 
     Expense addExpense(AddExpenseCommand cmd) {
         SplitStrategy strategy = strategies.get(cmd.type());
-        List<Split> splits = strategy.split(cmd.amount(), cmd.participants(), cmd.input());
+        List<Split> splits =
+            strategy.split(cmd.amount(), cmd.participants(), cmd.input());
 
         Expense expense = Expense.create(cmd, splits);
         expenses.save(expense);                                  // the record first

@@ -8,6 +8,12 @@ prereqs: [model-parallelism, failure-modes, availability-slas]
 unlocks: Running a multi-week training job without losing it.
 ---
 
+:::predict Guess first
+1. Each server fails about once every 50,000 hours. With 1,250 servers in one training job, how often does something fail?
+2. A checkpoint is 2.45 TB. If writing it pauses training for four minutes every half hour, what share of the run is lost?
+3. nvidia-smi shows every GPU at 100% utilisation. Does that mean the cluster is doing useful work efficiently?
+:::
+
 ## The failure arithmetic
 
 A large training run is a single distributed computation across thousands of machines that must all make progress together, for weeks. This is an unusual reliability posture: unlike a web service, **any single failure stops everything.**
@@ -32,7 +38,7 @@ A large training run is a single distributed computation across thousands of mac
 ```
 :::
 
-Published logbooks bear this out. Meta's OPT-175B run recorded dozens of hardware failures over two months; the Llama 3 paper reports a comparable rate. **This is not a sign of a badly built cluster — it's the arithmetic of large numbers**, exactly as in [failure modes](../01-foundations/failure-modes.html), with the difference that here a single failure halts the entire job rather than degrading a fraction of traffic.
+Published logbooks bear this out. Meta's OPT-175B run recorded dozens of hardware failures over two months. The Llama 3 405B run on 16,384 GPUs logged 419 unexpected interruptions in a 54-day period — about one every three hours, most of them hardware, with faulty GPUs and HBM the largest single causes. **This is not a sign of a badly built cluster — it's the arithmetic of large numbers**, exactly as in [failure modes](../01-foundations/failure-modes.html), with the difference that here a single failure halts the entire job rather than degrading a fraction of traffic.
 
 The consequences shape everything: **checkpointing must be fast and frequent, recovery must be automatic, and the job must tolerate losing nodes.**
 
@@ -213,6 +219,34 @@ Train a 100B model on 2,000 GPUs (250 nodes) for 45 days. Node MTBF 50,000 hours
 
 *A First-Order Approximation to the Optimum Checkpoint Interval* (Young, CACM 1974) is the checkpoint-interval formula. *PaLM* (Chowdhery et al., 2022) introduced MFU as a reporting standard.
 :::
+
+## Check yourself
+
+```recall
+Q: What is the failure arithmetic of large training runs?
+A: Cluster MTBF = node MTBF ÷ nodes: 50,000 h ÷ 1,250 = 40 hours — about twice a day, ~36 failures in 60 days — and any single failure stops the whole job.
+
+Q: What must a checkpoint contain?
+A: Weights, optimizer state, the learning-rate schedule position, RNG states and the data loader's position — everything needed to resume identically.
+
+Q: How are checkpoints made cheap?
+A: Sharded (every rank writes its own piece in parallel), asynchronous (copy to host memory, upload in the background) and tiered (frequent local NVMe, occasional durable object storage).
+
+Q: How do you pick the checkpoint interval?
+A: Young's formula: √(2 × checkpoint cost × MTBF) — 60 s cost and 40 h MTBF gives ~70 minutes.
+
+Q: What does automatic recovery require?
+A: Detect, cordon, reform process groups on healthy nodes, restore with resharding, reposition the loader — plus 2–5% spare nodes, pre-join health checks and a constant global batch.
+
+Q: What is silent data corruption, and how is it caught?
+A: Hardware producing wrong results with no error, absorbed as bad gradients. Watch per-rank gradient-norm outliers, run deterministic self-test kernels and compare replicas on identical data.
+
+Q: How is MFU computed, and why trust it over GPU utilisation?
+A: MFU = 6 × parameters × tokens/s ÷ (GPUs × peak FLOPS). nvidia-smi shows ~100% whenever any kernel runs, even stalled; MFU measures useful arithmetic and maps directly to cost.
+
+Q: How do you find stragglers?
+A: Per-rank step-time distributions, not averages — alert when p99/p50 exceeds ~1.15. One rank 20% slow wastes ~200 GPUs' worth in a 1,000-GPU job.
+```
 
 ## What to carry forward
 
