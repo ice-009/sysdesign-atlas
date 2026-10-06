@@ -8,6 +8,12 @@ prereqs: [lru-cache, rate-limiting]
 unlocks: Answering a question that sits on the boundary at whichever level the interviewer wants.
 ---
 
+:::predict Guess first
+1. A limit of 100 requests a minute uses a counter that resets on the minute. How many requests could someone squeeze into one second?
+2. A token bucket refills over time. Does it need a background timer for each user?
+3. If the rate limiter itself crashes, should requests be allowed through or rejected?
+:::
+
 **Rate limiting** means capping how often someone can call you — 100 requests a minute per user, say — so one client can't swamp the service or run up someone else's bill.
 
 "Design a rate limiter" is the question most often answered at the wrong altitude. In an LLD round it means: *a library inside one service, with swappable algorithms and correct counting across threads*. In an HLD round it means: *a fleet of servers sharing one limit*. Ask which — then answer that one, and offer the other in a sentence at the end.
@@ -42,7 +48,7 @@ That return type is a deliberate choice worth one sentence: *"I return a small r
 
 ## 3 · The algorithms (10–22)
 
-Four of them, one interface. Know the trade-offs — this table is the part that gets marked.
+Five of them, one interface. Know the trade-offs — this table is the part that gets marked.
 
 | Algorithm | What it stores per key | Memory | Weakness |
 |---|---|---|---|
@@ -58,7 +64,7 @@ Four of them, one interface. Know the trade-offs — this table is the part that
 class TokenBucketAlgorithm implements RateLimitAlgorithm {
     public RateLimitDecision check(KeyState s, int permits, Instant now, LimitConfig cfg) {
         // Lazy refill: no timer. Just work out what would have accumulated by now.
-        long elapsedNanos = now.getNano() - s.lastRefillNanos();
+        long elapsedNanos = Duration.between(s.lastRefill(), now).toNanos();
         double refilled = elapsedNanos * cfg.permitsPerNano();
         double tokens = Math.min(cfg.capacity(), s.tokens() + refilled);
 
@@ -164,3 +170,39 @@ That's true of most systems — the logic travels, the placement of state is the
 :::exercise Two minutes each
 (a) Your limit is 10 a second and a client sends 10 in the first millisecond of every second — which algorithms allow that, and is it a bug? (b) A key hasn't been seen for an hour; what happened to its state, and is that safe? (c) Redis is down; what does `tryAcquire` return, and who decided that?
 :::
+
+## Check yourself
+
+```recall
+Q: Why return a result object from tryAcquire instead of a boolean?
+A: The caller needs "remaining" and "retry after" for response headers, best computed where the state lives. A rejection is a normal result, not an exception.
+
+Q: What is the fixed-window flaw?
+A: It allows 2× the limit at a boundary: 100 at 11:59:59 and 100 at 12:00:00. A sliding counter fixes it cheaply: previous × fraction remaining + current.
+
+Q: How does a token bucket refill without a timer?
+A: Store tokens left and the last-refill time; on each access add elapsed time × rate, capped at capacity. O(1), no scheduler, free for idle keys.
+
+Q: How do you keep per-key state safe and bounded?
+A: computeIfAbsent to create state (no check-then-put race), lock only that key's object, and evict idle keys LRU-style — an evicted key returns with a full bucket, erring generous.
+
+Q: Why 429 rather than 403?
+A: 403 means "never"; 429 means "not right now". Send Retry-After on rejection and remaining-quota headers on every response so good clients slow down.
+
+Q: Fail open or fail closed?
+A: Depends on purpose: abuse protection fails open (a limiter outage shouldn't become a total outage); paid quotas and safety limits fail closed. Make it per limit and alert either way.
+
+Q: What changes when the limiter moves to twenty servers?
+A: Only where the counter lives — algorithm, filter and result type survive. Shared Redis with a script (exact), divide the limit per server (unfair), or local buckets synced periodically (briefly generous).
+
+Q: How do you choose between the distributed options?
+A: Ask what exceeding the limit actually costs: billing or safety boundaries need exact shared counting; abuse protection can be 10% over for 200 ms.
+```
+
+## What to carry forward
+
+- Ask which level they want: a library in one service or a fleet sharing a limit.
+- Token bucket by default; know fixed window's boundary flaw and the sliding-counter fix.
+- Lazy refill, per-key locks and bounded memory make it O(1) and safe.
+- Return 429 with Retry-After; choose fail-open or fail-closed by purpose.
+- Scaling out moves only the state — pick exactness by the cost of exceeding the limit.

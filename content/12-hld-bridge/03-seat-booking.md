@@ -8,6 +8,12 @@ prereqs: [concurrency-in-lld, splitwise, idempotency]
 unlocks: Answering the double-booking question at both zoom levels, and knowing when the simple answer runs out.
 ---
 
+:::predict Guess first
+1. The same cinema screen has three showings a day. Where should "this seat is taken" be stored — on the seat, or somewhere else?
+2. A user selects seats and then takes three minutes to pay. What stops someone else buying those seats meanwhile — and what if they close the laptop?
+3. With five servers, do you need a distributed lock in Redis to stop double-booking?
+:::
+
 Ask for this one if you get a choice. It's where LLD and HLD meet: the class design is small, but the interesting part — two people, one seat — stays interesting all the way up to a distributed system. It's also the likeliest place to be asked *"and now with five servers?"*, so it's the best rehearsal for that switch.
 
 ## 1 · Requirements (0–5)
@@ -195,3 +201,39 @@ Set a four-minute timer and answer only this: *"Two users click the last seat at
 
 If you can do that cleanly and in order, naming the rule and the mechanism, you have the single most valuable answer in this whole section ready to go.
 :::
+
+## Check yourself
+
+```recall
+Q: Seat versus ShowSeat?
+A: Seat is the permanent physical chair; ShowSeat is that chair for one show and carries the status. Putting availability on Seat breaks as soon as a screen has two showings.
+
+Q: What rule governs every seat state change?
+A: Compare-and-set: AVAILABLE → HELD only if still available, HELD → BOOKED only if held by this user and unexpired. The same idea in memory and in SQL.
+
+Q: How do holds expire without depending on a timer?
+A: An expired hold counts as available whenever the seat is read (in code or in the WHERE clause). A background sweeper only tidies the displayed map.
+
+Q: How do you hold four seats as all-or-nothing?
+A: Sort the seat IDs so overlapping requests lock in the same order (no deadlock), take each with compare-and-set, and on any failure release those already taken — a compensating action.
+
+Q: Why is the hold the whole design?
+A: It turns a hard distributed transaction into a short lease plus an undo: seats can't vanish during payment, and abandoned checkouts free themselves.
+
+Q: What if payment succeeds but confirmation never happens?
+A: The payment carries the booking's idempotency key, and a reconciliation job compares payments with bookings — finishing the booking or refunding if the seats were resold.
+
+Q: How does the race answer change with five servers?
+A: One conditional UPDATE … WHERE status = 'AVAILABLE' OR the hold has expired, then check rows changed. The row is the lock; use a transaction and sorted IDs for several seats.
+
+Q: How do reads and writes differ at scale?
+A: The seat map comes from a cache that may be a second stale, with a "may have gone" note; the booking write always goes to the database. Shard by show; a big on-sale gets a virtual waiting room.
+```
+
+## What to carry forward
+
+- Separate the permanent seat from the per-show seat that carries status.
+- Every transition is a conditional change; the same sentence works in memory and SQL.
+- Holds are leases judged at read time — no correctness depends on a sweeper.
+- Idempotency keys plus reconciliation cover the "charged but not booked" gap.
+- Prefer a conditional UPDATE on the row to a distributed lock.

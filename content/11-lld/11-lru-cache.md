@@ -8,6 +8,12 @@ prereqs: [design-patterns, concurrency-in-lld, caching]
 unlocks: Building a small library-style component with clean interfaces and defensible costs.
 ---
 
+:::predict Guess first
+1. A hash map finds keys instantly; a linked list reorders instantly. How could you get both for an LRU cache?
+2. Must the list be doubly linked, or would a singly linked list do?
+3. Should expired entries be removed by a background timer, or is there a safer place to check?
+:::
+
 "Implement an LRU cache" is a coding puzzle. "Design a caching library" is an LLD round: the same data structure, but now with a swappable eviction rule, expiry, statistics, a loader, and the threading question. Interviewers like it because it's small enough to finish and has a real algorithmic core.
 
 A **cache** keeps recently used answers in memory so you don't have to recompute or refetch them. It's deliberately small, so something must be thrown out when it fills up. **LRU** — least recently used — means the thing you haven't touched for longest goes first.
@@ -180,3 +186,39 @@ Five minutes, no notes: what happens on `put` when the cache is full? Every step
 
 (Insert node at the front → add to map → size++ → if over capacity: take `tail.prev` → unlink it → remove its key from the map → count an eviction → notify the listener.)
 :::
+
+## Check yourself
+
+```recall
+Q: What is the core LRU data structure?
+A: A hash map from key to node, plus a doubly linked list ordered by recency. get: look up, unlink, move to front. put: insert at front and evict the tail when over capacity — all O(1).
+
+Q: Why must the list be doubly linked?
+A: Removing a node from the middle in constant time needs the node before it. With a singly linked list, get becomes O(n).
+
+Q: Why does each node store its own key?
+A: When evicting the tail you hold a node and must delete its map entry; without the key you'd search the whole map — O(n). It's the most common hand-written LRU bug.
+
+Q: How do you make the eviction rule swappable?
+A: The cache owns storage and the map; an EvictionPolicy owns ordering (LRU, LFU with count buckets, FIFO, TinyLFU admission). Swapping is a constructor argument.
+
+Q: Where should expiry be checked?
+A: On read, so correctness never depends on a timer firing. A background sweeper — or Redis-style random sampling — only reclaims memory from entries nobody reads.
+
+Q: Name the three levels of making a cache thread-safe.
+A: One lock (correct, start here); segments each with their own map, list and lock (capacity per segment); then buffer reads in a lock-free ring and apply reordering in batches, as Caffeine does.
+
+Q: Why is trading precision for concurrency nearly free in an LRU?
+A: Evicting the third-coldest entry instead of the coldest costs only a slightly lower hit rate. That's a soft rule, unlike "a seat is sold once".
+
+Q: How do you stop a cache stampede on read-through?
+A: One load per key: the first miss starts the load and everyone else waits on the same result, for example computeIfAbsent with a future.
+```
+
+## What to carry forward
+
+- Map plus doubly linked list gives O(1) get and put; nodes carry their keys.
+- Eviction, expiry, loading and listeners are separate interfaces.
+- Check expiry on read; background sweeping is only an optimisation.
+- Concurrency: one lock, then segments, then batched read buffers.
+- Know which rules are soft (recency) and trade their precision for throughput.

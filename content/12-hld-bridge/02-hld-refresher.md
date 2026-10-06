@@ -8,6 +8,12 @@ prereqs: [hld-vs-lld, back-of-envelope]
 unlocks: Walking into an HLD round with the structure, the numbers and the component trade-offs in your head.
 ---
 
+:::predict Guess first
+1. A day has 86,400 seconds. What rounder number makes per-second estimates easy at the whiteboard?
+2. Which part of a 45-minute HLD round do you think holds most of the score?
+3. Storage passes 10 TB, or writes pass 50,000 a second. What does that force you to do?
+:::
+
 This compresses [Foundations](../fundamentals/scalability-basics.html), [Building Blocks](../building-blocks/load-balancing.html) and the [Appendix](../appendix/framework.html) into what fits in your head two days before an interview. Read the first half on day 1, the second on day 2, and skim both on day 3.
 
 ## Part 1 · The structure
@@ -155,3 +161,39 @@ Do the same six-paragraph treatment for **a pastebin with expiring notes**, or *
 
 If you dry up, the missing piece is almost always the "…which means…" after a number.
 :::
+
+## Check yourself
+
+```recall
+Q: Give the six steps of a 45-minute HLD round.
+A: Requirements (0–5), estimation (5–10), API and data with a split rule (10–15), diagram plus one request walked through (15–27), two deep dives (27–40), wrap-up: what breaks at 10×, failures, what to watch (40–45).
+
+Q: What two sentences raise an HLD score most?
+A: "Here's how I'd like to use the time…" at the start, and "…which means…" after every number or component.
+
+Q: How do you estimate requests per second quickly?
+A: Daily users × actions each ÷ 100,000 (about a day in seconds), then peak ≈ 3× average — 10× for launches and sales.
+
+Q: Recite the latency ladder.
+A: Memory ~100 ns, SSD ~100 µs, a network hop ~500 µs, across the world ~100 ms.
+
+Q: What three conclusions do most of the estimation work?
+A: If the hot data fits in memory across a few machines, cache it; past about 10 TB or 50,000 writes a second, shard; if a step is slow, flaky or bursty and the user needn't wait, queue it.
+
+Q: What does the line in the starting diagram separate?
+A: Above the queue is what the user waits for — keep it fast. Below it is what they don't wait for: notifications, indexing, thumbnails, analytics.
+
+Q: Name the five deep dives that come up everywhere.
+A: Caching (stampede, hot key), sharding (key choice, celebrity problem), freshness per operation, failure of each box, and what breaks first at ten times the traffic.
+
+Q: Why use a temporary redirect in a URL shortener?
+A: Browsers cache permanent (301) redirects indefinitely, so you could never disable or change a bad link; a temporary redirect keeps control.
+```
+
+## What to carry forward
+
+- Announce the six-step structure; spend minutes 27–40 on two deep dives.
+- Every number earns a "which means"; skip numbers that change nothing.
+- Memorise six facts: 100,000 s/day, 3× peak, the latency ladder, server and database limits.
+- Start from the standard diagram and justify each deviation; deciding what goes below the queue is most of the design.
+- Prepared candidates lose on time management: cut scope, go deep, talk while drawing.

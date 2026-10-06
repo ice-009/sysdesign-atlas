@@ -8,6 +8,12 @@ prereqs: [vending-machine, concurrency-in-lld]
 unlocks: Designing a step that must happen on two systems at once — the bank's ledger and the cash in the drawer — without ever losing money on either side.
 ---
 
+:::predict Guess first
+1. The bank has debited the account, and then the ATM loses power before the cash comes out. How could the machine know what to do when it restarts?
+2. The network drops after the bank debited but before its reply arrived. If the ATM retries, could the customer be charged twice?
+3. Should an ATM check that it can pay out the notes before or after asking the bank to debit?
+:::
+
 An ATM looks like the [vending machine](vending-machine.html) with a card slot. The difference is where the money lives. The vending machine holds the customer's coins in its own escrow. An ATM's money moves in a **bank ledger on another computer**, over a network that can drop at any moment, while the cash sits in the ATM's drawer. Keeping those two in agreement is the whole problem.
 
 :::tip Practise the dispensing part on LeetCode
@@ -216,3 +222,39 @@ The customer asks for ₹2,000. The bank says yes. The dispenser jams after push
 
 (The journal shows AUTHORISED but not DISPENSED. The cassette counters show three ₹500s gone, so the machine records a partial dispense and asks the bank to complete ₹1,500 and reverse ₹500, or flags it for a person. Blindly reversing everything would give the customer free money.)
 :::
+
+## Check yourself
+
+```recall
+Q: What makes the ATM harder than the vending machine?
+A: The money moves in a bank ledger on another computer over an unreliable link, while the cash sits in the drawer — the two must always agree.
+
+Q: How does the ATM handle the PIN safely?
+A: The keypad encrypts it in hardware into a PIN block, which goes straight to the bank. The machine never holds, stores or logs the digits.
+
+Q: Give the withdrawal steps in order.
+A: Check the drawer can pay, create a txnId and journal it, ask the bank to authorise, dispense (reverse on a jam), then complete with the bank — journaling every step first.
+
+Q: Why does every bank call carry a txnId?
+A: Idempotency: a retried authorise or reverse with the same ID returns the original result instead of debiting or refunding twice, so retrying after a dropped reply is safe.
+
+Q: How does the journal recover from a crash?
+A: On restart, AUTHORISED with no DISPENSED is reversed; DISPENSED without COMPLETE is completed; disagreement with physical note counts sends the machine out of service for a person. It works like a database write-ahead log.
+
+Q: How does the ATM choose notes, and where does that fail?
+A: Largest notes first within stock, refusing if that doesn't land exactly (LC 2241). With no ₹100s, ₹600 fails even though three ₹200s work — offer amounts it can pay or try another combination.
+
+Q: How are ATM threads organised?
+A: Key presses, timeouts and hardware signals go into one queue handled by a single thread, so they can't interleave mid-transition. Bank calls have their own timeout and retry with the same txnId.
+
+Q: Where do daily withdrawal limits belong?
+A: In the bank's authorise call. The ATM shouldn't hold account rules — they'd be wrong the moment the customer uses another machine.
+```
+
+## What to carry forward
+
+- Two systems, one outcome: check the drawer, authorise, dispense, then complete — or reverse.
+- Every bank call is idempotent by txnId, so retries are safe.
+- A local append-only journal written before each step makes crashes recoverable.
+- Physical note counts are the tiebreaker; when unsure, go out of service rather than guess.
+- The PIN never exists in the machine's memory as digits.

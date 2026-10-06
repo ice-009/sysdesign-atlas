@@ -8,6 +8,12 @@ prereqs: [three-day-plan]
 unlocks: Recognising which zoom level a question wants, and switching on purpose rather than by accident.
 ---
 
+:::predict Guess first
+1. Both rounds start with "design a…". What single clue in the question most strongly tells you it's an HLD round?
+2. "Design a rate limiter" — is that HLD or LLD?
+3. After 25 minutes of architecture, the interviewer says "zoom into the delivery service". Is that a new question?
+:::
+
 Both rounds open with the same three words: "design a something". They score completely different things. Answering at the wrong level is the most common way a prepared candidate loses a round they could have passed.
 
 ## The line is the program boundary
@@ -106,3 +112,33 @@ HLD and LLD aren't two subjects. They're one subject — *keeping things indepen
 
 Splitting a database by user is separating data so writers don't collide. Giving each thread its own object is the same move. Interfaces let you swap an implementation without touching callers; versioned APIs do that across a network. Once you see it, the two rounds stop feeling like two syllabuses, and you can carry an argument across the boundary — which is exactly what senior candidates sound like.
 :::
+
+## Check yourself
+
+```recall
+Q: Where exactly is the line between HLD and LLD?
+A: The program boundary. HLD covers things talking over a network (messages can be lost, late or duplicated); LLD covers things calling methods inside one process (focus on change and threads).
+
+Q: What is the strongest clue that a question is HLD?
+A: A number of users or a scale. Bounded physical things — parking lot, lift, chess, ATM, library — signal LLD.
+
+Q: What do you do with questions that sit on the line?
+A: Rate limiter, cache, notifications, logger, scheduler: ask whether they want a library inside one service or a distributed architecture across a fleet. Asking is a seniority signal.
+
+Q: What earns points in HLD versus LLD?
+A: HLD: scope, arithmetic that changes decisions, a data model with a split rule, one request end to end, two deep dives, what breaks at 10×. LLD: entities, relationships, interfaces where things vary, signatures, threads, and how cleanly a new requirement lands.
+
+Q: What are the three moves when asked to zoom into a box?
+A: Name the box, state what it promises (that becomes the class), and find what varies (those become interfaces).
+
+Q: Name a concept that means the same thing at both levels.
+A: Idempotent (a retried call or method has one effect), contract (API or interface), coupling (direct calls or `new`), and single writer (one server per data slice or one thread per object).
+```
+
+## What to carry forward
+
+- HLD is across the network; LLD is inside one program.
+- A user count means HLD; a bounded physical thing means LLD; ask when it's both.
+- State your zoom level in the first minute so a mismatch surfaces early.
+- Zooming in: name the box, state its promise, find what varies.
+- It's one subject — keeping things independent so they can change — seen from two distances.

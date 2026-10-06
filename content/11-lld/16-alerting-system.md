@@ -8,6 +8,12 @@ prereqs: [design-patterns, concurrency-in-lld]
 unlocks: Using the observer pattern beyond the textbook — with the slow-listener, duplicate and storm problems it brings in real systems.
 ---
 
+:::predict Guess first
+1. CPU sits between 89% and 91% with an alert at 90%. How many notifications might that produce in an hour?
+2. The SMS provider takes ten seconds per message. Should the chat message for the same alert wait for it?
+3. A network switch dies and 50 hosts stop reporting. How many pages should the on-call engineer get?
+:::
+
 "Notify the right people when something goes wrong" sounds like a for-loop over subscribers. It's the textbook **observer pattern**, and that's where weak answers stop. The interesting parts are what happens *around* the loop: a condition that flickers on and off, a text-message provider that takes ten seconds, fifty servers failing in the same minute, and an engineer asleep at 3 a.m. who doesn't answer.
 
 ## 1 · Requirements (0–5)
@@ -226,3 +232,39 @@ Rule: error rate fire above 5%, clear below 2%, hold for 3 minutes. Subscribers:
 3. It then drops to 4%. Is the alert resolved? Why not?
 4. The phone provider times out on the first call and the call is retried. Why does the on-call get exactly one call?
 :::
+
+## Check yourself
+
+```recall
+Q: What are the four sharp edges of the textbook observer pattern?
+A: A slow listener blocks the subject, an exception in one listener skips the rest, forgotten listeners leak, and listener order isn't a contract.
+
+Q: Why does an alert have a PENDING state?
+A: The condition must hold for the rule's duration before it fires, so a one-second spike never pages anyone.
+
+Q: How do you stop an alert flapping?
+A: Hysteresis — fire above 90% but resolve only below 80% — plus a minimum time in RESOLVED before it can fire again.
+
+Q: Why give each channel its own queue and workers?
+A: They're bulkheads: a slow SMS provider fills only the SMS queue while email and chat carry on. The router only enqueues, so it never waits.
+
+Q: How do you guarantee no duplicate pages?
+A: A delivery key — alert, event type, recipient, channel — recorded before sending; retries and a second engine instance find it already marked and skip.
+
+Q: How does escalation work?
+A: A listener schedules step 0 on FIRED, then each next person after a delay; ACKNOWLEDGED or RESOLVED cancels the pending timer. Acknowledging is idempotent.
+
+Q: How do you handle alert storms?
+A: Group alerts sharing labels into one notification after a short wait, inhibit symptoms a firing root-cause alert explains, and silence matching labels during planned maintenance.
+
+Q: How do you avoid locks on alert state?
+A: Shard rules by a hash of their labels so each alert has one evaluator thread; delivery runs on per-channel pools and escalation on a scheduled executor.
+```
+
+## What to carry forward
+
+- Observer is the skeleton; slow listeners, failures, leaks and ordering are the real design.
+- Rules decide whether a condition holds; the lifecycle (PENDING, hysteresis) decides when to notify.
+- Fan out through a queue per channel — bulkheads — with retries and an idempotent delivery key.
+- Notify on state changes, escalate on silence, and group, inhibit and silence to prevent storms.
+- One owner thread per alert removes most locking.

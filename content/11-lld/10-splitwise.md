@@ -8,6 +8,12 @@ prereqs: [parking-lot, oop-refresher]
 unlocks: Modelling money correctly, and handling the rounding question that trips up most candidates.
 ---
 
+:::predict Guess first
+1. Split ₹100 equally between three people, in whole paise. Do the shares add up to ₹100?
+2. A owes 40, B owes 20, C is owed 50 and D is owed 10. What is the fewest number of payments that settles the group?
+3. Should a balance be recalculated from every expense each time, or kept as a running total?
+:::
+
 Splitwise looks trivial and isn't. The trap is using `double` for money. The interesting part is making the split add up to exactly the total. The bonus round is a small graph algorithm. It also has an obvious place where things vary, so it rewards everything from [SOLID](solid.html) and [the patterns](design-patterns.html).
 
 ## 1 · Requirements (0–5)
@@ -233,3 +239,39 @@ Alice pays ₹1000 for dinner, split by shares: Alice 2, Bob 1, Carol 1. Work ou
 
 (₹500 / ₹250 / ₹250 — clean. Now redo it as an equal three-way split of ₹1000: 33334 / 33333 / 33333 paise, and say who takes the extra paisa and why.)
 :::
+
+## Check yourself
+
+```recall
+Q: How should Splitwise store money, and why?
+A: As whole paise in a long inside a Money value with a currency — never double, because 0.1 + 0.2 isn't 0.3 in binary floating point and pennies drift.
+
+Q: Why does a Split store an amount rather than a percentage?
+A: The percentage is what the user typed; the stored split is the money it resolved to. Otherwise every screen recalculates and rounding drifts between them.
+
+Q: How do you handle the leftover paisa in an equal split?
+A: Give base = total ÷ n to everyone and one extra paisa to the first k people, where k is the remainder — the parts always add up exactly and the result is repeatable. Real products might rotate it.
+
+Q: Where does split validation belong?
+A: Inside each strategy — exact amounts must sum to the total, percentages to 100 — not in the service, which doesn't know what makes each split type valid.
+
+Q: Recompute balances or keep them updated?
+A: Both: the append-only expense list is the truth, the balance sheet is a summary updated on each expense, and recompute() rebuilds it to detect and fix drift. Save the expense before updating the summary.
+
+Q: What does "cancel on write" mean for balances?
+A: If Bob owes Alice ₹50 and then Alice owes Bob ₹30, store one debt of ₹20, so "who owes whom" has a single answer and reads stay trivial.
+
+Q: How does greedy debt simplification work, and what does it guarantee?
+A: Repeatedly have the biggest debtor pay the biggest creditor, using two heaps — O(n log n), at most n − 1 payments. It isn't always optimal; the true minimum is NP-hard.
+
+Q: How do you edit an expense safely?
+A: Keep history append-only: add a reversing entry plus a new expense, and move balances by the difference, so who changed what stays answerable.
+```
+
+## What to carry forward
+
+- Money is exact: whole minor units in a value object, never double.
+- Splits must add to the total — have a deterministic rule for the leftover paisa.
+- Split types are strategies, each validating its own input.
+- Expenses are the append-only truth; balances are a summary that can be rebuilt.
+- Greedy simplification is a good heuristic (optimal is NP-hard) with a human cost — make it opt-in.

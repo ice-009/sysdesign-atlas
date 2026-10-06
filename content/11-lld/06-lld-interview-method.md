@@ -8,6 +8,12 @@ prereqs: [design-patterns]
 unlocks: A repeatable order of steps that gets you to a complete class design with time left over.
 ---
 
+:::predict Guess first
+1. In a 45-minute LLD round, at what minute should you have a complete design on the board?
+2. Which part of the round do you think decides the result — the class list, the method bodies, or something later?
+3. An interviewer asks for a feature your design genuinely can't absorb cleanly. Should you claim it fits anyway?
+:::
+
 An LLD round has no built-in structure. Nobody tells you to do requirements first. So candidates without a plan produce a scattered pile of classes and never reach the part that scores. Having an order fixes that, and it's most of what separates people who pass.
 
 ```viz
@@ -160,3 +166,36 @@ And narrate while you do it. Silence reads as being lost. *"Let me walk a bookin
 
 Each of these has cost candidates the "add a feature" question, which is the part that decides the round.
 :::
+
+## Check yourself
+
+```recall
+Q: Name the seven steps of the 45-minute LLD method.
+A: Requirements (0–5), entities (5–10), relationships (10–17), interfaces and the service class (17–27), walk one operation through (27–33), add a feature and threads (33–40), gaps and testing (40–45).
+
+Q: Which requirement questions pay off in almost any LLD problem?
+A: One machine or many servers sharing state? One kind of user or several? Will pricing or matching rules change? In-memory or designed storage? Roughly how many? Then state what's out of scope.
+
+Q: How do you find the first list of classes?
+A: Underline the nouns in the use cases — usually 80% right. Merge near-duplicates (Car, Bike, Truck into Vehicle plus a size enum) and promote primitives to value objects such as Money and TimeSlot.
+
+Q: What two questions do you ask of every relationship?
+A: Who owns the lifetime (deleting a floor deletes its spots; deleting a ticket mustn't delete the vehicle)? Which way will you actually navigate? Lookup structures follow from the arrows.
+
+Q: Why write method signatures, and what do return types say?
+A: Interviewers read a lot from them: Ticket park(Vehicle, Gate) shows thought about the caller. Optional says "empty is normal", a Result type makes failure part of the contract, and throwing marks it exceptional.
+
+Q: How do you answer "now add a feature"?
+A: Say where it lands (a new strategy class), what doesn't change, and — if it does hurt — admit it and scope the change precisely to the classes affected.
+
+Q: What wastes ten minutes in an LLD round?
+A: Perfect names, full method bodies and database schemas nobody asked for — each has cost candidates the add-a-feature question that decides the round.
+```
+
+## What to carry forward
+
+- Announce the plan in the first minute; aim for a working design by minute 25.
+- Nouns become classes, has-a sentences with numbers become relationships, "depending on" words become interfaces.
+- Walk one operation through out loud, saying the cost and what happens on failure.
+- "Now add a feature" is the exam: where it lands, what stays untouched, and honesty about what hurts.
+- Close on purpose: known gaps, how you'd test it, one decision you'd revisit.

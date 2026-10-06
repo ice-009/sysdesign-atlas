@@ -8,6 +8,12 @@ prereqs: [lld-interview-method, concurrency-in-lld]
 unlocks: A rehearsed answer to the most common LLD problem, and a template that transfers to any "limited resource" system.
 ---
 
+:::predict Guess first
+1. Car, Bike and Truck differ only in the size of space they need. One subclass each, or something simpler?
+2. With 2,000 spaces, how would you find a free one without checking every space?
+3. Two cars reach the last free space at the same moment. What stops both getting it — without locking the whole car park?
+:::
+
 If you rehearse one LLD problem, rehearse this one. It comes up constantly, and its shape — hand out a limited resource, track it, charge for it, take it back — is the same shape as seat booking, hotel rooms, meeting rooms, cloud instances and library books.
 
 :::interview What's really being tested
@@ -114,6 +120,7 @@ class ParkingLotService {
     private final PricingStrategy pricing;
     private final PaymentProcessor payments;
     private final TicketRepository tickets;
+    private final SpotRepository spots;
     private final Clock clock;                    // passed in, so tests can control time
 
     Ticket park(Vehicle vehicle, Gate entry) {
@@ -216,3 +223,39 @@ Redesign the same skeleton as a **hotel booking system**: rooms instead of space
 
 It should take about ten minutes. If it doesn't, you've memorised this answer rather than the method.
 :::
+
+## Check yourself
+
+```recall
+Q: What shape makes the parking lot transfer to other problems?
+A: Hand out a limited resource, track it, charge for it, take it back — the same shape as seat booking, hotel rooms, meeting rooms and library books.
+
+Q: How do you model vehicle types?
+A: One Vehicle with a VehicleSize enum, not Car, Bike and Truck subclasses that differ only by a size; subclass later only if behaviour differs.
+
+Q: Which lookup structures make the busy paths fast?
+A: Free spots in a Map<SpotSize, TreeSet<Spot>> sorted by floor (O(log n) allocation), active tickets in a Map by ID (O(1) checkout), and per-size atomic counters for the display boards.
+
+Q: Which three things vary, and how?
+A: Spot allocation (nearest to entrance, lowest floor), pricing (hourly, progressive, flat day) and payment (cash, card) — each behind an interface injected into ParkingLotService.
+
+Q: Why pass a Clock into the service?
+A: So tests can control time — "parked three hours and one minute" — without waiting or depending on Instant.now().
+
+Q: What happens if payment fails at the exit?
+A: The ticket stays open and the space stays occupied; the car doesn't leave without paying. Saying this settles failure behaviour before anyone asks.
+
+Q: How do you add EV charging without editing existing code?
+A: A capability on the space (a feature set or hasCharger flag) that the allocator filters on, and a ChargingSurcharge decorator wrapping the existing pricing.
+
+Q: How does the race answer change with five servers?
+A: Occupancy moves into shared storage: UPDATE spots SET status = 'OCCUPIED' WHERE id = ? AND status = 'FREE', then check rows changed — the same compare-and-set one layer down. The free index becomes a query or Redis sorted set.
+```
+
+## What to carry forward
+
+- Limited resource: allocate, track, charge, release — a template for many LLD problems.
+- A size enum instead of vehicle subclasses; Money instead of double.
+- Allocation, pricing and payment vary, so each sits behind an interface.
+- The one shared rule — one live ticket per space — is a compare-and-set on spot status.
+- Rehearse the four extensions: EV charging, passes, several gates with boards as listeners, and many servers.

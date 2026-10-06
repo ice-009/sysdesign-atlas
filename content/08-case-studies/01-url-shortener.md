@@ -7,6 +7,12 @@ tags: [case-study, ids, cache, read-heavy]
 prereqs: [back-of-envelope, caching, unique-id-generation]
 ---
 
+:::predict Guess first
+1. 100 million new links a day, each read 100 times. Roughly how many redirects per second is that at peak?
+2. Would you send a permanent (301) or temporary (302) redirect? What does each cost you?
+3. If short codes come from a simple counter, what could an outsider do with them?
+:::
+
 :::interview Why this question
 It's often the warm-up, and it's a filter. The design is easy; what's scored is whether you *drive*. Candidates who spend 30 minutes here have failed to recognize a simple problem. Aim to have a working design in 10 minutes, then go deep on one thing — ID generation or the read path.
 :::
@@ -199,3 +205,39 @@ Never write to a counter on the redirect path — a viral link would create a si
 - *"How do you stop malicious URLs?"* — asynchronous scanning against a reputation service, plus the ability to disable a code (which is why 302 over 301 matters).
 - *"Multi-region?"* — links are immutable once created, so replicate the table asynchronously everywhere and serve reads locally. Creation can route to a home region. Immutability makes this one of the easiest systems to distribute globally — worth pointing out.
 - *"Can you make it cheaper?"* — 301 redirects push traffic to browsers entirely, at the cost of analytics and revocability.
+
+## Check yourself
+
+```recall
+Q: What do the URL shortener's numbers decide?
+A: 91 TB over five years rules out one node, so shard; 300,000 tiny reads a second makes the cache the primary read path; 62⁷ ≈ 3.5 trillion shows seven characters is enough.
+
+Q: 301 versus 302 for a shortener?
+A: 301 is cached by browsers — it removes most traffic but loses analytics and can't be revoked. 302 sends every visit to you, keeping analytics and the ability to disable bad links.
+
+Q: Why is hash-and-truncate a weak ID strategy?
+A: Truncated hashes collide far sooner than the keyspace suggests (the birthday paradox), forcing a read-before-write and retries on every insert.
+
+Q: What ID strategy is recommended, and why?
+A: Range-allocated counters (each server owns a block, no per-write coordination) passed through format-preserving encryption before base62. The bijection makes collisions impossible while codes look random.
+
+Q: Why use a key-value store sharded by hash of short_code?
+A: The only lookup is by code: no joins or range scans, codes are high-cardinality and uniform, and the key is in every read.
+
+Q: Name the cache's three guards.
+A: TTL jitter against avalanche, briefly caching negative lookups against random-probe penetration, and a circuit breaker so a cold cache can't flatten the database.
+
+Q: Why never count clicks on the redirect path?
+A: A viral link would make one hot row take tens of thousands of writes a second. Publish click events to Kafka, aggregate in a stream processor, store rollups; use HyperLogLog for uniques.
+
+Q: Why is a shortener easy to run in many regions?
+A: Links are immutable once created, so the table can replicate asynchronously everywhere and serve reads locally; creation can route to a home region.
+```
+
+## What to carry forward
+
+- Drive the easy question: a working design in ten minutes, then go deep on IDs or the read path.
+- The numbers decide: shard for storage, cache for reads, seven characters for the keyspace.
+- Range-allocated counters plus format-preserving encryption: no collisions, no enumeration, no coordination.
+- 302 keeps analytics and revocability; 301 trades them for load.
+- Keep analytics asynchronous and off the redirect path.

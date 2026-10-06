@@ -8,6 +8,12 @@ prereqs: [snake-and-ladder, design-patterns]
 unlocks: Using polymorphism where it genuinely fits, separating "how a piece moves" from "what's legal right now", and keeping enough game state to undo any move.
 ---
 
+:::predict Guess first
+1. A bishop is pinned to its king by an enemy rook. Do you need special "pinned piece" logic to stop it moving off the line?
+2. Rook, bishop and queen all slide until blocked. How much movement code do they need between them?
+3. To undo a move, is moving the piece back to its old square enough?
+:::
+
 Chess is a favourite for senior LLD rounds because the problem is familiar and the rules are deep. Nobody expects a chess engine in 45 minutes. The interviewer wants three things: **pieces modelled with polymorphism that pulls its weight**, a clean way to decide whether a move is legal, and a sensible answer for the awkward rules — castling, en passant, promotion. This page gives you all three in the order you'd present them.
 
 ## 1 · Requirements (0–5)
@@ -238,3 +244,39 @@ Set up: White king e1, White rook e2, Black rook e8, Black king h8. White to mov
 2. Black's rook captures on e2. Is White in check? Which king moves are legal?
 3. Show how the `legalMoves` loop from section 4 rejects White's rook moving to a2, without any code that mentions "pins".
 :::
+
+## Check yourself
+
+```recall
+Q: What three things does a chess LLD round look for?
+A: Polymorphism that earns its keep for pieces, a clean way to decide legality, and sensible handling of castling, en passant and promotion.
+
+Q: Why is GameState more than the board?
+A: Legality depends on whose turn it is, the four castling rights and the en passant square too — what FEN records.
+
+Q: How do sliding pieces share code?
+A: A SlidingPiece base walks each direction until blocked, capturing an enemy and stopping; Rook, Bishop and Queen differ only in their directions. Knight and Pawn have their own methods.
+
+Q: What one rule turns candidate moves into legal moves?
+A: A move is legal only if your own king isn't attacked afterwards — make it, test, undo. That covers pins, escaping check and the king walking into check with no special cases.
+
+Q: How does isAttacked work efficiently?
+A: Look outward from the square: enemy knights a jump away, rooks or queens on clear lines, bishops or queens on clear diagonals, pawns diagonally in front, the enemy king adjacent.
+
+Q: Checkmate versus stalemate?
+A: Both mean no legal moves. Checkmate: the side to move is in check. Stalemate: not in check — a draw, which many candidates forget.
+
+Q: What extra state do castling and en passant need?
+A: Castling rights, lost the first time a king or rook moves or a rook is captured (plus empty, unattacked squares). An en passant square set after a two-square pawn push and cleared after the next move.
+
+Q: How does undo work, and what else uses it?
+A: Each move is a command; before applying, push the captured piece, castling rights, en passant square and clocks, so undo restores them exactly. The legality check reuses the same apply/undo pair.
+```
+
+## What to carry forward
+
+- Pieces own their movement; sliding pieces share one routine.
+- Separate candidate moves from legal moves: legal means your king is safe afterwards.
+- GameState holds turn, castling rights and en passant — everything legality depends on.
+- Checkmate and stalemate both mean no legal moves; check decides which.
+- Moves are commands carrying what undo needs; legality and undo share code.

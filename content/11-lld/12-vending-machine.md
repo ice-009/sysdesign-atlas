@@ -8,6 +8,12 @@ prereqs: [elevator-system, design-patterns]
 unlocks: Handling money that's "in flight" safely, and the change-making question that catches out most candidates.
 ---
 
+:::predict Guess first
+1. A machine dispenses a drink and then discovers it can't make ₹7 change. What went wrong in the order of steps?
+2. Coins are 1, 2 and 5, and the machine holds one ₹5, three ₹2s and no ₹1s. Change owed is ₹6. Does "biggest coin first" find it?
+3. The motor jams after the customer paid. Where should their coins be at that moment?
+:::
+
 The [lift](elevator-system.html) taught states and policies. The vending machine adds the thing that makes interviewers lean forward: **money in the middle of a transaction**. Coins go in before the product comes out, the machine might not have the right change, and the motor might jam. A design that handles those three moments cleanly is a strong answer. One with a boolean called `isPaid` is not.
 
 ## 1 · Requirements (0–5)
@@ -247,3 +253,39 @@ A drink costs ₹35. The cash box holds one ₹10 and four ₹2 coins, nothing e
 
 (₹15 is owed. The box has ₹10 + four ₹2s = ₹18, and ₹15 needs an odd amount, which no mix of ₹10s and ₹2s can make. So this sale refunds with "exact change only". With 20 + 20, change is ₹5 — still impossible. A ₹5 coin in the box changes everything, which is why operators stock change.)
 :::
+
+## Check yourself
+
+```recall
+Q: What are the vending machine's three money rules?
+A: Never lose money (product plus exact change, or every coin back), never dispense without payment or take payment without dispensing, and never get stuck — every state has a way out.
+
+Q: Why keep inserted coins in escrow, separate from the cash box?
+A: They're the customer's until the sale completes, so cancel just returns escrow — and escrow + cash box can be checked before and after every operation.
+
+Q: How does the state pattern make illegal moves impossible here?
+A: Default interface methods refuse every action; each state (Idle, Selected, Dispensing, OutOfService) overrides only what it allows — Idle never overrides insert.
+
+Q: When must the machine check it can make change?
+A: Before dispensing, using the cash box plus the coins in escrow. If it can't, refund and show "exact change only".
+
+Q: When does greedy change-making fail?
+A: With unusual denominations ({1,3,4} for 6: greedy gives 4+1+1, best is 3+3) and — the real-world case — limited stock: no ₹1s means greedy fails ₹6 even though 2+2+2 works.
+
+Q: What change-making algorithm should a real machine use?
+A: An exact bounded coin-change search within stock, behind a ChangeMaker interface. Amounts are a few hundred at most, so it takes microseconds.
+
+Q: In what order does dispensing move stock and money?
+A: Reserve the item, run the motor, and on a jam release it and refund. Only after the drop sensor confirms do you decrement stock, move escrow into the cash box and pay change.
+
+Q: Why is one lock right for a vending machine?
+A: It serves one person every thirty seconds; one lock makes each transition atomic, and the operator enters OUT_OF_SERVICE only from IDLE. Finer locking adds risk and buys nothing.
+```
+
+## What to carry forward
+
+- Money in flight lives in escrow until the sale truly completes.
+- States refuse by default; each allows only its legal moves.
+- Check change before selling; greedy fails under limited stock, so search exactly.
+- Money moves last: reserve, dispense, confirm, then settle.
+- Cards fit as a payment strategy whose authorisation hold plays escrow's role.

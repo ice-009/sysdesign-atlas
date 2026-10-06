@@ -8,6 +8,12 @@ prereqs: [parking-lot, design-patterns]
 unlocks: Modelling objects whose behaviour depends on their current state, with the decision-making rule kept separate.
 ---
 
+:::predict Guess first
+1. A lift has requests for floors 9, 2 and 7, made in that order, and it is on floor 5 going up. Which floor should it visit first?
+2. Someone presses "up" on floor 3. Should that call belong to a particular lift the moment it's pressed?
+3. Button presses arrive on many threads. Does each lift's state need a lock?
+:::
+
 Parking lot tests breaking a problem into classes. This one tests **state and policy**: an object whose allowed actions depend on what it's currently doing, plus a decision with no single right answer. Interviewers like it because the obvious design — a boolean called `isMoving` and a list of floors — collapses the moment they add a requirement.
 
 :::interview What's really being tested
@@ -214,3 +220,39 @@ Once that split exists, every follow-up — express lifts, rush hour, zoning, br
 :::exercise Fifteen-minute drill
 Design a **vending machine**: same skeleton, states IDLE → SELECTING → PAYING → DISPENSING → IDLE, with a policy interface for change-making. Time yourself: classes, state table, policy interface, one walkthrough, one sentence on threads.
 :::
+
+## Check yourself
+
+```recall
+Q: What two things does the lift problem test?
+A: Modelling states properly instead of accumulating booleans, and noticing that "which lift answers" is a policy that belongs behind an interface.
+
+Q: Why must inside and outside requests be modelled differently?
+A: An inside request already belongs to one car. An outside call belongs to no car until dispatch — so if a lift breaks down, its outside calls can be reassigned.
+
+Q: What rules must the lift state machine guarantee?
+A: Moving implies doors closed, doors open implies not moving, and direction changes only when idle or when nothing remains ahead.
+
+Q: Enum-plus-table versus a class per state?
+A: Start with an enum and a map of legal transitions — compact, with the rules in one place. Promote each state to its own class once per-state behaviour grows.
+
+Q: What are the two separate scheduling decisions?
+A: Which lift answers an outside call (a DispatchStrategy across cars — nearest with wrong-direction penalty, least loaded, zoned), and the order one lift serves its own stops.
+
+Q: What is the lift (SCAN) algorithm?
+A: Keep going in the current direction, serving every stop on the way, then reverse. Two sorted sets (up ascending, down descending) implement it; it avoids bouncing and bounds the worst wait to about two full trips.
+
+Q: How are lift threads organised, and what does a dispatcher race cost?
+A: One thread per car drains its queue, so each car's state has one writer and needs no locks. The dispatcher reads snapshots; a stale reading costs a slightly worse choice, never a broken lift.
+
+Q: How do you handle a fire alarm?
+A: A system-wide command into a real "return to ground" state: clear queues, ignore outside calls, go to the ground floor, open doors, go out of service.
+```
+
+## What to carry forward
+
+- Separate the car (a state machine serving its own stops) from the system (a dispatcher choosing cars).
+- Outside calls belong to no car until dispatch — that choice pays off on breakdowns.
+- Make illegal moves impossible with a transition table; promote to state classes only when needed.
+- SCAN orders one car's stops; dispatch policy sits behind an interface — ask what you're optimising.
+- One thread per car means no locks; say what a race would actually cost.

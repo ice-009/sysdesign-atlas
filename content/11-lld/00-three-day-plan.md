@@ -7,6 +7,12 @@ tags: [orientation, revision, interview, sde2]
 unlocks: A schedule for the days before the interview, and a clear picture of what each round is scored on.
 ---
 
+:::predict Guess first
+1. In a 45-minute design round, what do you think separates a pass from a fail — knowledge, or something else?
+2. "Design a parking lot" and "design Twitter for 100 million users" — what is different about the two questions?
+3. Which practises design better: reading five worked solutions, or attempting two problems on paper before reading?
+:::
+
 Two terms come up constantly here, so let's fix them first.
 
 **HLD** is high-level design. You draw boxes — a web server, a database, a cache — and explain how they talk to each other over the network. The question sounds like *"design Twitter for 100 million users"*.
@@ -143,3 +149,32 @@ Pick an app you use daily — food delivery, a music player, a library catalogue
 ## If you've already read the rest of this course
 
 The HLD material in the [Bridge](../12-hld-bridge/hld-refresher.html) track is a compressed version of [Foundations](../fundamentals/scalability-basics.html), [Building Blocks](../building-blocks/load-balancing.html) and the [Appendix](../appendix/framework.html). If you know those, skim it and put the time into the LLD problems instead — that's the side most SDE-2 candidates under-prepare.
+
+## Check yourself
+
+```recall
+Q: HLD versus LLD in one line each?
+A: HLD designs boxes between programs — servers, databases, caches, queues — and talks traffic, storage and delay. LLD designs the classes inside one program and talks responsibilities and change.
+
+Q: What earns points in a design interview?
+A: A decision plus the reason for it. Five components you can justify beat ten you can't; a calm, complete, well-argued ordinary design passes.
+
+Q: What does a passing answer do that a weaker one doesn't?
+A: Asks questions and states scope first, splits work into pieces with one job each, gives reasons for choices, adds a class for a new feature instead of rewriting, and covers failure and shared data between threads.
+
+Q: What is the most common level mistake?
+A: Answering at the wrong zoom: estimating traffic in an LLD round, or drawing class diagrams in an HLD round.
+
+Q: Name the three rules for practising.
+A: Say it out loud, draw your own design before reading the solution, and use a 40-minute timer.
+
+Q: What should the night before the interview look like?
+A: Only the final checklist, then stop. New material doesn't stick that late and crowds out what you rehearsed; sleep is the better investment.
+```
+
+## What to carry forward
+
+- Two zoom levels: HLD is between programs, LLD is inside one. Identify which round you're in early.
+- Every point comes from a decision plus its reason.
+- Day 1 vocabulary, Day 2 timed problems out loud, Day 3 overlap and re-solve one from memory.
+- Producing beats recognising: draw first, read second, out loud, against a timer.

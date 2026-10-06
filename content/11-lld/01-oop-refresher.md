@@ -8,6 +8,12 @@ prereqs: [three-day-plan]
 unlocks: Turning a problem statement into a set of classes with clear jobs, and defending each one.
 ---
 
+:::predict Guess first
+1. A class has a public balance field, and every caller checks it never goes negative. What will eventually happen?
+2. Notifications vary by channel (email, SMS, push) and by priority (urgent, normal). With one subclass per combination, how many classes is that — and after adding WhatsApp?
+3. Two users have identical names and details. Are they the same user? Is ₹50 from one wallet the same as ₹50 from another?
+:::
+
 Nobody will ask you to define polymorphism. They will ask you to design something and then watch whether your classes have any point to them. This page covers only the ideas that change your answer.
 
 ## An object protects a rule
@@ -188,3 +194,39 @@ Name three rules it should protect, one field that should be a value object, and
 
 (Rules: the total matches the lines; status only moves in legal steps; items aren't empty at checkout. Field: `total` should be `Money`. Varies: payment, and probably discounts.)
 :::
+
+## Check yourself
+
+```recall
+Q: What is an object for, in design terms?
+A: Protecting a rule (an invariant) about its data: keep the field private and expose actions like withdraw that enforce the rule in one place, so no caller can bypass it.
+
+Q: Why aren't getters and setters encapsulation?
+A: A get/set pair is a public field with extra steps — the rule still has to be repeated by every caller. Expose actions (withdraw, deposit), not fields.
+
+Q: What does "tell, don't ask" mean?
+A: If you pull data out of an object to decide something about it, move the decision inside: order.isEmpty() instead of checking order.getItems().isEmpty() in five places.
+
+Q: When should you inherit, and when compose?
+A: Inherit only for a genuine is-a with a family that stays about one level deep. Otherwise hold a reference — inheritance allows one dimension of variation and multiplies classes when there are two.
+
+Q: What is the better opening for parking-lot vehicles?
+A: If vehicle types differ only by the spot size they need, give Vehicle a VehicleSize field instead of Car, Bike and Truck subclasses; subclass only if behaviour differs.
+
+Q: When does an interface earn its place?
+A: When there is, or will clearly be, more than one implementation. Look for "different", "depending on", "either/or", "configurable", "for now", and likely follow-ups such as another payment method.
+
+Q: Entity versus value object?
+A: An entity has an ID and changes over time; two with identical fields are still different (User, Order). A value object is its fields, never changes and compares by value (Money, TimeSlot) — and is safe to share between threads.
+
+Q: Name the four questions to ask of every class.
+A: What is its one job (no "and")? What rule does it protect? Does it depend on a concrete class or an interface — and does that thing really vary? Does a new feature change it or add a new class?
+```
+
+## What to carry forward
+
+- An object protects a rule about its data — expose actions, not fields.
+- Prefer holding an object to inheriting from one; inheritance handles only one dimension of variation.
+- Interfaces go only where things genuinely vary, now or in a likely follow-up.
+- Separate entities (identity, change) from value objects (immutable, compared by value).
+- Enums can carry behaviour, replacing switches copied across files.

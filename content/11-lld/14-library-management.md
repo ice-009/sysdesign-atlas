@@ -8,6 +8,12 @@ prereqs: [parking-lot, uml-class-diagrams]
 unlocks: Telling apart "the thing" and "one instance of the thing", which shows up in every inventory, booking and catalogue problem.
 ---
 
+:::predict Guess first
+1. The library owns four copies of one book; two are out and one is being repaired. Can a single isAvailable flag on Book describe that?
+2. When every copy is out, should a member reserve a specific copy or the title?
+3. Someone is waiting for a book. Should the current borrower be allowed to renew it?
+:::
+
 This one has no clever algorithm. It's a test of **modelling**: picking the right nouns, putting each rule where it belongs, and not tangling them. The single decision that separates good answers from weak ones comes in section 3 — a book and a copy of a book are different objects.
 
 ## 1 · Requirements (0–5)
@@ -229,3 +235,36 @@ Lock per copy, not per library: different copies never block each other. The ful
 2. *Clean Code* has two copies, both out. Asha reserves it, then Ravi. Copy 1 comes back. Walk the statuses of copy 1 and both reservations. Asha never collects it. What happens on day 4?
 3. Bob tries to renew *Clean Code* while Ravi is waiting. Which method refuses, and what does it check?
 :::
+
+## Check yourself
+
+```recall
+Q: What is the key modelling decision in the library problem?
+A: Separate Book (the title — searched and reserved, no status) from BookCopy (the physical item with a barcode — lent, with a status). Reservations hang off Book; loans hang off BookCopy.
+
+Q: What statuses does a copy move through?
+A: AVAILABLE → ON_LOAN → AVAILABLE, or ON_HOLD for the first person waiting, then ON_LOAN when collected; any state → LOST or IN_REPAIR; IN_REPAIR → AVAILABLE.
+
+Q: Where do the lending rules live?
+A: Whether a copy can be lent is BookCopy's business; limits and loan days are LoanPolicy's per member type; lateness costs are FinePolicy's. The service only coordinates.
+
+Q: Name the three rules that make reservations work.
+A: One FIFO queue per title; renewal is refused if anyone is waiting; a held copy waits about three days, then a daily job passes it to the next person or back to the shelf.
+
+Q: Why does a hold store the member, not just the queue position?
+A: So issue() can check "this copy is on hold for someone else" and refuse anyone but that member.
+
+Q: Why is the fine rule an interface?
+A: Because the change is real and named: rates differ by member type, get waived during exams and differ for reference books — each a new FinePolicy.
+
+Q: How do you stop two desks lending the same copy?
+A: Compare-and-set the status AVAILABLE → ON_LOAN under a per-copy lock, or UPDATE … WHERE status = 'AVAILABLE' and check one row changed — plus a unique constraint on one open loan per copy.
+```
+
+## What to carry forward
+
+- Separate the thing from its instances: Book versus BookCopy.
+- Status lives on the copy; the reservation queue lives on the title.
+- Put each rule in the object that owns it; policies vary by member type.
+- Fair queues need refused renewals and expiring holds.
+- "One copy, one borrower" is a conditional status change plus a constraint.

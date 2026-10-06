@@ -8,6 +8,12 @@ prereqs: [lld-interview-method, concurrency-and-the-os]
 unlocks: Answering "what if two people do this at the same time?" with a specific mechanism and its cost.
 ---
 
+:::predict Guess first
+1. Two threads run "if the key is missing, put it" on a ConcurrentHashMap. Each call is thread-safe. Is the combination?
+2. Two users grab the last parking spot at the same instant. Is a lock the cheapest way to make sure only one wins?
+3. You add synchronized to every method of a class. Is it now safe?
+:::
+
 Almost every SDE-2 LLD round ends up here, usually as: *"two users try to book the last seat at the same moment — what happens?"*
 
 First, the vocabulary, because it's used loosely everywhere.
@@ -172,3 +178,39 @@ Putting `synchronized` on every method is not the safe answer. It's slow *and* s
 
 Interviewers read blanket locking as "hasn't worked out which rule needs protecting". Name the data, name the rule, protect exactly that.
 :::
+
+## Check yourself
+
+```recall
+Q: What two questions come before choosing any concurrency mechanism?
+A: Which data is shared and changes (name the exact field), and what rule a collision would break. There are usually only two or three such places in a design.
+
+Q: List the concurrency techniques from cheapest to costliest.
+A: Make it immutable, give it one owning thread, use an atomic operation (compare-and-set, ConcurrentHashMap), lock the smallest thing, and push it into the database.
+
+Q: Why does a lift often use one thread per car?
+A: Requests go into a queue and the car's own loop drains it, so its fields have a single writer and need no locks. Sharding applies the same single-owner idea between servers.
+
+Q: What is compare-and-set, and why prefer it for "grab the last one"?
+A: Change A to B only if it is still A, in one indivisible step, and report success. Exactly one caller wins and the loser gets false — no lock, no waiting, no deadlock.
+
+Q: What is check-then-act, and the fix?
+A: A check followed by an action on shared data — if (!map.containsKey(k)) map.put(...) — races even when each call is thread-safe. Make it one atomic step: computeIfAbsent or putIfAbsent.
+
+Q: How do you avoid deadlock in a two-account transfer?
+A: Always take locks in the same order (by ID), breaking circular wait; tryLock with a timeout breaks hold-and-wait. Deadlock needs four conditions at once, and breaking any one is enough.
+
+Q: With five servers, how do you protect "one hold per seat"?
+A: In the database: a unique constraint, a conditional update (UPDATE … WHERE status = 'FREE', then check rows changed), or a version column. Use a distributed lock with an expiry only when it isn't a row.
+
+Q: How do you test a race?
+A: Start N threads, hold them at a CountDownLatch, release together, all calling book(seat); assert exactly one success and N−1 failures, and run it thousands of times.
+```
+
+## What to carry forward
+
+- Name the shared changing data and the rule before picking a mechanism.
+- Cheapest first: immutable, single owner, atomic, smallest lock, database.
+- Check-then-act is the bug you'll actually write; make the check and change one step.
+- Conditional writes — compareAndSet in memory, UPDATE … WHERE in SQL — work at both levels.
+- Blanket synchronized is slow and still wrong across calls.

@@ -8,6 +8,12 @@ prereqs: [oop-refresher]
 unlocks: Sketching your classes and their relationships quickly enough that the diagram helps the conversation instead of eating it.
 ---
 
+:::predict Guess first
+1. How many boxes should a class diagram drawn in an interview have — 5, 10 or 30?
+2. Should a class diagram show every getter and setter?
+3. A Floor is created by its ParkingLot and can't exist without it. A Player outlives the Team. Would you draw these the same way?
+:::
+
 UML is a big standard with fourteen kinds of diagram. An interview uses one of them — the class diagram — and only about a fifth of that. This page is that fifth. Learn it once and every LLD answer gets easier to explain, because the interviewer can *see* your design instead of holding it in their head.
 
 ## Why draw at all
@@ -186,3 +192,36 @@ Without looking back, draw a class diagram for a library: books, copies of a boo
 
 [Design a Library Management System](library-management.html) works the full answer.
 :::
+
+## Check yourself
+
+```recall
+Q: What three jobs does an interview class diagram do?
+A: It shows the nouns (classes), who holds a reference to whom, and where things vary (interfaces with several implementations). It is not documentation — six to ten boxes, five minutes.
+
+Q: How do you draw inheritance versus implementation?
+A: Inheritance: solid line with a hollow triangle at the parent ("is a"). Implementation: dashed line with a hollow triangle at the interface ("can be used as") — the line you'll draw most.
+
+Q: Association versus dependency?
+A: Association (solid line, open arrow) means it keeps a reference — a field. Dependency (dashed line, open arrow) means it uses it briefly — a parameter or local variable.
+
+Q: Composition versus aggregation — and how much should you care?
+A: Composition (filled diamond): the part dies with the owner. Aggregation (hollow diamond): the part outlives the whole. It's the distinction interviewers care least about; a plain association is fine if unsure.
+
+Q: Why is multiplicity worth writing?
+A: It catches real cases: writing 0..1 on Spot → Vehicle is when you notice a spot can be empty — exactly what park() must handle. Use 1, 0..1, *, 1..*.
+
+Q: What order do you draw a diagram in?
+A: Nouns, then what varies (interfaces or abstract classes), then connections with interesting multiplicity, then two or three key methods per class — then stop.
+
+Q: What do you do in a text-only online round?
+A: Use one line per class: ParkingLot ◆→ Floor[1..*] → PricingPolicy, ◁ for "is a", ◁┄ for "implements". For "walk me through it", sketch a sequence diagram: objects across the top, calls down the page.
+```
+
+## What to carry forward
+
+- An interview diagram has six to ten boxes, drawn in five minutes, and you narrate over it.
+- The lines that change code: inheritance versus implementation, association versus dependency.
+- Don't spend time on diamonds; do write multiplicity where it reveals a case such as 0..1.
+- Leave out getters, setters and constructors — show defining fields and methods that do work.
+- Dashed lines into an interface show the extension point; point at it out loud.

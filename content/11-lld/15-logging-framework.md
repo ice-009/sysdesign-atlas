@@ -8,13 +8,19 @@ prereqs: [design-patterns, concurrency-in-lld]
 unlocks: Using strategy, decorator and a well-placed singleton together in one design, and building a component that sits on every hot path without hurting it.
 ---
 
+:::predict Guess first
+1. DEBUG is switched off in production. Does log.debug("cart " + cart) still cost anything?
+2. The log disk is slow, or full. Should the request that wrote the log line wait for it, or fail?
+3. The payment component should log at DEBUG and everything else at WARN. How could you avoid configuring every class separately?
+:::
+
 Every program you've written uses a logger. This question asks you to build one. It's popular because it's small enough to finish and it naturally pulls in three patterns, a hierarchy, and a real threading problem. It also rewards one practical insight: the cheapest log line is the one you decide not to write.
 
 ## 1 · Requirements (0–5)
 
 **Ask first:** which levels? Where do logs go — console, files, a remote service? Can settings change while running? How much traffic — a few lines a second, or thousands?
 
-Assume: five levels, several destinations at once, per-component settings that can change at runtime, and busy services writing thousands of lines a second.
+Assume: four levels, several destinations at once, per-component settings that can change at runtime, and busy services writing thousands of lines a second.
 
 **What it must do**
 - `log.info("order placed", ...)` with levels DEBUG, INFO, WARN, ERROR.
@@ -256,3 +262,39 @@ Configuration: root at WARN with a console appender; `com.shop.payment` at DEBUG
 3. The disk fills up. What does the request thread notice? What does an operator notice?
 4. Someone changes `com.shop.cart` to DEBUG at runtime. Why does no logging call need to lock to see the change?
 :::
+
+## Check yourself
+
+```recall
+Q: Name the four qualities that separate a shippable logger from a toy.
+A: Nearly free when filtered out, never blocks the request, never crashes the app, and never interleaves lines from different threads.
+
+Q: How do named loggers inherit settings?
+A: Dotted names form a tree; a logger without its own level uses its nearest ancestor's. A passing record goes to its own appenders and then its parents' (additivity), which can be switched off.
+
+Q: How do you make a disabled log call almost free?
+A: Check the level before doing any work, and take the message as a lambda (Supplier) so the string is built only if the level is enabled — one comparison otherwise.
+
+Q: Which three patterns appear in a logging framework?
+A: Strategy for Layout (text or JSON), decorator for AsyncAppender wrapping any appender with a queue, and a deliberately thin singleton LogManager.
+
+Q: How does the async appender keep requests fast, and what happens when its queue fills?
+A: Requests offer records into a bounded queue and return; one writer thread batches and writes. When full, drop DEBUG and INFO first, give WARN+ a brief wait, and count drops — never block the caller.
+
+Q: Why must an appender swallow its own I/O errors?
+A: A logger must never break the code that called it; a full disk is a logging problem, not an outage. Count the failure and report it once.
+
+Q: Why does file rotation need no extra locking?
+A: With an async appender only the single writer thread touches the file, so rotation is just a step in its loop.
+
+Q: How do you change log levels at runtime without locks?
+A: Hold an immutable configuration in a volatile field and swap the reference on change; threads see the old or the new configuration, never half of each.
+```
+
+## What to carry forward
+
+- The cheapest log line is the one you decide not to build: level check first, lazy messages.
+- Loggers form a name tree that inherits levels and passes records up.
+- Layouts are strategies, AsyncAppender is a decorator, LogManager is a justified thin singleton.
+- Never block or crash the caller: bounded queue, explicit full policy, swallowed and counted errors.
+- Immutable configuration in a volatile field gives lock-free runtime changes.

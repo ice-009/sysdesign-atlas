@@ -8,6 +8,12 @@ prereqs: [hld-refresher, rate-limiter-classes]
 unlocks: A last pass that reinforces what you rehearsed instead of adding anything new.
 ---
 
+:::predict Guess first
+1. The night before an interview, is learning one more design pattern a good use of the evening?
+2. You go blank in the middle of a round. What could you say in the next ten seconds?
+3. What do you think the interviewer is ultimately deciding?
+:::
+
 Read this the evening before, and again in the twenty minutes before the call. Nothing here is new — that's the point. If something doesn't ring a bell, go back to that page for ten minutes and come back. Don't start anything new tonight.
 
 ## The two running orders
@@ -100,3 +106,32 @@ So: scope it, decide, say why, admit what you traded away, and be easy to talk t
 :::
 
 Now close the laptop. Sleep is worth more than a fifteenth pattern.
+
+## Check yourself
+
+```recall
+Q: What does the trigger table map?
+A: Requirement phrases to tools: "different" → strategy, "create the right kind" → factory, "tell everyone" → observer, "behaves differently in a state" → state machine, "undo" → command, "another provider" → adapter.
+
+Q: How do you answer "two users do this at the same time"?
+A: Name the shared data and the rule a clash breaks, then a compare-and-set in memory or UPDATE … WHERE status = expected across servers. Exactly one wins; the loser gets a clean error.
+
+Q: How do you answer "how would you test this?"
+A: Constructor injection gives in-memory fakes and a controllable clock; test policies on their own; one threading test releasing N threads together, run thousands of times.
+
+Q: Name four things that quietly cost points.
+A: Money as double, a subclass per enum value, getters and setters with rules outside the class, one-implementation interfaces, blanket synchronized, scanning where a map was obvious, unlabelled arrows, pointless arithmetic, long silences.
+
+Q: What belongs in the first and last two minutes?
+A: First: restate the problem, ask three or four questions, state what's out, say how you'll use the time. Last: summarise in four sentences, name what you'd revisit and what breaks first, then ask them a real question.
+
+Q: What do you do if you go blank?
+A: Reread the requirements aloud, narrate ("let me walk the main flow and find the gap"), ask a clarifying question, or go back to nouns → relationships → what varies.
+```
+
+## What to carry forward
+
+- Nothing new the night before — recall, then sleep.
+- Know both running orders and the trigger table cold.
+- Have short answers ready for races, new features, testing, 10× growth, choices and hindsight.
+- The bar is "could we hand them a vague problem?" — scope, decide, justify, admit trade-offs.

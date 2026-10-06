@@ -8,6 +8,12 @@ prereqs: [oop-refresher]
 unlocks: Explaining your class design in the words interviewers listen for, and spotting problems in your own diagram.
 ---
 
+:::predict Guess first
+1. A class saves bookings, enforces availability rules and sends confirmation emails. What happens when someone changes the email template?
+2. An interviewer says "now add a new vehicle type". What answer do you think they're hoping for?
+3. A class creates its own database connection with new MySqlRepo() inside. How would you unit-test it?
+:::
+
 SOLID is five rules of thumb for arranging classes. It isn't a checklist to recite — it's **a way of justifying decisions you were going to make anyway**, which is exactly why it scores. It turns "this feels cleaner" into an argument.
 
 Learn each one as three things: the problem, the fix, and the sentence you say.
@@ -202,3 +208,36 @@ Which two principles does it break, and what's the fix?
 
 (Add-don't-edit: the type chain wants a `ReportFormat` interface. One job: generating, emailing and saving are three different reasons to edit this class.)
 :::
+
+## Check yourself
+
+```recall
+Q: What does single responsibility actually mean — and not mean?
+A: One reason to change: business rules, storage, display and outside systems belong apart. It does not mean tiny classes — if you can't name a second reason to change, don't split.
+
+Q: How do you spot an open/closed violation, and fix it?
+A: A switch or if-chain on a type that every new case must edit. Put the varying behaviour behind an interface so a new case is a new class.
+
+Q: Which switch is allowed under open/closed?
+A: Exactly one, at the edge — a factory, registry or config table that turns input into the right object — instead of switches scattered through the middle.
+
+Q: What is a Liskov substitution violation, and the fix?
+A: A child that can't stand in for its parent: overrides that throw "not supported", or callers checking instanceof. Model capabilities as separate interfaces instead of a family tree.
+
+Q: What does interface segregation say in one rule?
+A: Size an interface to what the caller needs, not to everything the implementation can do, so nobody implements methods they can't support.
+
+Q: What is dependency inversion, and its two payoffs?
+A: Take collaborators in through the constructor, typed as interfaces, instead of creating them with new. You can test with in-memory fakes, and swap infrastructure by changing one line of wiring.
+
+Q: How should you mention SOLID in an interview?
+A: State the consequence, not the acronym: "changing how we charge cards can't break spot allocation." Reciting principle names sounds memorised and invites challenge.
+```
+
+## What to carry forward
+
+- SOLID justifies decisions you'd make anyway — use it to turn "cleaner" into an argument.
+- S and O win most points: one reason to change per class, and new behaviour as a new class.
+- L and I are usually one-liners: don't subclass what can't stand in; keep interfaces caller-sized.
+- D makes the design testable: inject interfaces through the constructor.
+- Say the consequence, not the label.

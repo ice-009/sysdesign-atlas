@@ -8,6 +8,12 @@ prereqs: [oop-refresher, uml-class-diagrams]
 unlocks: Modelling a turn-based game cleanly, and making randomness testable — which carries straight over to chess, card games and simulations.
 ---
 
+:::predict Guess first
+1. A snake goes from square 27 down to 1; a ladder goes from 3 up to 22. Do they need different classes?
+2. The game rolls a random die. How would you write a test that checks "rolling a 3 lands on the ladder"?
+3. What algorithm would find the fewest rolls needed to finish a given board?
+:::
+
 Interviewers use this one as a warm-up, or for a shorter round. There's no concurrency and no money. What they're watching is whether your classes are clean, whether rules that vary are kept apart from the game loop, and whether you think about **testing** — because a game driven by a random die is impossible to test unless you design for it.
 
 :::tip Practise the algorithm on LeetCode
@@ -219,3 +225,36 @@ Board: ladders 3→22, 8→30; snakes 27→1, 21→9. Players Asha and Ravi star
 
 (1: Asha 1→3, ladder to 22. Ravi 1→7, rolled a six so rolls again: 7→8, ladder to 30. Asha 22→27, snake to 1. Ravi 30→34. 2: two rolls — a 1 then a 6 reaches square 8 and its ladder to 30. 3: 27 is where a snake starts.)
 :::
+
+## Check yourself
+
+```recall
+Q: What insight simplifies the Snake and Ladder board?
+A: A snake and a ladder are the same thing — a jump from square A to square B. One Map<from, to> covers both, and moving is one lookup.
+
+Q: Why does playTurn() return a MoveResult instead of printing?
+A: The game logic doesn't know about screens: a console prints it, a web UI animates it and a test asserts on it — one source of truth.
+
+Q: Which two things vary, and how are they modelled?
+A: The rules (exact finish, extra turn on a six) behind a Rules interface, and the die behind a Dice interface — RandomDice, FixedDice, TwoDice.
+
+Q: How do you make a random game testable?
+A: Inject the die: FixedDice scripts the rolls in tests, and a seeded Random replays a real game exactly. It's dependency inversion applied to randomness.
+
+Q: What must the Board constructor reject?
+A: Jumps starting on the first or last square, jumps out of range or to themselves, and a jump ending on another jump's start — which would create chains or loops.
+
+Q: How do you find the fewest rolls to finish (LC 909)?
+A: BFS over squares: each square has up to six edges (rolls 1–6) ending wherever the jump sends you. Shortest path in an unweighted graph, O(n × 6).
+
+Q: How do undo and replay fit?
+A: Keep the list of MoveResults: replay walks it, undo moves the player back to "from" — the command pattern.
+```
+
+## What to carry forward
+
+- Look for the simplest model: snakes and ladders are both jumps.
+- Return results, don't print — keep game logic free of UI.
+- Rules and dice vary; inject the die so tests can script it.
+- Validate the board at construction so the game loop stays simple.
+- Fewest rolls is BFS on an unweighted graph.

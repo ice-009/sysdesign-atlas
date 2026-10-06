@@ -8,6 +8,12 @@ prereqs: [solid]
 unlocks: Spotting what's wrong with a piece of code quickly, naming it, and fixing it in small safe steps — in your own design and in "review this snippet" rounds.
 ---
 
+:::predict Guess first
+1. The same switch on vehicle type appears in three methods. What goes wrong when someone adds ELECTRIC_CAR?
+2. Is storing money in a double ever a problem if you round when displaying it?
+3. Should you extract a shared method the first time you see two identical-looking blocks of code?
+:::
+
 A *code smell* is a sign that something is probably wrong — not a bug, not a crash, just a shape that tends to cause trouble later. The word is useful because it's honest: a smell is a reason to look closer, not proof.
 
 This matters in interviews twice. First, interviewers notice smells in *your* design, and fixing one before they point it out is a strong signal. Second, some rounds hand you a messy snippet and ask "what would you change?" — a direct test of whether you can name problems and fix them in order.
@@ -242,3 +248,39 @@ class OrderManager {
 ```
 List every smell you can, and the refactoring for each. You should find at least six: money as `double`, a hidden data clump in `Object[]`, a boolean flag, a magic coupon string (the coupon rule wants to be a strategy), one method doing pricing *and* saving *and* mailing, and a `String` email with no validation. Then decide which one you'd fix first, and why.
 :::
+
+## Check yourself
+
+```recall
+Q: What is a code smell?
+A: A shape in code that tends to cause trouble later — not a bug, just a reason to look closer. Each has a named refactoring: a small structural change that keeps behaviour the same.
+
+Q: God class — the smell and the fix?
+A: One class does everything, so every change touches it. Extract Class: move each group of fields and methods used together into its own class and keep the original as a coordinator.
+
+Q: Repeated switch on type — the smell and the fix?
+A: Every new type means finding every switch, and a missed one fails at runtime. Replace Conditional with Polymorphism (or a strategy). One switch inside a factory is fine.
+
+Q: What is primitive obsession, and the fix?
+A: Raw strings and numbers for things with rules — money as double, email as String. Replace Primitive with Object: a small value class such as Money or Email that enforces the rule once.
+
+Q: Feature envy and reaching through objects — the fixes?
+A: Feature envy (a method doing another class's arithmetic): Move Method to the owner of the data. Chains like booking.getCustomer().getAddress().getCity() break the Law of Demeter: Hide Delegate behind booking.customerCity().
+
+Q: Shotgun surgery versus divergent change?
+A: Shotgun surgery: one change forces edits in many classes — gather the logic into one place. Divergent change: one class changes for many unrelated reasons — split it.
+
+Q: What is speculative generality, and the safe sentence?
+A: Over-engineering: interfaces with one implementation and factories for things that never vary. Say where you would add flexibility when a real second case appears, without adding it yet.
+
+Q: In what order do you review a snippet?
+A: Correctness first (bugs, races, money as double, validation), then the biggest structural smell, then small ones, naming the refactoring for each.
+```
+
+## What to carry forward
+
+- A smell is a reason to look closer; each has a named refactoring.
+- God classes and repeated switches are the big structural smells; Extract Class and polymorphism fix them.
+- Value objects such as Money and Email are the cheapest upgrade to any design.
+- Over-engineering is a smell too — add an interface only for a real, named second case.
+- Refactor in small, tested steps; review correctness first, then structure, then details.

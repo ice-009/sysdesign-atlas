@@ -8,6 +8,12 @@ prereqs: [solid]
 unlocks: Picking the right pattern because the requirement calls for it, rather than listing patterns from memory.
 ---
 
+:::predict Guess first
+1. A requirement says "the fee is different at weekends". Which kind of structure would let you add that without editing the fee method?
+2. An order notifies inventory, email and analytics when placed. If the email listener throws an exception, should the order fail?
+3. Coffee with any mix of milk, caramel and extra shot: one subclass per combination — how many classes for three extras?
+:::
+
 A **design pattern** is just a named solution to a problem that keeps coming up. The name matters mainly because it lets two engineers skip a paragraph of explanation.
 
 There are twenty-three classic ones. In an SDE-2 interview you will use about six, recognise four more, and lose points for forcing in the rest. This page is that working set, organised by **the phrase in the requirements that should trigger it** — because that's how you have to recall them when the clock is running.
@@ -276,3 +282,39 @@ Cover the table at the top and answer in five seconds each: (a) "users can undo 
 
 Answers: command · strategy · observer · adapter · state.
 :::
+
+## Check yourself
+
+```recall
+Q: Strategy — the trigger and the idea?
+A: Trigger: "different / depending on / configurable". Put the varying step — pricing, matching, eviction, splitting — behind an interface; each version is a class and the caller holds the interface.
+
+Q: Simple factory versus abstract factory?
+A: A simple factory maps an input to one concrete class and is the only place knowing every kind — what you want nine times in ten. An abstract factory builds whole matching families and is rarely justified.
+
+Q: What are the two observer follow-ups, and the answers?
+A: A listener throws: catch per listener so it can't break the others or the publisher. A listener is slow: hand work to a pool or queue — the reason real systems put a broker here.
+
+Q: State pattern — the payoff, and the lighter version?
+A: Each phase is an object deciding which moves are legal, so illegal transitions become impossible. In 40 minutes, an enum of states plus a map of legal transitions is often enough.
+
+Q: Adapter versus decorator versus facade?
+A: Adapter wraps one object to change its interface into the one you expect. Decorator wraps one object, keeps its interface and adds behaviour. Facade fronts many objects with a new, simpler task-shaped interface.
+
+Q: What is the senior answer on singletons?
+A: Name the downsides — global mutable state, hard to fake in tests, hidden dependencies — then create one instance at startup and pass it in. If you must, an enum singleton is the safe form.
+
+Q: Builder versus command versus repository — one trigger each.
+A: Builder: many optional settings, validated once in build() so only valid objects escape. Command: undo, redo, queues or scheduling — the action becomes an object. Repository: hide storage behind a collection-like interface.
+
+Q: How do you use patterns without sounding like a catalogue?
+A: State the requirement pressure before the pattern name, use one or two well, and be willing to say you'd skip one until a second implementation exists.
+```
+
+## What to carry forward
+
+- Recall patterns by their trigger phrase: different → strategy, tell everyone → observer, behaves differently in a state → state, undo → command.
+- Strategy is the workhorse: find the policy in the system and put it behind an interface.
+- Observer needs per-listener error handling and a queue for slow listeners.
+- Know adapter, decorator and facade apart; your main class is usually a facade already.
+- Requirement first, pattern second — and choosing not to use one shows judgement.
