@@ -8,6 +8,12 @@ prereqs: []
 unlocks: The ability to reason about where time goes in a system instead of guessing.
 ---
 
+:::predict Guess first
+1. If one L1 cache read took a second, how long would a New York–London round trip take — hours, days, or years?
+2. Which is faster: reading 1 MB from memory, or one network round trip inside a datacentre?
+3. You run 10,000 servers, each with about a 3% chance of failing in a year. How many fail on a typical day?
+:::
+
 ## Why start with hardware
 
 Almost every design decision in this atlas is a decision about **where data lives**. Cache or database. Memory or disk. Local disk or object storage. Same rack or another continent.
@@ -193,6 +199,31 @@ Jeff Dean's "Latency Numbers Every Programmer Should Know" (Google, 2009) is the
 
 Ulrich Drepper's *What Every Programmer Should Know About Memory* (2007) is the long-form treatment of the memory hierarchy — dated in its specifics, still unmatched on the mechanisms.
 :::
+
+## Check yourself
+
+```recall
+Q: What three anchors let you derive most latency numbers?
+A: A clock cycle is about 0.33 ns (3 GHz); light in fibre covers about 20 cm per nanosecond; a DRAM access is about 80 ns, roughly 240 cycles.
+
+Q: Why can't engineering make a New York–London round trip much faster than ~70 ms?
+A: It's the speed of light in glass: about 5,500 km at 20 cm/ns is ~27 ms each way, plus indirect routes. The only fix is to avoid the trip by putting the data near the reader.
+
+Q: Why does a same-datacentre round trip take ~0.5 ms when the cables are short?
+A: Distance isn't the cost — switching is: queueing and serialisation at each switch hop, plus the kernel's network stack at both ends.
+
+Q: On a spinning disk, roughly how much faster is sequential reading than random 4 KB reads?
+A: Over 300×: about 200 MB/s streaming versus ~150 random reads a second (~0.6 MB/s). That gap is why B-trees and LSM trees exist.
+
+Q: "Memory is random access, so layout doesn't matter." What's wrong with that?
+A: DRAM is addressable at random, not fast at random: it reads 64-byte cache lines and prefetches in-order access. An array walked in order can be 10× faster than a linked list over the same data.
+
+Q: Which pipe is usually the narrowest in a product, and what follows from it?
+A: Internet egress to users, at 1–100 Mb/s. Bytes on the wire are often the real limit, so compression, pagination and returning only the fields needed matter more than they look.
+
+Q: Why does fleet size change how you design for failure?
+A: At 10,000 servers and 3% a year, about 300 fail annually — nearly one a day. Something is always broken, so failure has to be the normal path, not the exception.
+```
 
 ## What to carry forward
 

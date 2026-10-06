@@ -7,6 +7,12 @@ tags: [database, nosql, sql, storage]
 prereqs: [consistency-models, cap-pacelc]
 ---
 
+:::predict Guess first
+1. Your service handles 500 queries a second. Postgres or Cassandra — and why?
+2. "NoSQL is schemaless, so there's less modelling to do." True or false?
+3. Do most large social networks store their social graph in a graph database?
+:::
+
 ## The framing that scores
 
 "SQL vs NoSQL" is a bad question, because NoSQL isn't one thing — a key-value store and a graph database have nothing in common. The question interviewers actually want answered is:
@@ -147,3 +153,39 @@ Michael Stonebraker and Uğur Çetintemel's *"One Size Fits All": An Idea Whose 
 
 *Dynamo: Amazon's Highly Available Key-value Store* (DeCandia et al., SOSP 2007) and *Bigtable* (Chang et al., OSDI 2006) are the two papers that defined the NoSQL era; *Spanner* (Corbett et al., OSDI 2012) is the argument that you can have transactions at scale after all.
 :::
+
+## Check yourself
+
+```recall
+Q: What question should replace "SQL or NoSQL?"
+A: What are the access patterns, and what's the smallest system that serves them? State the writes, reads and joins first; the datastore choice follows.
+
+Q: What is the relational database's real ceiling, and what are its biggest strengths?
+A: Writes go to one primary — roughly 10–50K a second on tuned hardware. In return: multi-row ACID transactions, a query planner, joins over normalised data, and constraints the database enforces.
+
+Q: What does a key-value store give up for its near-perfect scaling?
+A: You can only fetch by key: the value is opaque, so no querying by value, no joins and no range scans unless the store adds sort keys.
+
+Q: Document stores: what's the modelling rule?
+A: Embed what you read together; reference what you update independently. Unbounded embedded arrays and full normalisation are the two usual failures.
+
+Q: Wide-column stores: what do the partition key and clustering key do, and what's the catch?
+A: The partition key picks the machine; the clustering key orders rows within it, making "latest messages in chat 42" one sorted read. The catch: you design tables for known queries, and a new query means a new table and write path.
+
+Q: When does a graph database earn its place?
+A: For multi-hop traversals — friends of friends who like X, fraud rings — that would be costly self-joins in SQL. One or two hops are fine in a relational database with the right indexes.
+
+Q: Walk the decision framework for picking a datastore.
+A: Need multi-record transactions? Relational. Then check write throughput, data volume, whether access patterns are known and stable, the read:write ratio, and the consistency each operation needs.
+
+Q: What does polyglot persistence cost?
+A: Each extra store is more to operate, another failure mode and another consistency boundary. Justify every store; don't list seven.
+```
+
+## What to carry forward
+
+- Start from access patterns; "SQL versus NoSQL" is the wrong question.
+- The honest default is Postgres, with a stated threshold for when to revisit.
+- Each NoSQL family is for a specific shape: key-value lookups, documents read whole, wide-column time ranges, graph traversals.
+- NoSQL needs more up-front modelling, not less — the schema moves into your code.
+- Mixing stores is normal, but each one must earn its operational cost; NewSQL breaks the false dichotomy.

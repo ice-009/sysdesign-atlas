@@ -7,6 +7,12 @@ tags: [pubsub, events, architecture]
 prereqs: [message-queues]
 ---
 
+:::predict Guess first
+1. In a queue each message goes to one worker. What's different about pub/sub?
+2. Should an "order placed" event carry just the order ID, or the whole order?
+3. Event sourcing keeps every change forever. What happens when a user asks for their personal data to be deleted?
+:::
+
 ## Pub/sub vs queues
 
 A [queue](message-queues.html) distributes work: each message goes to **exactly one** consumer. Pub/sub distributes information: each message goes to **every** subscriber.
@@ -137,3 +143,39 @@ Worth raising when a design gets event-heavy. **Choreography** — each service 
 
 *Wormhole: Reliable Pub-Sub to Support Geo-replicated Internet Services* (Sharma et al., NSDI 2015) is Facebook's system and covers ordering and delivery guarantees across regions.
 :::
+
+## Check yourself
+
+```recall
+Q: Queue versus pub/sub: who gets each message, and what does that say about coupling?
+A: A queue gives each message to one worker — the producer is assigning work. Pub/sub gives it to every subscriber — the producer announces what happened and doesn't know who reacts, so new consumers need no producer change.
+
+Q: Event notification versus event-carried state transfer: what does each cost?
+A: A bare ID keeps payloads small and schemas private, but every consumer calls back, re-coupling them at runtime. Carrying full state makes consumers autonomous even when the producer is down, but payloads grow and become a public contract.
+
+Q: What is event sourcing good for, and when is it the wrong choice?
+A: A complete audit trail, state at any past moment, and new projections over history — great for ledgers and audit-heavy domains. Wrong for ordinary CRUD, where it's over-engineering.
+
+Q: How do event-sourced systems handle a GDPR deletion request?
+A: Crypto-shredding: encrypt each person's data with their own key and discard the key, since the log itself can't be edited.
+
+Q: What is CQRS, and what cost must you state?
+A: Separate models for writing (correctness, invariants) and reading (shaped for each query), fed by events or CDC. Read models are eventually consistent, so handle the lag with optimistic UI or read-your-writes.
+
+Q: What coupling does event-driven design add in place of runtime coupling?
+A: Schema coupling: an event consumed by five services is a contract. Only add fields, version events, and use a schema registry that rejects breaking changes.
+
+Q: Choreography versus orchestration?
+A: Choreography: services react to events independently — decoupled, but the overall process is invisible. Orchestration: a coordinator drives the steps — visible and able to compensate. Use choreography for side effects and orchestration for core workflows.
+
+Q: When shouldn't you use events?
+A: When the caller needs the answer, when strong consistency spans services, when there are only two services, or when the team is small — you pay the complexity without the benefit.
+```
+
+## What to carry forward
+
+- Queues assign work to one consumer; pub/sub announces facts to all subscribers.
+- Choose deliberately between thin notifications, event-carried state and full event sourcing.
+- CQRS splits write and read models; its read side is eventually consistent.
+- Events trade runtime coupling for schema coupling, harder debugging and visible lag — use registries and tracing.
+- Choreograph side effects, orchestrate core workflows, and use plain calls when the caller needs the answer.

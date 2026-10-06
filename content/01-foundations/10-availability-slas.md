@@ -7,6 +7,12 @@ tags: [availability, reliability, sla]
 prereqs: [back-of-envelope, scalability-basics]
 ---
 
+:::predict Guess first
+1. How much downtime a month does 99.9% availability allow — seconds, minutes, or hours?
+2. A request passes through four components, each 99.9% available. Is the whole path more or less available than each part?
+3. Which causes more real outages: hardware failures, or deploys and config changes?
+:::
+
 ## The nines, in minutes
 
 **Availability** is the fraction of time your system is actually working: uptime divided by total time. People quote it as a number of nines — "three nines" means 99.9% — and that shorthand is how availability targets get written into contracts and design docs.
@@ -170,3 +176,39 @@ Google's *Site Reliability Engineering* (Beyer et al., 2016, free online) chapte
 
 For the underlying mathematics, any reliability engineering text covers series and parallel system availability; the useful insight is that dependencies compose multiplicatively and redundancy composes as one minus the product of failure probabilities.
 :::
+
+## Check yourself
+
+```recall
+Q: Roughly how much downtime a month do 99.9% and 99.99% allow?
+A: About 44 minutes a month at 99.9%, and about 4.4 minutes at 99.99%. Each extra nine costs roughly ten times more to achieve.
+
+Q: A request passes through components at 99.99%, 99.9%, 99.9% and 99.95%. What's the path's availability?
+A: They multiply: about 99.74%, roughly 23 hours of downtime a year. Every hard dependency you add lowers availability.
+
+Q: What's often the cheapest way to raise a service's availability?
+A: Turn hard dependencies into soft ones with fallbacks — if recommendations fail, show popular items instead of an error — so they drop out of the serial chain.
+
+Q: Three independent 99% replicas give six nines on paper. What three things stop that in reality?
+A: Correlated failures (shared rack, power or region), the time failover itself takes, and shared software fate — a bad deploy or config hits every replica at once.
+
+Q: SLI, SLO, SLA — what's the difference?
+A: SLI: the measurement (share of requests under 300 ms without an error). SLO: the internal target for it (99.95% over 28 days). SLA: the customer contract with penalties, set looser than the SLO on purpose.
+
+Q: How do error budgets settle the "move fast versus stay stable" argument?
+A: A 99.9% SLO allows 0.1% failure — about 43 minutes a month. Budget left: ship faster and take risks. Budget spent: freeze features and fix reliability. The argument becomes arithmetic.
+
+Q: With failures every 30 days, how does cutting recovery time from 60 to 5 minutes change availability?
+A: From about 99.86% to about 99.99% — two nines gained without preventing a single failure. Fast detection and rollback is often the highest-leverage reliability work.
+
+Q: RPO versus RTO, and what does an RTO of one minute rule out?
+A: RPO: how much data you can lose, measured in time. RTO: how long recovery may take. A one-minute RTO rules out restoring from backups; you need a hot standby with automatic failover.
+```
+
+## What to carry forward
+
+- Each nine costs about ten times the last; turn "highly available" into a number and a price.
+- Serial dependencies multiply availability down; parallel redundancy raises it only if failures are independent.
+- SLI is the measurement, SLO the target, SLA the contract — and the error budget turns reliability into arithmetic.
+- Cutting recovery time is often cheaper than preventing failures, and change causes most outages, not hardware.
+- Availability (can I reach it now) and durability (will it still exist) are different guarantees; RPO and RTO set the recovery design.

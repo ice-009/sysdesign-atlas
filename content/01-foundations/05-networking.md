@@ -8,6 +8,12 @@ prereqs: [latency-throughput]
 unlocks: Reading a latency budget correctly, and knowing which arrows in a diagram cost real money.
 ---
 
+:::predict Guess first
+1. A server is 50 ms away. How long does a brand-new HTTPS request take before your server even starts working on it?
+2. Why might a 20 KB response take noticeably longer than a 12 KB one on a fast connection?
+3. Every layer of a four-layer call chain retries failed calls three times. One user request can become how many database queries?
+:::
+
 ## The arrows are not free
 
 Architecture diagrams draw services as boxes and network calls as arrows. The boxes get all the attention. But in a typical request path, **most of the wall-clock time is spent in the arrows** — and almost none of it is spent transmitting bytes.
@@ -221,6 +227,34 @@ Van Jacobson's *Congestion Avoidance and Control* (1988) is the origin of slow s
 
 For the failure modes: Marc Brooker's writing on retries and jitter at AWS, and *Metastable Failures in Distributed Systems* (Bronson et al., HotOS 2021) on why retry storms don't self-heal.
 :::
+
+## Check yourself
+
+```recall
+Q: How many round trips does a cold HTTPS request (TLS 1.3) cost before your data moves, and what removes them?
+A: TCP handshake plus TLS handshake — two round trips, plus DNS — before the request's own round trip. Reusing pooled, already-open connections removes them.
+
+Q: What is TCP slow start, and what is the "14 KB rule"?
+A: TCP starts with a small window (about 10 segments, ~14 KB) and doubles it each round trip. So the first ~14 KB of a response arrives in one round trip, and every extra doubling costs another.
+
+Q: A 1 Gb/s link has a 100 ms round trip, but the TCP window is capped at 64 KB. What throughput do you get?
+A: 64 KB per 100 ms ≈ 640 KB/s — about 0.5% of the link. Filling it needs the bandwidth-delay product, 12.5 MB, in flight.
+
+Q: HTTP/2 "solved head-of-line blocking". What did it actually do?
+A: It removed it at the HTTP layer by running many requests over one TCP connection — which concentrates it at the TCP layer: one lost packet stalls them all. HTTP/3 over QUIC recovers each stream separately.
+
+Q: Why must QUIC 0-RTT data only carry idempotent requests?
+A: 0-RTT data can be replayed by an attacker, so it must be safe to process twice.
+
+Q: Each of three layers retries 3 times. How many database queries can one user request become, and why does that cause outages?
+A: Up to 27 (3 × 3 × 3). The retries add load to an already degraded service, deepening the failure — a metastable state that persists after the original trigger goes away.
+
+Q: What is deadline propagation, and why is it better than a fixed timeout per call?
+A: Each request carries its remaining time budget down the chain, so a call with 50 ms left doesn't start a 5 s database query. Work nobody will wait for is skipped, and expired requests can be rejected at once.
+
+Q: A service is slow because every request opens a fresh connection. What's the fix, and why is it not a micro-optimisation?
+A: Pool and reuse connections. Setup costs about three round trips — 150 ms on a 50 ms link, three times the request itself.
+```
 
 ## What to carry forward
 

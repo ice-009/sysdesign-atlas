@@ -8,6 +8,12 @@ prereqs: [hardware-numbers, queueing-theory]
 unlocks: Choosing a concurrency model on evidence instead of fashion, and knowing what a server's connection ceiling really is.
 ---
 
+:::predict Guess first
+1. Roughly how many threads can one ordinary server run before performance starts to suffer — hundreds, thousands, or hundreds of thousands?
+2. Is async code faster than threads? If not, what is it better at?
+3. Two threads update two different counters and still slow each other down. How can that happen?
+:::
+
 ## The question this page answers
 
 "How many concurrent requests can one server handle?"
@@ -207,6 +213,34 @@ Dan Kegel's *The C10K Problem* (1999) framed the question and is still worth rea
 
 For io_uring, Jens Axboe's design paper *Efficient IO with io_uring*. For the shard-per-core model, the ScyllaDB and Seastar architecture write-ups are the clearest published treatment.
 :::
+
+## Check yourself
+
+```recall
+Q: CPU-bound versus I/O-bound work: what sets the concurrency ceiling for each?
+A: CPU-bound: the number of cores — more threads only add switching. I/O-bound: memory and file descriptors, because the work is mostly waiting; thousands of waits are fine if each doesn't hold a thread.
+
+Q: What is the real cost of a context switch, beyond saving registers?
+A: Cache pollution. The incoming thread finds L1 and L2 full of the old thread's data and runs at DRAM speed for tens of microseconds until it warms them back up.
+
+Q: Why did epoll and kqueue make 100,000 open connections routine?
+A: select and poll scan every descriptor on every call, so idle connections cost CPU. epoll registers each one once and returns only the ready ones, so cost tracks activity, not connection count.
+
+Q: "Async is faster than threads." Correct it.
+A: Async is cheaper per waiting operation, not faster per operation. It wins when you need many thousands of simultaneous waits; for CPU-bound work or a few hundred requests, plain threads are simpler and just as fast.
+
+Q: Since the 2018 Spectre fixes a syscall costs ~500 ns. What does that mean at 100,000 requests a second with 10 syscalls each?
+A: A million syscalls a second × 500 ns = half a core spent just crossing into the kernel. That's why fast systems batch calls, use io_uring or zero-copy sendfile.
+
+Q: What is false sharing, and how do you fix it?
+A: Two threads writing different variables on the same 64-byte cache line fight over that line as if they shared one variable. Pad each to its own line, or give each core its own counter and sum them on read.
+
+Q: A service with a 200-thread pool sits at 15% CPU while p99 is 4 seconds. What's the likely bottleneck?
+A: It's waiting, not computing: threads are blocked on a slow or saturated dependency, such as an exhausted database connection pool. Measure pool wait time and downstream latency.
+
+Q: How does one slow dependency take down a whole service, and what prevents it?
+A: Every shared thread blocks waiting on it, so even requests that never touch it queue up. Bulkheads — a separate bounded pool per dependency — keep one failure from eating all the capacity.
+```
 
 ## What to carry forward
 

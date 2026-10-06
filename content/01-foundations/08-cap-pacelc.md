@@ -7,6 +7,12 @@ tags: [cap, consistency, availability]
 prereqs: [scalability-basics, networking]
 ---
 
+:::predict Guess first
+1. CAP is often quoted as "pick two of consistency, availability and partition tolerance". Can a distributed system choose consistency and availability and skip partition tolerance?
+2. Partitions are rare. What trade-off do you make the rest of the time, when the network is fine?
+3. A five-node cluster splits 3 and 2. In a consistency-first system, what happens to the 2-node side?
+:::
+
 ## The theorem, stated correctly
 
 CAP is the most-cited and most-misquoted idea in system design. The pop version — *"pick two of Consistency, Availability, Partition tolerance"* — is wrong in a way that leads to real design errors.
@@ -145,3 +151,39 @@ Eric Brewer's CAP conjecture was presented at PODC 2000; Gilbert and Lynch's *Br
 
 Daniel Abadi's *Consistency Tradeoffs in Modern Distributed Database System Design* (IEEE Computer, 2012) introduces PACELC. Brewer's own *CAP Twelve Years Later: How the "Rules" Have Changed* (2012) is his retraction of the popular reading.
 :::
+
+## Check yourself
+
+```recall
+Q: State CAP correctly.
+A: When a network partition happens, a distributed system must choose between consistency (linearizability) and availability. It is not "pick any two".
+
+Q: Why is "CA" not an option for a distributed system?
+A: Partitions are a property of networks, not a design choice — cables get cut and switches fail. Claiming CA means claiming the network never fails; when it does, you get neither.
+
+Q: In a CP system that splits 3/2, what does the minority side do, and what does it cost?
+A: It can't reach a quorum, so it refuses writes and linearizable reads. Roughly 40% of capacity goes dark rather than serve possibly stale data.
+
+Q: Name three ways an AP system reconciles diverged replicas, weakest first.
+A: Last-write-wins by timestamp, which silently loses data; version vectors, which surface conflicts to the application; CRDTs, which converge mathematically; or an application-level merge such as a cart union.
+
+Q: What does PACELC add to CAP?
+A: Else — when there is no partition — choose latency or consistency. Keeping copies in agreement costs round trips on every operation even on a healthy network, and that everyday trade shapes architecture more than partitions do.
+
+Q: Cassandra is "AP". When can it give strong-ish consistency?
+A: It is tunable per query. QUORUM reads and QUORUM writes with three replicas give R + W > N, so reads see the latest write — at the cost of availability when a quorum can't be reached.
+
+Q: In an e-commerce system, which operations need CP and which can be AP?
+A: CP: checkout stock decrements and payment capture, where overselling or double-charging costs real money. AP: cart, reviews, catalogue, recommendations, order history, where brief staleness is invisible.
+
+Q: Name two things CAP doesn't tell you.
+A: It ignores latency (a 30-second answer counts as "available"), treats partitions as clean and binary, flattens the whole spectrum of weaker guarantees into "not C", and says nothing about durability.
+```
+
+## What to carry forward
+
+- CAP only applies during a partition: refuse to answer to stay correct (CP), or answer and reconcile later (AP).
+- Partition tolerance is not optional, so "CA" is not a real choice for a distributed system.
+- PACELC's "else" half — latency versus consistency on a healthy network — is the trade you make every day.
+- Choose per operation, not per system: usually only the transactional core needs strong consistency.
+- Know CAP's blind spots: latency, partial partitions, the middle of the consistency spectrum, durability.

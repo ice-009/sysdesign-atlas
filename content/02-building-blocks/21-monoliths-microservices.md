@@ -7,6 +7,12 @@ tags: [architecture, microservices, monolith, service-boundaries]
 prereqs: [api-gateway, pub-sub]
 ---
 
+:::predict Guess first
+1. What is the main reason companies split a monolith into microservices — traffic, or something else?
+2. In a monolith, orders calling payments is a function call. What changes when they become separate services?
+3. Three services share one database. Are they really microservices?
+:::
+
 A **monolith** is a system built and deployed as one unit: one codebase, one application you start, usually one database. **Microservices** split the same system into many small services, each deployed on its own, each owning its own data, talking to each other over the network.
 
 Neither is "modern" or "legacy". They trade different costs, and the right choice depends mostly on **how many teams work on the system** — not on traffic.
@@ -147,3 +153,39 @@ A food-delivery company has one monolith with modules for restaurants, menus, or
 3. The analytics team wants a nightly report joining orders, restaurants and drivers. With each service owning its data, where does that report get its data from?
 4. Which of your new services must keep working when notifications is down — and how does that change how they call it?
 :::
+
+## Check yourself
+
+```recall
+Q: What is the main benefit of microservices, and what kind of problem does it solve?
+A: Teams can build, deploy and run their services independently instead of queueing behind one release. It solves an organisation-size problem more than a traffic problem.
+
+Q: Name four costs that come with splitting into services.
+A: Every call can fail or be slow; latency adds up along call chains; there are no shared transactions or joins (you need sagas and copied data); and far more to operate — deploys, monitoring, tracing, versioned APIs.
+
+Q: What is a modular monolith, and why is it often the best starting point?
+A: One deployable with strict internal module boundaries and separate tables. You get most of the clarity without the network, and a clean module can later become a service cheaply.
+
+Q: What is a "distributed monolith"?
+A: Services that share a database, must deploy together, or chat constantly — all the costs of microservices and none of the benefits.
+
+Q: Where should service boundaries go?
+A: Along business capabilities (orders, payments, inventory), not technical layers. Each service owns its data, most changes touch one service, and one team can own it end to end.
+
+Q: Why must each service own its data?
+A: So it can change its schema without asking anyone. Others use its API or its events, never its tables — that's what makes independent deploys possible.
+
+Q: How do you split a monolith safely?
+A: The strangler fig: put a routing proxy in front, rebuild one capability as a service, route its traffic there, move its data, delete the old code, repeat — each step small and reversible.
+
+Q: When should you not split into microservices?
+A: With a small team, a new product whose boundaries aren't clear yet, or without automated deploys and monitoring.
+```
+
+## What to carry forward
+
+- Microservices mainly solve team scaling; they cost failing calls, latency, lost transactions and operational load.
+- A modular monolith is often the best start and makes later splits cheap.
+- Draw boundaries by business capability, and let each service own its data.
+- Avoid the distributed monolith: shared databases, lockstep deploys, chatty calls.
+- Split gradually with the strangler fig, and say why each service in a design is separate.

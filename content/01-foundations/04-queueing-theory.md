@@ -8,6 +8,12 @@ prereqs: [latency-throughput]
 unlocks: Predicting where a system will fall over, and why adding capacity sometimes doesn't help.
 ---
 
+:::predict Guess first
+1. A service runs fine at 70% of its capacity. Traffic grows 20%, still well under the ceiling. Roughly what happens to its latency?
+2. Same total capacity: one server twice as fast, or two normal servers sharing one queue. Which gives lower waiting time?
+3. Arrivals exceed what your servers can handle. Does a bigger queue help?
+:::
+
 ## The observation that needs explaining
 
 A service handles 700 requests per second with a p99 of 40 ms — meaning 99 requests in 100 finish within 40 ms, and the slowest 1% are what we're measuring. Traffic grows 20%. Now it handles 840 requests per second — well under the 1,000/s the team measured as its ceiling — and p99 is 1.2 seconds.
@@ -214,6 +220,34 @@ Little's original proof is *A Proof for the Queuing Formula L = λW* (Little, 19
 
 For the practical treatment: Neil Gunther's *Guerrilla Capacity Planning* covers the Universal Scalability Law, which extends this with contention and coherency terms; Gil Tene's talk *How NOT to Measure Latency* is the definitive treatment of coordinated omission.
 :::
+
+## Check yourself
+
+```recall
+Q: In the M/M/1 model, what does response time do as utilisation ρ approaches 100%, and why?
+A: It goes to infinity: W = S / (1 − ρ), and the denominator heads to zero. With 10 ms of work it's 50 ms at 80%, 100 ms at 90% and 1 s at 99%.
+
+Q: A service goes from 70% to 84% utilisation. What happens to average queueing delay?
+A: The multiplier 1/(1 − ρ) rises from about 3.3 to about 6.25, so average latency nearly doubles — and p99 moves far more — even though the ceiling was never reached.
+
+Q: Read Little's law backwards: if demand fixes throughput, what is the only lever on latency?
+A: How much is in the system at once — smaller queues, admission control, less work in flight. That's the basis of backpressure, and why removing buffering can make a system faster.
+
+Q: Kingman's formula says queue wait grows with variability. Name three ways to cut variability without adding machines.
+A: Split fast and slow requests into separate pools; add timeouts to cut off the slow tail; cache, which removes slow cases; keep batches bounded.
+
+Q: Why does a shared queue feeding many servers beat one queue per server?
+A: With one queue, no request waits behind a slow one while another server sits idle — the airport snake versus supermarket checkouts. It's why least-outstanding-requests balancing beats round robin under load.
+
+Q: Arrivals are 1,200/s and capacity is 1,000/s, with an unbounded queue. What happens over five minutes?
+A: The queue grows by 200 a second without limit — 60,000 waiting and 60 s of wait after five minutes. Queues absorb variance, not overload; under sustained overload you must shed load.
+
+Q: What is coordinated omission in a load test?
+A: A generator that waits for each response before sending the next pauses when the server stalls, so it never records the requests that would have piled up. Latency numbers look fine while the system is broken.
+
+Q: Your queue-depth alarm fires at 10,000 messages. Why is wait time a better signal than depth?
+A: Depth means nothing without the drain rate: 10,000 messages at 2,000/s is a 5 s wait, at 100/s it's 100 s. Alarm on how long a message waits.
+```
 
 ## What to carry forward
 

@@ -259,6 +259,7 @@
     plane: '<path d="M21 15.5v-2l-8-5V3.8a1.5 1.5 0 0 0-3 0v4.7l-8 5v2l8-2.5v5l-2 1.5V21l3.5-1 3.5 1v-1.5l-2-1.5v-5Z"/>',
     chart: '<path d="M4 20V11M10 20V5M16 20v-6M22 20H2"/>',
     calendar: '<rect x="3.5" y="5" width="17" height="15.5" rx="2.5"/><path d="M3.5 10h17M8 3v4M16 3v4"/><path d="M8 14h2M14 14h2M8 17h2"/>',
+    cards: '<rect x="6.5" y="3.5" width="12" height="15" rx="2" transform="rotate(8 12.5 11)"/><rect x="4" y="5.5" width="12" height="15" rx="2"/><path d="M7.5 10.5h5M7.5 14h3.5"/>',
     ribbon: '<path d="M7 3h10v18l-5-3.5L7 21Z"/>',
   };
 
@@ -287,6 +288,7 @@
     if (parts[0] === 'settings') return { name: 'settings' };
     if (parts[0] === 'progress') return { name: 'progress' };
     if (parts[0] === 'plan') return { name: 'plan', sub: parts[1] || '', id: parts[2] || '' };
+    if (parts[0] === 'review') return { name: 'review', topic: parts[1] === 't' ? parts[2] || '' : '' };
     return { name: 'missing' };
   }
 
@@ -381,6 +383,9 @@
     } else if (route.name === 'plan') {
       html = planView();
       title = 'Plan';
+    } else if (route.name === 'review') {
+      html = reviewView();
+      title = 'Review';
     } else {
       html = missingView();
     }
@@ -674,6 +679,7 @@
     else if (route.name === 'settings') name = 'Settings';
     else if (route.name === 'progress') name = 'Progress';
     else if (route.name === 'plan') name = 'Plan';
+    else if (route.name === 'review') name = 'Review';
 
     titleEl.style.setProperty('--a', accent || 'var(--text-dim)');
     titleEl.innerHTML = `${kicker ? `<span class="bar-kicker">${esc(kicker)}</span>` : ''}<span class="bar-name">${esc(name)}</span>`;
@@ -710,6 +716,7 @@
     $('#atlas-sb-main').innerHTML = [
       ['#/', 'home', 'Home', 'home'],
       ['#/plan', 'plan', 'Plan', 'calendar'],
+      ['#/review', 'review', 'Review', 'cards'],
       ['#/library', 'library', 'Library', 'bookmark'],
       ['#/progress', 'progress', 'Progress', 'chart'],
       ['#/settings', 'settings', 'Settings', 'settings'],
@@ -721,7 +728,9 @@
               ? '<span class="sb-badge" id="atlas-saved-count" hidden></span>'
               : key === 'plan'
                 ? '<span class="sb-badge" id="atlas-plan-count" hidden></span>'
-                : ''
+                : key === 'review'
+                  ? '<span class="sb-badge" id="atlas-review-count" hidden></span>'
+                  : ''
           }</a>`
       )
       .join('');
@@ -907,6 +916,7 @@
       ${installCard()}
 
       <div data-slot="home-plan"></div>
+      <div data-slot="home-review"></div>
       <div class="home-grid">
         ${continueCard()}
         <div data-slot="home-today"></div>
@@ -1224,6 +1234,16 @@
     return `<div class="wrap">
       <header class="page-head"><h1>Progress</h1><p>Your reading time, streak, review schedule and goals — all on this device, synced when you sign in.</p></header>
       <div data-slot="progress"></div>
+      <div data-slot="progress-recall"></div>
+    </div>`;
+  }
+
+  /* ---------- views: review (filled by recall.js) ---------- */
+
+  function reviewView() {
+    return `<div class="wrap">
+      <header class="page-head"><h1>Review</h1><p>Cards from the topics you've read, brought back just before you'd forget them. Try to answer, then check.</p></header>
+      <div data-slot="review"></div>
     </div>`;
   }
 

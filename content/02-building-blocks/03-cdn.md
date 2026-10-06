@@ -7,6 +7,12 @@ tags: [cdn, edge, latency]
 prereqs: [caching, networking]
 ---
 
+:::predict Guess first
+1. A user in Mumbai loads a page from a server in Virginia. Roughly how long before the first byte arrives, before the server does any work?
+2. Besides lower latency, what is the other big reason to put a CDN in front of a media-heavy product?
+3. You fix a bug in app.js. How do you make sure every user gets the new file straight away, without asking the CDN to purge anything?
+:::
+
 ## The problem it solves
 
 Physics. A user in Mumbai fetching from a Virginia datacenter pays ~200 ms round trip *minimum*, before any server does work. TCP handshake plus TLS handshake plus the request is 3–4 round trips — nearly a second before the first byte, and no amount of server optimization touches it.
@@ -141,3 +147,39 @@ That's the CDN treated as an architectural decision with a number attached, rath
 
 For the theory of why caching close to users works, the same Zipf analysis as any cache applies — but propagation delay, not database load, is the cost being avoided. See [the hardware numbers](../01-foundations/hardware-numbers.html).
 :::
+
+## Check yourself
+
+```recall
+Q: Name the two benefits of a CDN — the one people forget is often bigger.
+A: Latency, because content is physically closer; and origin offload — a 95% edge hit rate means the origin serves a twentieth of the traffic, which is often what makes a media product affordable.
+
+Q: DNS-based routing versus anycast for reaching the nearest edge: what's the weakness of each?
+A: DNS sees the user's resolver, not the user, and failover waits on cached answers. Anycast fails over fast by withdrawing a route, but a route change can move a client mid-connection.
+
+Q: Push versus pull CDNs: when is push the right choice?
+A: Pull (fetch from origin on first miss) is the default. Push suits content you know will be hot at a known time — a game patch or video premiere — so no region starts with a stampede of misses.
+
+Q: What is an origin shield?
+A: A mid-tier cache between the edges and the origin that collapses many edge misses into one origin fetch.
+
+Q: What usually wrecks a CDN's hit rate, and how do you fix it?
+A: Cache-key fragmentation: tracking query parameters, cookies or Vary: User-Agent give every user their own copy. Normalise the key — strip tracking parameters and cookies on static paths.
+
+Q: Why are versioned URLs the best invalidation strategy for static assets?
+A: Put a content hash in the filename and cache it for a year as immutable. A change produces a new URL, so nothing ever needs purging, and old versions simply age out.
+
+Q: What does stale-while-revalidate do?
+A: After expiry, the edge serves the cached copy instantly and refreshes it in the background, so users never wait on a revalidation.
+
+Q: Why is video delivery a natural fit for CDNs?
+A: Video is cut into 2–10 s segments at several bitrates, each a static, cacheable file described by a manifest. The client picks each segment's quality from its own bandwidth, so there's no server state and popular videos are served almost entirely from the edge.
+```
+
+## What to carry forward
+
+- A CDN beats physics by serving from nearby, and — just as important — offloads the origin.
+- Pull is the default; push or pre-warm for known launches; an origin shield collapses misses.
+- Normalise cache keys: fragmentation is the usual reason a CDN "isn't helping".
+- Version static asset URLs and cache them forever; use stale-while-revalidate for fresh-ish content.
+- Cache shared API responses briefly at the edge, never personalised data — and let the edge absorb attacks.

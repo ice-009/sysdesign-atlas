@@ -7,6 +7,12 @@ tags: [index, database, query, b-tree]
 prereqs: [sql-vs-nosql, hardware-numbers]
 ---
 
+:::predict Guess first
+1. A table has 100 million rows. With a B-tree index, roughly how many entries does a lookup read instead of 100 million?
+2. You have an index on (country, city, age). Can a query filtering only on city use it?
+3. Is adding an index to every column a good idea? What does each index cost?
+:::
+
 ## The core idea
 
 Without an index, finding the rows that match a condition means reading every single row and checking each one — a **full table scan**. With an index, the database consults a sorted structure on the side and jumps straight to the matching rows. It's the difference between reading a book cover to cover and using its index.
@@ -194,3 +200,39 @@ Bayer and McCreight's 1972 paper introduced the B-tree; Comer's *The Ubiquitous 
 
 *How Good Are Query Optimizers, Really?* (Leis et al., VLDB 2015) shows how index choice interacts with cardinality estimation — the reason a perfect index sometimes goes unused.
 :::
+
+## Check yourself
+
+```recall
+Q: Why is a B+ tree only about four levels deep for billions of rows?
+A: Each node points at hundreds of children, so the tree is wide and shallow — four levels of 100–500 keys address billions of rows, and the top levels stay cached.
+
+Q: What do B-tree indexes support that hash indexes don't?
+A: Ranges, prefixes and ordering, because the keys are sorted and leaves are linked. Hash indexes only answer exact equality.
+
+Q: What is the leftmost-prefix rule for a composite index on (a, b, c)?
+A: Only a prefix of the index can be used: a, then a and b, then all three. A query on b or c alone can't use it, and a range on b stops c from being used.
+
+Q: Why does one index on (user_id, created_at) beat two single-column indexes for a feed query?
+A: WHERE user_id = ? ORDER BY created_at DESC LIMIT 20 reads the rows already in order from one index, with no sort step.
+
+Q: What is a covering index, and why is it faster?
+A: One that contains every column the query needs, so the database answers from the index alone and skips the lookup into the table — often a 2–10× win.
+
+Q: Dense versus sparse index: what's the trade, and what does a sparse index require?
+A: Dense has one entry per row and goes straight to it; sparse has one entry per block — tiny, often in memory — then scans the block. Sparse only works on data sorted by the key.
+
+Q: Name three reasons a query might ignore an index you created.
+A: Low selectivity (half the rows match), a function on the column like LOWER(email), a leading wildcard (LIKE '%foo'), an implicit type cast, or a table small enough that scanning is cheaper.
+
+Q: A table has eight indexes and writes are slow. What's going on?
+A: Every insert, delete and indexed-column update must maintain every index, which can make writes 5–10× slower. Drop indexes no query uses — databases expose usage statistics to find them.
+```
+
+## What to carry forward
+
+- An index turns an O(n) scan into an O(log n) lookup — and taxes every write and some RAM.
+- B+ trees are sorted and shallow, so they serve equality, ranges and ordering.
+- Order composite indexes equality first, then range, then sort or output columns; only a prefix is usable.
+- Covering indexes skip the table; partial indexes keep hot subsets small; sparse indexes rely on sorted data.
+- Read the query plan before adding anything — stale statistics are often the real bug.

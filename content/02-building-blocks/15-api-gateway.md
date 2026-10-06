@@ -7,6 +7,12 @@ tags: [api, gateway, grpc, graphql, microservices]
 prereqs: [load-balancing, rate-limiting]
 ---
 
+:::predict Guess first
+1. Which of these belong in an API gateway: TLS, authentication, rate limiting, business rules?
+2. Public API, internal service calls, a mobile app with varied screens — would you use REST, gRPC or GraphQL for each?
+3. A client asks for page 500 of results with OFFSET 10000. What does the database actually do?
+:::
+
 ## The edge tier
 
 An API gateway is a single entry point in front of many backend services. It exists because certain concerns are needed by *every* service, and implementing them N times is both wasteful and inconsistent.
@@ -158,3 +164,39 @@ Netflix's engineering posts on Zuul — particularly the move from blocking to n
 
 The Envoy documentation on circuit breaking, outlier detection, and rate limiting is effectively a reference manual for what a gateway should do. For the underlying control theory, Netflix's `concurrency-limits` library and its README explain the Little's-Law-derived adaptive limiter.
 :::
+
+## Check yourself
+
+```recall
+Q: What belongs in an API gateway, and what doesn't?
+A: Cross-cutting concerns: TLS, authentication, rate limiting, routing, protocol translation, aggregation, observability. Not business logic — that turns it into a "smart pipe" where every feature needs a gateway deploy.
+
+Q: How do you keep the gateway from amplifying a backend failure?
+A: Short timeouts, a circuit breaker per backend, and a separate connection pool per backend (a bulkhead) so one slow service can't tie up every gateway thread.
+
+Q: Why "REST at the edge, gRPC inside"?
+A: REST is universal, cacheable and debuggable — right for public APIs. gRPC has compact binary payloads, strict generated schemas and streaming over HTTP/2 — right for internal calls, though it needs L7 balancing.
+
+Q: What does GraphQL fix, and what three hazards come with it?
+A: It lets a client fetch exactly the shape it needs in one call. Hazards: HTTP caching doesn't apply, nested queries cause N+1 database calls without batching, and arbitrary query cost needs depth and complexity limits.
+
+Q: What is the Backend-for-Frontend pattern?
+A: A thin aggregation layer per client type — mobile, web, partners — owned by that client's team, shaping data for its screens. Worth it when client needs genuinely differ.
+
+Q: Synchronous call or event: what's the practical rule?
+A: Synchronous for what the user is waiting on (reserve stock, charge the card); events for side effects triggered by the action but not needed to finish it (email, analytics, warehouse).
+
+Q: Name the four essentials every remote call needs.
+A: A timeout with deadline propagation; retries with backoff and jitter at one layer, within a budget; a circuit breaker; and an idempotency key for anything that changes state.
+
+Q: Why use cursors instead of offsets for pagination?
+A: OFFSET 10000 makes the database scan and discard 10,000 rows, and results shift under concurrent inserts. A cursor resumes from a position: constant cost and stable.
+```
+
+## What to carry forward
+
+- A gateway centralises cross-cutting edge concerns — and must stay free of business logic.
+- Protect the gateway with timeouts, per-backend breakers and bulkheads; replicate it.
+- REST for public APIs, gRPC inside, GraphQL for client-driven aggregation — with its caching, N+1 and cost hazards.
+- Call synchronously only for what the user waits on; publish events for side effects.
+- Every call needs a timeout, budgeted jittered retries, a breaker and idempotency; a service mesh earns its cost at dozens of services.

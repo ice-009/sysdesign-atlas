@@ -7,6 +7,12 @@ tags: [cache, redis, performance]
 prereqs: [hardware-numbers, latency-throughput]
 ---
 
+:::predict Guess first
+1. A cache answers 95% of reads. How much read traffic still reaches the database?
+2. On a write, should you update the cached value or delete it? Why?
+3. A popular cache entry expires and a thousand requests arrive in the same second. What happens to the database?
+:::
+
 ## Why caching dominates
 
 Caching is the highest-leverage performance technique available, because of the numbers in the [latency ladder](../01-fundamentals/latency-throughput.html): memory is ~1,000× faster than SSD, and a local memory read is ~5,000× faster than a cross-region round trip.
@@ -203,3 +209,39 @@ Volunteering this is a good signal, because it shows you see the cost side:
 
 *Scaling Memcache at Facebook* (Nishtala et al., NSDI 2013) is the best production caching paper written — leases, stale sets, thundering herds, and the regional invalidation problem, all from real incidents. *TAO: Facebook's Distributed Data Store for the Social Graph* (Bronson et al., ATC 2013) covers the read-through variant.
 :::
+
+## Check yourself
+
+```recall
+Q: Why is load reduction usually the bigger win of a cache than latency?
+A: At a 95% hit rate the database sees one twentieth of the reads — 5,000 a second instead of 100,000 — which can mean one database instead of a cluster.
+
+Q: Describe cache-aside reads and writes.
+A: Read: check the cache; on a miss read the database and fill the cache. Write: write the database, then delete the cache key. Only requested data gets cached, and a cache failure makes things slow rather than broken.
+
+Q: Why delete the cache key on a write rather than writing the new value into it?
+A: Two concurrent updates can write the cache in the opposite order from the database, leaving it permanently wrong. Deleting is idempotent: the next read refills from the source of truth.
+
+Q: Write-through versus write-behind: what does each trade?
+A: Write-through writes cache and database together — never stale, but every write pays both. Write-behind acknowledges after the cache write and flushes later — very fast and coalesces updates, but can lose data if the cache dies. Fine for counters, not orders.
+
+Q: A popular key expires and a thousand requests miss at once. Name three fixes.
+A: Let only one request refill it while others wait or get stale data (single-flight or a short lock); refresh probabilistically before expiry; jitter TTLs; serve stale while revalidating.
+
+Q: What is cache penetration, and how do you stop it?
+A: Requests for keys that exist nowhere miss every time and hit the database — easy to weaponise. Cache the "not found" result briefly, put a Bloom filter of real keys in front, and validate input.
+
+Q: Why is bringing a restarted, empty cache straight into full traffic dangerous?
+A: The database suddenly takes 100% of reads and falls over — and keeps falling over on every recovery attempt while the cache stays cold. Pre-warm hot keys and ramp traffic gradually.
+
+Q: One key gets 30% of all traffic. Why doesn't adding cache nodes help?
+A: A key lives on one node, so that node saturates however big the cluster is. Copy the hot key across nodes under suffixed names, or hold it in a local in-process cache.
+```
+
+## What to carry forward
+
+- Caching works because traffic is skewed and repeats; its main win is cutting database load.
+- Default to cache-aside and delete keys on write — and give every entry a TTL as a safety net.
+- TTL is a staleness bound in disguise: pick it as a consistency decision.
+- Plan for stampedes, penetration and avalanches: single-flight, negative caching, jitter, warm-up.
+- Watch hit rate, eviction rate and hot keys; don't cache what isn't reused.

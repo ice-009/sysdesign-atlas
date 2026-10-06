@@ -7,6 +7,12 @@ tags: [load-balancer, traffic, L4, L7]
 prereqs: [scalability-basics, networking]
 ---
 
+:::predict Guess first
+1. A gRPC client opens one connection and sends thousands of requests down it. What happens if a layer-4 load balancer sits in front of your servers?
+2. Every health check pings the shared database. The database hiccups for ten seconds. What does the load balancer do?
+3. If the load balancer is in front of everything, what keeps it from being a single point of failure?
+:::
+
 ## What it buys you
 
 A load balancer sits between clients and a pool of servers and distributes requests. It gives you four things at once:
@@ -133,3 +139,39 @@ When it does all of this and fronts many services, we usually call it an [API ga
 
 *Maglev: A Fast and Reliable Software Network Load Balancer* (Eisenbud et al., NSDI 2016) is Google's L4 balancer and the source of Maglev hashing. For the queueing argument, see [queueing theory](../01-foundations/queueing-theory.html).
 :::
+
+## Check yourself
+
+```recall
+Q: Layer 4 versus layer 7 load balancing: what can each see and do?
+A: L4 forwards connections and sees only IPs and ports — fast and cheap, one server per connection. L7 terminates the connection and reads the HTTP request, so it can route by path, header or cookie, retry individual requests and do canaries.
+
+Q: Why does HTTP/2 or gRPC break layer-4 balancing?
+A: The client multiplexes thousands of requests over one long-lived connection, which an L4 balancer assigns to a single backend once. You need L7 or client-side balancing to spread the requests.
+
+Q: When does the balancing algorithm actually matter?
+A: When servers differ in size or request costs vary widely. With identical servers and similar requests, round robin is fine; otherwise least connections, least response time or power-of-two-choices adapt to slow requests and slow nodes.
+
+Q: Why does picking the less busy of two random servers work so well?
+A: A tiny amount of choice gives nearly all the benefit of always picking the least loaded server, with no need to track the whole fleet — ideal when each client balances for itself.
+
+Q: Shallow versus deep health checks: what's the risk of each, and the standard fix?
+A: Shallow checks keep a broken process in rotation; deep checks that test a shared database can fail every node at once and empty the pool. Separate "my" failures from shared ones and never eject more than about half the pool.
+
+Q: What is connection draining?
+A: When a server is removed, stop sending it new requests but let in-flight ones finish (often about 30 s), so deploys don't drop live requests.
+
+Q: Who balances the balancer? Name the escalating answers.
+A: An active–passive pair sharing a floating IP; DNS round robin across several balancers (slow failover); anycast, where many sites announce one IP and routing picks the nearest; a stateless L4 tier behind router hashing (ECMP).
+
+Q: Two regions each run at 70%. Can one absorb the other's traffic if it fails?
+A: No — it would need 140% and the failover would cause a second outage. For single-region failure tolerance, run each region at 50% or less.
+```
+
+## What to carry forward
+
+- A load balancer buys scale, availability, zero-downtime deploys and one control point for TLS, limits and routing.
+- L4 is fast and blind; L7 reads requests — and is required to balance HTTP/2 and gRPC properly.
+- The algorithm matters only when requests or servers vary; hashing is for tiers with per-server state.
+- Health checks must separate a node's own failures from shared ones, with a floor on how many nodes can be ejected.
+- Make the balancer itself redundant — floating IP, then anycast — and size regions to absorb each other's traffic.

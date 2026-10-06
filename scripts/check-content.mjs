@@ -10,6 +10,10 @@
      - every prereq slug exists, and the prereq graph is acyclic
      - :::callout blocks are closed and use a known kind
      - ```viz blocks contain parseable JSON with a known type
+     - ```recall blocks: every card has a question and an answer, no repeats
+     - the learning layer — a :::predict "guess first" box at the top, a
+       ```recall block of 5–8 cards, and a "What to carry forward" section —
+       is present in every topic of the sections listed in LEARNING_REQUIRED
 */
 
 import fs from 'node:fs';
@@ -51,8 +55,15 @@ const DIR_TO_SLUG = {
 for (const slug of Object.values(DIR_TO_SLUG)) DIR_TO_SLUG[slug] ??= slug;
 
 const CALLOUT_KINDS = new Set([
-  'note', 'tip', 'warn', 'trap', 'interview', 'math', 'goat', 'derive', 'paper', 'exercise',
+  'note', 'tip', 'warn', 'trap', 'interview', 'math', 'goat', 'derive', 'paper', 'exercise', 'predict',
 ]);
+
+/* Sections whose every topic must carry the learning layer. Grows as each
+   section gets its pass; when every section is listed, the whole atlas is
+   held to it. */
+const LEARNING_REQUIRED = new Set(['01-foundations', '02-building-blocks']);
+const MIN_CARDS = 5;
+const MAX_CARDS = 8;
 
 const VIZ_TYPES = new Set(['flow', 'stack', 'axes', 'ring', 'fanout', 'compare', 'steps']);
 
@@ -201,6 +212,56 @@ for (const t of topics) {
   });
   if (open) errors.push(`${t.rel}:${openLine} — ":::${open}" never closed`);
 
+  // recall fences: Q:/A: cards (same rules as parseRecall in lib/markdown.ts).
+  t.cards = 0;
+  const seenCards = new Set();
+  for (const [, block] of t.body.matchAll(/```recall\n([\s\S]*?)```/g)) {
+    let q = null;
+    let a = null;
+    const finish = () => {
+      if (q === null) return;
+      t.cards++;
+      if (!q.trim()) errors.push(`${t.rel} — a recall card has an empty question`);
+      if (!a || !a.trim()) errors.push(`${t.rel} — recall card "${q.slice(0, 50)}" has no answer`);
+      const id = q.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+      if (seenCards.has(id)) errors.push(`${t.rel} — recall card "${q.slice(0, 50)}" appears twice`);
+      seenCards.add(id);
+    };
+    for (const raw of block.split('\n')) {
+      const line = raw.trim();
+      const m = line.match(/^([QA]):\s*(.*)$/);
+      if (m && m[1] === 'Q') {
+        finish();
+        q = m[2];
+        a = null;
+      } else if (m && m[1] === 'A') {
+        if (q === null) errors.push(`${t.rel} — recall block has an answer before any question`);
+        a = (a ? a + ' ' : '') + m[2];
+      } else if (line) {
+        if (q === null) errors.push(`${t.rel} — recall block line "${line.slice(0, 40)}" is outside any card`);
+        else if (a === null) q += ' ' + line;
+        else a += ' ' + line;
+      }
+    }
+    finish();
+  }
+  t.predict = /^:::predict\b/m.test(t.body);
+  t.carry = /^## What to carry forward\s*$/m.test(t.body);
+  if (t.predict) {
+    const firstHeading = t.body.search(/^## /m);
+    const predictAt = t.body.search(/^:::predict\b/m);
+    if (firstHeading !== -1 && predictAt > firstHeading) {
+      errors.push(`${t.rel} — the :::predict box must come before the first section, so it's read first`);
+    }
+  }
+  if (LEARNING_REQUIRED.has(t.dir)) {
+    if (!t.predict) errors.push(`${t.rel} — missing the :::predict "guess first" box`);
+    if (t.cards < MIN_CARDS || t.cards > MAX_CARDS) {
+      errors.push(`${t.rel} — has ${t.cards} recall cards; want ${MIN_CARDS}–${MAX_CARDS}`);
+    }
+    if (!t.carry) errors.push(`${t.rel} — missing a "## What to carry forward" section`);
+  }
+
   // viz fences must be valid JSON of a renderable type.
   for (const [, spec] of t.body.matchAll(/```viz\n([\s\S]*?)```/g)) {
     let parsed;
@@ -253,7 +314,10 @@ if (errors.length) {
 
 const total = topics.length;
 const noPrereqs = warnings.length;
+const layered = topics.filter((t) => t.predict && t.cards >= MIN_CARDS && t.carry).length;
+const cards = topics.reduce((a, t) => a + t.cards, 0);
 console.log(
   `  ✓ content ok — ${total} topics across ${sections.size} sections` +
     (noPrereqs ? `, ${noPrereqs} without prereqs (CHECK_VERBOSE=1 to list)` : '')
 );
+console.log(`    learning layer: ${layered}/${total} topics, ${cards} recall cards`);

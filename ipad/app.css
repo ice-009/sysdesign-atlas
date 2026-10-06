@@ -1899,3 +1899,111 @@ kbd {
 .pl-chip-text b { font-size: 11.5px; font-weight: 750; letter-spacing: 0.07em; text-transform: uppercase; color: var(--text-dim); }
 .pl-chip-text span { font-size: 14.5px; line-height: 1.4; color: var(--text); }
 .pl-chip-text .pl-track { margin-right: 4px; vertical-align: 1px; }
+
+/* ---------- recall: guess first, check yourself, review (recall.js) ---------- */
+
+:root { --g1: #e11d48; --g2: #d97706; --g3: #059669; --g4: #2563eb; }
+:root.dark { --g1: #fb7185; --g2: #fbbf24; --g3: #34d399; --g4: #60a5fa; }
+
+/* guesses inside the Guess-first box */
+.callout-predict li { margin-bottom: 0.7rem; }
+.pg-guess {
+  display: block;
+  width: 100%;
+  margin-top: 0.4rem;
+  min-height: 40px;
+  padding: 8px 12px;
+  border: 1px solid color-mix(in srgb, var(--c) 30%, var(--border));
+  border-radius: 10px;
+  background: var(--panel);
+  color: var(--text);
+  font: 15px/1.5 var(--font-sans);
+  resize: none;
+  overflow: hidden;
+}
+.pg-guess:focus { outline: 2px solid color-mix(in srgb, var(--c) 55%, transparent); outline-offset: 1px; }
+.pg-note { margin: 0.2rem 0 0.9rem !important; font-size: 13.5px !important; color: var(--text-dim); font-family: var(--font-sans); }
+
+/* cards on the topic page */
+.rc-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px 14px; margin: 0 0 0.8rem; font-family: var(--font-sans); }
+.rc-head-text { display: grid; gap: 1px; min-width: 0; }
+.rc-head-text b { font-size: 15px; }
+.rc-head-text span { font-size: 13px; color: var(--text-dim); }
+.rc-guesses { flex-basis: 100%; border: 1px dashed color-mix(in srgb, #d946ef 45%, var(--border)); border-radius: 12px; padding: 0.6rem 0.9rem; background: color-mix(in srgb, #d946ef 5%, var(--panel)); }
+.rc-guesses summary { cursor: pointer; font-size: 14px; font-weight: 650; color: color-mix(in srgb, #d946ef 70%, var(--text)); }
+.rc-guesses ol { margin: 0.6rem 0 0.4rem; padding-left: 1.2rem; display: grid; gap: 0.5rem; font-size: 14.5px; }
+.rc-guesses li span { display: block; }
+.rc-guesses li em { display: block; font-style: normal; color: var(--text-soft); }
+.rc-guesses p { margin: 0; font-size: 13px; color: var(--text-dim); }
+.rc-chip { flex: none; align-self: center; padding: 1px 8px; border-radius: 999px; background: var(--bg-inset); color: var(--text-dim); font: 650 11.5px/1.6 var(--font-sans); white-space: nowrap; }
+.rc-chip.new { background: color-mix(in srgb, var(--accent) 12%, transparent); color: var(--accent-text); }
+.rc-chip.due { background: color-mix(in srgb, var(--g2) 16%, transparent); color: var(--g2); }
+.recall-card > summary { align-items: center; }
+.recall-card .recall-q { flex: 1; min-width: 0; }
+.rc-grade { display: grid; gap: 8px; margin: 0 var(--figure-pad); padding: 0 0 0.95rem; font-family: var(--font-sans); }
+.rc-grade > span { font-size: 13px; color: var(--text-dim); }
+.rc-gs { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+.rc-g { display: grid; justify-items: center; gap: 1px; min-height: 52px; padding: 6px 4px; border: 1px solid color-mix(in srgb, var(--gc) 35%, var(--border)); border-radius: 11px; background: color-mix(in srgb, var(--gc) 7%, var(--panel)); color: var(--text); font-family: var(--font-sans); cursor: pointer; }
+.rc-g b { font-size: 14.5px; font-weight: 700; color: var(--gc); }
+.rc-g small { font-size: 12px; color: var(--text-dim); font-variant-numeric: tabular-nums; }
+.rc-g:active { transform: scale(0.97); }
+.rc-g.g1 { --gc: var(--g1); }
+.rc-g.g2 { --gc: var(--g2); }
+.rc-g.g3 { --gc: var(--g3); }
+.rc-g.g4 { --gc: var(--g4); }
+.rc-done { display: inline-flex; align-items: center; gap: 6px; font-size: 14px; font-weight: 600; color: var(--g3); }
+.rc-grade .pl-link { justify-self: start; font-size: 13px; }
+
+/* the review page */
+.rv-top { display: grid; gap: 12px; margin-top: 12px; }
+.rv-mode { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; font-size: 14px; color: var(--text-dim); }
+.rv-stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
+.rv-stats div { display: grid; gap: 1px; padding: 12px 14px; border: 1px solid var(--border); border-radius: 14px; background: var(--panel); }
+.rv-stats b { font-size: 24px; font-weight: 800; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
+.rv-stats span { font-size: 12.5px; font-weight: 600; color: var(--text-dim); }
+@media (max-width: 560px) { .rv-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.rv-stage { margin-top: 18px; }
+.rv-topic { display: inline-flex; align-items: center; gap: 7px; min-width: 0; font-size: 13px; font-weight: 650; color: var(--text-soft); text-decoration: none; }
+.rv-topic i { flex: none; width: 8px; height: 8px; border-radius: 50%; background: var(--a); }
+.rv-card { display: grid; gap: 16px; padding: 20px 22px 18px; }
+.rv-card-top { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; }
+.rv-count { font-size: 12.5px; font-weight: 600; color: var(--text-dim); font-variant-numeric: tabular-nums; }
+.rv-count em { font-style: normal; color: var(--accent-text); }
+.rv-q { font-family: var(--prose-face); font-size: calc(19px * var(--prose-scale)); line-height: 1.5; font-weight: 600; color: var(--text); }
+.rv-a { padding-top: 14px; border-top: 1px dashed var(--border-strong); font-family: var(--prose-face); font-size: calc(17px * var(--prose-scale)); line-height: 1.62; color: var(--text-soft); }
+.rv-q code, .rv-a code { font-family: var(--font-mono); font-size: 0.88em; padding: 1px 5px; border-radius: 5px; background: var(--bg-inset); }
+.rv-a a, .rv-q a { color: var(--accent-text); }
+.rv-actions .rv-reveal { width: 100%; min-height: 52px; font-size: 16px; }
+.rv-reveal kbd { margin-left: 8px; padding: 1px 6px; border-radius: 5px; background: rgba(255, 255, 255, 0.2); font: 600 11px var(--font-sans); }
+.rv-grades { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
+.rv-grades .rc-g { min-height: 62px; }
+.rv-grades .rc-g b { font-size: 16px; }
+.rv-undo { justify-self: start; font-size: 13px; }
+.rv-empty, .rv-summary { display: grid; gap: 8px; padding: 22px; }
+.rv-empty b, .rv-summary b { font-size: 19px; }
+.rv-empty p, .rv-summary p { margin: 0; color: var(--text-soft); line-height: 1.55; }
+.rv-summary-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 6px; }
+.rv-settings { margin-top: 24px; }
+.rv-settings > summary { display: inline-flex; align-items: center; gap: 7px; cursor: pointer; font-size: 14px; font-weight: 650; color: var(--text-soft); margin-bottom: 10px; }
+.rv-settings .set-row .seg { flex: none; }
+@media (max-width: 640px) { .rv-settings .set-row { flex-direction: column; align-items: stretch; } }
+
+/* home tile */
+.rv-home { display: flex; align-items: center; gap: 14px; margin-bottom: 14px; padding: 14px 18px; color: inherit; text-decoration: none; }
+.rv-home.quiet { padding: 12px 16px; }
+.rv-home > .ic { flex: none; color: var(--text-dim); }
+.rv-home-ico { flex: none; display: grid; place-items: center; width: 44px; height: 44px; border-radius: 12px; background: color-mix(in srgb, var(--accent) 12%, transparent); color: var(--accent-text); }
+.rv-home-text, .rv-home > span:not(.btn):not(.rv-home-ico) { flex: 1; min-width: 0; display: grid; gap: 1px; }
+.rv-home b { font-size: 16px; }
+.rv-home small { font-size: 13px; color: var(--text-dim); }
+.rv-home .btn { flex: none; }
+
+/* progress: memory */
+.rv-mem { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+@media (max-width: 700px) { .rv-mem { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.rv-forecast { display: grid; gap: 10px; margin-top: 12px; }
+.rv-bars { display: flex; align-items: flex-end; gap: 6px; height: 110px; }
+.rv-bar { flex: 1; height: 100%; display: flex; flex-direction: column; justify-content: flex-end; align-items: center; gap: 3px; }
+.rv-bar i { display: block; width: 100%; min-height: 2px; border-radius: 4px 4px 2px 2px; background: color-mix(in srgb, var(--accent) 45%, var(--bg-inset)); }
+.rv-bar.today i { background: var(--accent); }
+.rv-bar span { font-size: 10.5px; font-weight: 600; color: var(--text-dim); font-variant-numeric: tabular-nums; min-height: 13px; }

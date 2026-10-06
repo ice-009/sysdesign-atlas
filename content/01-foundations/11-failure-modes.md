@@ -7,6 +7,12 @@ tags: [failure, resilience, fault-tolerance]
 prereqs: [availability-slas, networking]
 ---
 
+:::predict Guess first
+1. You send a request and get no reply. What are the possible explanations — and can you tell them apart?
+2. A server passes every health check but users say the app is unusable. How can both be true?
+3. Three layers each retry failed calls three times. What happens to the database when it slows down?
+:::
+
 ## The defining difference
 
 A single-machine program fails cleanly: it works or it crashes. A distributed system has a third state that doesn't exist on one machine — **partial failure**, where some components work, some don't, and *you can't tell which*.
@@ -174,3 +180,39 @@ A service is healthy on every dashboard: the process is up, health checks pass, 
 
 *Gray Failure: The Achilles' Heel of Cloud-Scale Systems* (Huang et al., HotOS 2017) is the paper on components that are up but useless. *Metastable Failures in Distributed Systems* (Bronson et al., HotOS 2021) explains why some outages don't recover when the trigger is removed.
 :::
+
+## Check yourself
+
+```recall
+Q: A request gets no response. Why does that make idempotency a requirement?
+A: The request may never have arrived, may have died mid-processing, or may have succeeded with the reply lost — and you can't tell which. Retrying must be safe even if the work already happened.
+
+Q: What is a gray failure, and why is it worse than a crash?
+A: A node that passes health checks while serving slow, empty or wrong responses. Failure detection keeps it in rotation, so it poisons a share of every user's requests.
+
+Q: How do you catch gray failures that a liveness probe misses?
+A: Judge outcomes, not process: eject instances whose error rate or p99 deviates from the fleet (outlier detection), with a cap so you never eject too many at once.
+
+Q: Describe the feedback loop behind a cascading failure.
+A: One node slows or fails, its traffic moves to the survivors, they pass their safe utilisation and slow down, clients time out and retry, and the next node fails — faster each round, often staying down after the trigger is gone.
+
+Q: Why add jitter to exponential backoff?
+A: Without it, clients that failed together retry together, in waves that hit a struggling service at once. Full jitter — a random wait up to the backoff — spreads retries out.
+
+Q: Why are retry budgets more robust than per-request retry limits?
+A: A budget caps retries as a share of all traffic (say 10%), so under widespread failure retries stop instead of multiplying load across the whole fleet.
+
+Q: Why can't you choose a "correct" failure-detection timeout?
+A: Too short and healthy nodes are declared dead, causing needless failovers or split brain; too long and real failures go unnoticed. Adaptive detectors like phi accrual output a suspicion level instead.
+
+Q: What does graceful degradation look like when the payment provider is down?
+A: Keep the core transaction alive: queue the order, capture payment later, and tell the customer — rather than failing checkout. Decide what to sacrifice ahead of time.
+```
+
+## What to carry forward
+
+- Partial failure is the defining property of distributed systems: silence can't tell you what happened, so retries must be safe.
+- Gray failures pass health checks; detect them by outcomes — latency and error outliers.
+- Cascades come from redistributed load plus retries; contain them with load shedding, circuit breakers, bulkheads and headroom.
+- Make retries safe: jittered backoff, a fleet-wide retry budget, and retries at one layer only.
+- Propagate deadlines, and decide in advance what degrades so the core transaction survives.

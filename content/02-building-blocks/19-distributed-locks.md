@@ -7,6 +7,12 @@ tags: [locks, leases, coordination, fencing]
 prereqs: [consistency-models, replication]
 ---
 
+:::predict Guess first
+1. A worker holds a 30-second lock, then freezes for 40 seconds in a garbage-collection pause. What can go wrong?
+2. Can any lock service fully guarantee that only one client acts at a time?
+3. Name one way to stop two workers processing the same job without using a lock at all.
+:::
+
 ## What you're actually asking for
 
 A distributed lock lets one process among many claim exclusive access to a resource — process one job, write one file, run one cron task.
@@ -163,3 +169,39 @@ Martin Kleppmann's *How to do distributed locking* (2016) and Salvatore Sanfilip
 
 *The Chubby Lock Service for Loosely-Coupled Distributed Systems* (Burrows, OSDI 2006) is the production system that established the pattern, and is candid about how clients misuse it.
 :::
+
+## Check yourself
+
+```recall
+Q: A lock for efficiency versus a lock for correctness: what's the difference?
+A: Efficiency locks only stop wasted duplicate work, so an occasional failure is harmless. Correctness locks prevent corruption — and no lease-based lock can guarantee that on its own.
+
+Q: Walk through how a GC pause breaks a lease-based lock.
+A: A holds a 30 s lease and freezes for 40 s; the lease expires and B legitimately acquires it; A wakes still believing it holds the lock and writes too. The client can't know its lease is valid at the moment it acts.
+
+Q: How do fencing tokens make a stale lock holder harmless?
+A: Each grant comes with a number one higher than the last, and storage rejects writes with a lower number than it has seen. A paused holder's write is refused however long it slept — but the storage must support the check.
+
+Q: Why must releasing a Redis lock check ownership first?
+A: Otherwise a client whose lock already expired can delete the next holder's lock. Release with a Lua script that deletes only if the value is still your owner ID.
+
+Q: Why are Redis locks efficiency locks by nature?
+A: Replication is asynchronous: the primary can grant a lock and die before replicating it, and the promoted replica will grant the same lock again.
+
+Q: Why prefer etcd or ZooKeeper for coordination locks?
+A: Lock state goes through consensus, so it's linearizable and durable; ephemeral nodes vanish with the client's session; and etcd's revision numbers serve as fencing tokens.
+
+Q: What does good lease handling look like?
+A: Renew at about a third of the TTL, stop work immediately if renewal fails (assume you lost it), and choose the TTL by trading recovery speed against renewal load.
+
+Q: Name four ways to design the lock away.
+A: Make the operation idempotent; use optimistic concurrency with a version check; give each key exactly one owner by hashing (like Kafka partitions); route each entity through one queue partition; or let a unique constraint reject duplicates.
+```
+
+## What to carry forward
+
+- A distributed lock is a performance optimisation, not a safety mechanism.
+- Pauses and partitions mean a client can't know its lease is still valid when it acts.
+- For correctness, fence at the resource: storage rejects stale tokens, or use conditional writes.
+- Redis locks are fast efficiency locks; etcd/ZooKeeper give consensus-backed locks with fencing; a database row lock is often simplest.
+- Better still, design the need away: idempotency, optimistic concurrency, partitioned ownership, unique constraints.

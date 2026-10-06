@@ -7,6 +7,12 @@ tags: [search, elasticsearch, inverted-index]
 prereqs: [indexing]
 ---
 
+:::predict Guess first
+1. Why can't a database index speed up WHERE body LIKE '%distributed systems%'?
+2. A word appears in almost every document. Should matching it count for much when ranking results?
+3. You publish a post and search for it straight away. Will it show up?
+:::
+
 ## Why not just use `LIKE`
 
 ```sql
@@ -157,3 +163,39 @@ Robertson and Zaragoza's *The Probabilistic Relevance Framework: BM25 and Beyond
 
 *Introduction to Information Retrieval* (Manning, Raghavan & Schütze, Cambridge 2008, free online) is the textbook — chapters 1–6 cover inverted indexes, tolerant retrieval, and scoring. For modern hybrid retrieval, see [retrieval architecture](../07-ai-systems/retrieval-architecture.html).
 :::
+
+## Check yourself
+
+```recall
+Q: What does an inverted index map, and how does it answer a two-word query?
+A: Each term maps to a sorted list of the documents containing it. A query intersects those lists — "quick fox" is quick's list ∩ fox's list.
+
+Q: Why must the same analysis pipeline run on documents and queries?
+A: Lowercasing, stemming and tokenising must match on both sides or terms won't line up — the source of most "why doesn't this match?" bugs.
+
+Q: What does BM25 improve over TF-IDF?
+A: Term frequency saturates, so the 50th occurrence adds almost nothing (beating keyword stuffing), and scores are normalised by document length so long documents don't win just by repeating terms.
+
+Q: What is "retrieve then rerank"?
+A: Fetch a few hundred candidates cheaply with BM25 (or vectors), then re-order them with an expensive model that blends in recency, popularity and personalisation.
+
+Q: Why combine keyword and vector search (hybrid search)?
+A: Vectors match meaning — "fix a flat tire" finds "repairing a puncture" — but keyword search still wins on exact identifiers, names and rare terms. Run both and fuse the rankings.
+
+Q: Why is deep pagination painful in a sharded search engine?
+A: Page 100 at 10 a page makes every shard return 1,000 results for merging. Use search_after/cursor pagination and cap the depth.
+
+Q: Why should you never dual-write to the database and the search index?
+A: If the second write fails they diverge permanently with no self-healing. Write to the database and let CDC or an outbox relay update the index, which also lets you rebuild it by replay.
+
+Q: How do you change an index mapping with zero downtime?
+A: Build a new index alongside the old, fill it, then atomically flip an alias (posts_v1 → posts_v2). Rollback is flipping it back.
+```
+
+## What to carry forward
+
+- Full-text search needs an inverted index; LIKE with a leading wildcard scans everything and can't rank.
+- Analysis (tokenise, lowercase, stem) must match between indexing and queries.
+- BM25 is the ranking default; production adds retrieve-then-rerank and hybrid vector search.
+- Search is scatter-gather and near-real-time — refreshes make new documents visible after about a second.
+- Keep the index derived from the database via CDC, reindex behind an alias, and don't add a search engine Postgres can cover.

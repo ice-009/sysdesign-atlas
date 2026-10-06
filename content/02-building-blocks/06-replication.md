@@ -7,6 +7,12 @@ tags: [replication, availability, consistency]
 prereqs: [consistency-models, cap-pacelc]
 ---
 
+:::predict Guess first
+1. Does adding read replicas help when your database can't keep up with writes?
+2. With asynchronous replication, the leader confirms a write and then crashes. What happens to that write?
+3. A leader is cut off from the network but still running, and a new leader is elected. What could go wrong?
+:::
+
 ## Three reasons to replicate
 
 Keep copies of the same data on multiple nodes for:
@@ -165,3 +171,39 @@ The line to remember for interviews: **replication solves reads and availability
 
 *PNUTS: Yahoo!'s Hosted Data Serving Platform* (Cooper et al., VLDB 2008) introduced per-record timeline consistency. For the failure modes, Kyle Kingsbury's Jepsen reports on MySQL, Postgres, and MongoDB replication are the empirical record.
 :::
+
+## Check yourself
+
+```recall
+Q: What does replication solve, and what does it not?
+A: It gives availability, read scale and locality. It doesn't scale writes — every replica still applies every write. That's sharding's job.
+
+Q: Async versus sync replication: what does each risk?
+A: Async replies before followers have the write, so a leader crash loses acknowledged writes. Sync waits for a replica, so every write pays its round trip and a slow or dead replica blocks all writes.
+
+Q: Why is semi-synchronous replication the usual recommendation?
+A: Wait for one replica (or a quorum) and send to the rest asynchronously: at least two copies exist before "saved", without depending on every replica being healthy.
+
+Q: Name the three replication-lag symptoms and a fix for each.
+A: Your own write seems to vanish — route your reads to the leader after you write. Reads go backwards in time — pin each user to one replica. A reply appears before its post — track causality or keep related data together.
+
+Q: What is split brain, and how do fencing tokens prevent damage?
+A: A partitioned old leader keeps accepting writes while a new one does too. Each new leader gets a higher number, and storage rejects writes carrying an older one, so the deposed leader is refused.
+
+Q: Multi-leader replication makes write conflicts unavoidable. What's often the best way to deal with them?
+A: Avoid them by design: give each entity a home region that takes all its writes. Otherwise use CRDTs, per-field merges, or show both versions; last-write-wins silently loses data.
+
+Q: In leaderless replication, what does R + W > N guarantee, and what's the model's main appeal?
+A: Read and write sets overlap, so a read reaches at least one replica with the latest write. With no leader there's no failover and no split brain — any node serves any request.
+
+Q: How do leaderless systems keep replicas converging?
+A: Read repair fixes stale replicas noticed during reads; hinted handoff holds writes for a node that's down; Merkle-tree comparison finds differences in the background.
+```
+
+## What to carry forward
+
+- Replication buys availability, read scale and locality — not write scale.
+- Async risks losing acknowledged writes; sync risks blocking; semi-sync is the usual compromise. Frame it as RPO.
+- Replication lag breaks session guarantees — monitor it and route reads deliberately.
+- Failover is where it goes wrong: guesswork detection, split brain (use fencing tokens), and lost writes.
+- Multi-leader means conflicts — prefer a home region per entity; leaderless uses quorums and anti-entropy instead of failover.

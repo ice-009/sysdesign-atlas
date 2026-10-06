@@ -41,6 +41,8 @@ export const SYNC_KINDS = [
   'goal', //   the reader's track goal (topic = "main")
   // HLD + LLD plan (lib/prep.ts)
   'prep', //   one plan item's status (topic = item id), or the plan settings (topic = "settings")
+  // recall cards (lib/fsrs.ts)
+  'srs', //    one card's memory state (topic = the topic's slug), or review settings (topic = "settings")
 ] as const;
 const KINDS = new Set<string>(SYNC_KINDS);
 const CLOCK = /^[0-9a-z]{9}-[0-9a-z]{4}-[\w-]{1,40}$/;

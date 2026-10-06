@@ -7,6 +7,12 @@ tags: [sharding, partitioning, scale]
 prereqs: [replication, indexing]
 ---
 
+:::predict Guess first
+1. You partition a table by creation time, one shard per month. Where do all of today's writes go?
+2. For a chat app, should you shard messages by user or by conversation? Why?
+3. You start with 8 shards and need 16. How do you avoid moving almost every row?
+:::
+
 ## When you actually need it
 
 **Sharding** means cutting one dataset into pieces and giving each piece to a different machine — so no single machine holds it all, and each one handles only its own slice of the writes. It's the **only** technique that scales writing and total data size. Copies (replicas) give you more capacity to *read*, never to write, because every copy still has to apply every write.
@@ -172,3 +178,39 @@ A multi-tenant SaaS: 50,000 tenants, largest is 2,000× the median, 4 TB total, 
 
 Vitess and Citus both have public design documentation worth reading for how resharding is done without downtime.
 :::
+
+## Check yourself
+
+```recall
+Q: What does sharding solve that replication can't?
+A: Write throughput and total data size: each machine stores and writes only its slice. Replicas add read capacity only, since every copy applies every write.
+
+Q: What should you try before sharding, and why?
+A: Better indexes, caching, archiving cold data, a bigger machine, splitting tables onto separate databases. Sharding is a one-way door: cross-shard joins and transactions mostly go away and resharding is a project.
+
+Q: Range versus hash partitioning: what goes wrong with each?
+A: Range keeps range scans on one shard but creates hot spots — time-based keys send every write to the newest shard. Hash spreads evenly but sends range queries to every shard, and plain mod N moves almost everything when N changes.
+
+Q: What four properties make a good partition key?
+A: High cardinality, even distribution, present in most queries (or you scatter-gather), and keeps data you read together on one shard.
+
+Q: Why is sharding a chat app by user_id a trap?
+A: A message between two users ends up on two shards, or reading a conversation means merging shards. Shard by conversation_id so a whole conversation loads from one shard.
+
+Q: How do you handle a celebrity account that overloads its shard?
+A: Split the hot key across sub-partitions, give it a dedicated shard (needs directory routing), cache it if it's read-hot, or change the workload — let followers pull celebrity posts at read time.
+
+Q: What does a query without the shard key cost?
+A: A scatter-gather to every shard: latency becomes the slowest shard's, cost grows with shard count, and pagination needs each shard to return OFFSET + LIMIT rows to the coordinator.
+
+Q: How do virtual shards make resharding easy?
+A: Hash keys into many logical shards (say 1,024) that never change, and map logical shards to machines in a directory. Growing moves whole logical shards — a copy plus a metadata change, with no rehashing.
+```
+
+## What to carry forward
+
+- Sharding is the only way to scale writes and data size — and the most expensive decision to undo.
+- The partition key is the decision: high cardinality, even, in most queries, keeping read-together data together.
+- Expect hot spots from power-law popularity; detect hot keys and split, isolate or cache them.
+- Cross-shard queries, joins and transactions are the cost — denormalise, replicate small tables, or keep a second copy keyed differently.
+- Use many virtual shards from day one so growth is a directory update, and migrate live with copy-then-stream or double writes.

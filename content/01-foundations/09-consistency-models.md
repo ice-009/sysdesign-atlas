@@ -7,6 +7,12 @@ tags: [consistency, linearizability, replication]
 prereqs: [cap-pacelc]
 ---
 
+:::predict Guess first
+1. You edit your profile, reload, and your change has vanished — then it reappears a moment later. What went wrong?
+2. Is "strong" always better than "eventual" consistency? What does the stronger one cost?
+3. Bob replies "Glad you found them!" to Alice's "I lost my keys!" Could another reader ever see the reply before the post?
+:::
+
 ## Why there's a spectrum
 
 Once your data lives on more than one machine, a question appears that never came up with a single database: if I write something here and read it there a millisecond later, am I guaranteed to see it? A **consistency model** is the storage system's answer — a **contract** saying which results a read is allowed to return when writes are happening at the same time.
@@ -164,3 +170,39 @@ Herlihy and Wing's *Linearizability: A Correctness Condition for Concurrent Obje
 
 Peter Bailis et al., *Highly Available Transactions: Virtues and Limitations* (VLDB 2014) maps which guarantees survive a partition. Kyle Kingsbury's consistency-model map (jepsen.io/consistency) is the best visual reference for how they relate.
 :::
+
+## Check yourself
+
+```recall
+Q: What does linearizability promise, and what does it cost?
+A: The system behaves as if there's one copy: once a write completes, every later read from anyone sees it or something newer. Every read must check with a quorum or a lease-holding leader — at least one round trip, 100 ms+ across regions.
+
+Q: When is linearizability genuinely required?
+A: When a read leads to an irreversible action: locks and leader election, uniqueness (usernames), the last unit of inventory, a balance check before a withdrawal.
+
+Q: What does causal consistency guarantee, and why is it the "sweet spot" for social apps?
+A: Causally related operations — like a reply and the post it answers — are seen in the same order by everyone, while unrelated ones may arrive in any order. It's the strongest model that stays available during a partition.
+
+Q: A user edits their profile and the change seems to vanish on reload. Which guarantee fixes it, and how?
+A: Read-your-writes. Route that user's reads to the primary for a short while after a write, pin their session to one replica, or have the client carry a version token the replica must have caught up to.
+
+Q: What breaks without monotonic reads?
+A: Time goes backwards for one user: a refresh shows 51 comments, the next shows 49 from a more lagged replica, then 51 again. Pinning the user to one replica fixes it.
+
+Q: What does eventual consistency promise — and what two problems must you handle?
+A: Only that replicas converge once writes stop. You must resolve conflicting writes (last-write-wins silently loses data) and monitor replication lag, because "eventually" has no bound.
+
+Q: Consistency models versus isolation levels — what's the difference?
+A: Consistency is about replicas: what a reader may see across copies. Isolation is about concurrent transactions: which anomalies interleavings can cause. Strict serializability is both at once.
+
+Q: What three questions pick a consistency model?
+A: What does a stale read cost? Does the read cause an irreversible action? What will the user notice — usually their own changes vanishing, which session guarantees fix cheaply.
+```
+
+## What to carry forward
+
+- A consistency model is a price list, not a quality ladder: buy the weakest model that keeps the product correct.
+- Linearizability is for reads that trigger irreversible actions; it costs a quorum round trip on every read.
+- Causal consistency keeps replies after their posts and stays available during partitions.
+- Session guarantees — read-your-writes, monotonic reads — fix most user-visible bugs for the price of a routing rule.
+- Consistency (replicas) and isolation (transactions) are different axes; strict serializability is both.

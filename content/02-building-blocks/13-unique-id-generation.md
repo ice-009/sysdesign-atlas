@@ -7,6 +7,12 @@ tags: [id, snowflake, uuid, distributed]
 prereqs: [sharding]
 ---
 
+:::predict Guess first
+1. Your database uses auto-increment IDs, and you split it into four shards. What goes wrong?
+2. Are random UUIDs a good primary key for a large table? Why or why not?
+3. Can an ID be both sortable by time and impossible to guess?
+:::
+
 ## The requirements
 
 Every distributed system needs to mint identifiers. The requirements conflict, which is what makes it an interview question:
@@ -135,3 +141,39 @@ Twitter's Snowflake announcement (2010) is the origin of the timestamp-worker-se
 
 *ULID* and *UUIDv7* (RFC 9562, 2024) are the modern standards — both time-ordered, which matters enormously for B-tree insert locality. Read the RFC section on why UUIDv4 is bad as a primary key.
 :::
+
+## Check yourself
+
+```recall
+Q: Why does auto-increment break when you shard?
+A: Each shard counts 1, 2, 3 independently, so IDs collide. Stepped increments break when you add a shard, and a central ID service adds a round trip and a single point of failure.
+
+Q: Lay out a Snowflake ID and what each field allows.
+A: 1 sign bit, 41 bits of milliseconds since a custom epoch (about 69 years), 10 bits of machine ID (1,024 generators), 12 bits of sequence (4,096 per ms per machine, about 4M/s each).
+
+Q: What happens if a Snowflake generator's clock steps backwards, and what should it do?
+A: It could reissue timestamps it already used and create duplicates. Track the last timestamp: for a small step, wait until the clock catches up; for a large jump, take the node out of rotation and alert.
+
+Q: Why do random UUIDv4 keys hurt a clustered index?
+A: Rows are stored in key order, so random keys land in random pages — page splits, fragmentation and a working set that won't stay cached. Inserts can be several times slower than sequential ones.
+
+Q: What does UUIDv7 fix, and what does it cost?
+A: A 48-bit millisecond timestamp up front makes it time-ordered (good index locality) while staying coordination-free. It's 128 bits instead of 64 and reveals creation time.
+
+Q: How do you get both index-friendly and unguessable IDs?
+A: Use two: a numeric internal ID for the primary key and joins, and a random 128-bit public ID for URLs and APIs, indexed for lookups.
+
+Q: Why shouldn't an unguessable ID be your access control?
+A: It's defence in depth, not permission: every request must still check the caller owns the resource.
+
+Q: Why is hash-then-truncate a poor way to make short URL codes?
+A: Truncating a hash makes collisions likely well before the space runs out (the birthday bound), so every insert needs a collision check and retry. Encode a shuffled or encrypted counter instead.
+```
+
+## What to carry forward
+
+- Auto-increment works until you shard; ticket ranges, Snowflake or UUIDv7 work after.
+- Snowflake packs time, machine and sequence into 64 bits — guard against clocks going backwards.
+- Random UUIDv4 keys wreck B-tree locality; UUIDv7 is the modern default.
+- Sortable and unguessable conflict: use an internal ID plus a random public ID, and still check access.
+- Match the scheme to the scale — a single database's BIGSERIAL is the right answer when there's no sharding.

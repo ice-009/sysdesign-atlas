@@ -7,6 +7,12 @@ tags: [hashing, sharding, distribution]
 prereqs: [sharding]
 ---
 
+:::predict Guess first
+1. Ten cache servers use `hash(key) % N`, and you add an eleventh. Roughly what share of keys now map to a different server?
+2. A server on a consistent-hashing ring dies. Where do its keys go — and why might that knock over a second server?
+3. One key gets 40% of all traffic. Does consistent hashing help?
+:::
+
 ## The problem
 
 Distribute keys across N nodes. The obvious approach:
@@ -168,3 +174,38 @@ Karger et al., *Consistent Hashing and Random Trees* (STOC 1997) is the original
 
 *Consistent Hashing with Bounded Loads* (Mirrokni, Thorup & Zadimoghaddam, 2016) fixes the load-imbalance problem directly. *Maglev* (Eisenbud et al., NSDI 2016) uses a different construction with better lookup performance and comparable disruption properties. Rendezvous (highest random weight) hashing is a simpler alternative worth knowing.
 :::
+
+## Check yourself
+
+```recall
+Q: You go from 10 to 11 servers. With `hash(key) % N`, roughly what share of keys move — and with a consistent-hashing ring?
+A: Modulo: about 10 in 11, nearly all of them, so a cache empties at once and the database takes the full load. Ring: about 1 in 11 — only the keys the new server takes over.
+
+Q: Node E is added to a ring between B and C. Which keys move, and from where?
+A: Only the keys between B and E. They move from C — their old owner, the next node clockwise — to E. Every other key stays where it was.
+
+Q: Why are virtual nodes "the necessary fix" rather than a nice optimisation?
+A: With few points on the ring the arcs are uneven, so load is uneven. Worse, a dead node's whole load lands on one successor, which can fail in turn and cascade. Many small arcs per machine even out the load and spread a failed node's keys across many successors.
+
+Q: A server with twice the memory joins the ring. How do you give it twice the keys?
+A: Give it twice as many virtual nodes. Its share of the ring — and so of the keys — grows with its number of positions.
+
+Q: For three replicas you "take the next three nodes clockwise". What's the bug?
+A: The next positions may be virtual nodes of the same machine, putting two replicas on one box. Walk clockwise and take the next three distinct physical machines.
+
+Q: One key gets 40% of all traffic. Does consistent hashing help? What does?
+A: No — it spreads keys, not load, so that key's owner saturates whatever the ring looks like. Replicate the hot key across several nodes, or put a local cache in front of it.
+
+Q: When is rendezvous hashing a better choice than a ring?
+A: Up to a few hundred nodes. There are no virtual nodes to tune, weights are easy, and ranking nodes by score gives the replica preference list for free. Its O(N) lookup only matters at thousands of nodes.
+
+Q: You need to move one noisy tenant onto its own server. Which hashing scheme does that?
+A: None of them — hashing trades control for statelessness. Use a directory: an explicit map from tenant to shard.
+```
+
+## What to carry forward
+
+- `hash(key) % N` moves almost every key when N changes; a ring moves about 1/N of them.
+- Virtual nodes — 100 to 200 per machine — even out load, spread a failed node's keys across many successors, and give you weights for free.
+- Consistent hashing spreads keys, not load: hot keys need replication or a cache, and bounded loads cap the imbalance.
+- Rendezvous hashing is often simpler for replica placement, jump hash suits shards you grow in order, and a directory is the answer when you need control over placement.

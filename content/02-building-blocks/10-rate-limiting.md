@@ -7,6 +7,12 @@ tags: [rate-limit, throttling, protection]
 prereqs: [caching, queueing-theory]
 ---
 
+:::predict Guess first
+1. A limit is 100 requests per minute, counted in fixed one-minute windows. What is the most a client can send in one real second?
+2. Fifty API servers each keep their own counter with a limit of 100 a minute. What is the effective limit?
+3. The shared counter store is down. Should the rate limiter allow everything or block everything?
+:::
+
 ## Why it exists
 
 **Rate limiting** is capping how many requests one caller may make in a given period — 100 a minute per user, say — and rejecting the rest. It protects a system from being asked for more than it has. Four distinct motivations, and naming which one applies changes the design:
@@ -185,3 +191,39 @@ The token bucket and leaky bucket come from ATM network traffic shaping; the cla
 
 For fairness across tenants, the weighted fair queueing literature (Demers, Keshav & Shenker, SIGCOMM 1989) transfers directly.
 :::
+
+## Check yourself
+
+```recall
+Q: What's wrong with a fixed-window counter?
+A: The boundary burst: with 100 per minute, a client can send 100 at 10:00:59 and 100 more at 10:01:00 — 200 in one second, twice the intended rate.
+
+Q: Why is the sliding-window counter the usual default for API limits?
+A: It keeps only two counters per key and estimates the trailing window as the current count plus the previous window weighted by its overlap — smooth at boundaries, with error typically well under 1%.
+
+Q: What does a token bucket allow that a leaky bucket doesn't?
+A: Bursts: tokens build up to a cap B while idle and refill at rate R, so a page load of a dozen requests passes while the average stays at R. A leaky bucket drains at a fixed rate and allows no burst.
+
+Q: When is a leaky bucket the right choice?
+A: When the thing you're protecting can't absorb bursts — a legacy system or a third-party API with a hard per-second cap — because it releases requests at a perfectly smooth rate.
+
+Q: Why is limiting by IP address blunt?
+A: Whole offices and mobile carriers share one IP behind NAT, so one heavy user can throttle thousands. Prefer API key or user ID once authenticated, and keep IP limits generous.
+
+Q: Why must a distributed limiter's check-and-increment be atomic?
+A: Read-then-write as two commands lets two servers both read 99 and both allow the request. Use a single INCR, or a Lua script Redis runs without interruption.
+
+Q: If the shared Redis is down, fail open or fail closed?
+A: Decide per purpose: for abuse prevention, usually fail open (availability over protection); for cost control on an expensive downstream, fail closed.
+
+Q: Name three details that show you've run a rate limiter in production.
+A: Return Retry-After with jitter; don't count rejected requests toward the limit; run in log-only mode before enforcing; allow-list health checks and internal calls; make limits changeable at runtime.
+```
+
+## What to carry forward
+
+- Know why you're limiting — abuse, fairness, cost or stability — because it changes the design.
+- Sliding-window counter is the default; token bucket when bursts are legitimate; leaky bucket to protect burst-intolerant downstreams.
+- Limit by the caller identity that matters, in tiers, and enforce as early as possible.
+- Distributed limits need a shared, atomic counter — or local counters and token batches when approximate is fine.
+- Choose fail-open or fail-closed deliberately, and send Retry-After with jitter.

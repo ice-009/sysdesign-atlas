@@ -635,6 +635,7 @@ body {
 .callout-paper    { --c: #818cf8; }
 .callout-exercise { --c: #2dd4bf; }
 .callout-note     { --c: #64748b; }
+.callout-predict  { --c: #d946ef; }
 
 /* A code block inside a callout still has to be able to scroll — the callout
    clips, so without this the last characters of a wide line simply vanish. */
@@ -652,6 +653,51 @@ body {
 /* A primary source is a pointer, not prose — tighten it. */
 .callout-paper .callout-body { font-size: 14.5px; }
 .callout-paper .callout-body a { text-decoration-thickness: 1px; }
+
+/* ---------- recall cards ----------
+   "Check yourself" at the end of a topic: each card is a question with its
+   answer folded away, so you have to try before you look. Works with no
+   script at all; the iPad edition adds self-grading and spaced review. */
+
+.recall { display: grid; gap: 0.6rem; margin: 0 0 1.4rem; }
+.recall-card {
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--panel);
+  overflow: hidden;
+}
+.recall-card > summary {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.9rem;
+  padding: 0.8rem var(--figure-pad);
+  cursor: pointer;
+  list-style: none;
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 1.5;
+  color: var(--text);
+}
+.recall-card > summary::-webkit-details-marker { display: none; }
+.recall-card > summary:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; border-radius: 12px; }
+.recall-show {
+  flex: none;
+  padding-top: 0.15rem;
+  font-size: 13px;
+  font-weight: 650;
+  white-space: nowrap;
+  color: var(--accent-text);
+}
+.recall-card[open] .recall-show { opacity: 0; }
+.recall-a {
+  margin: 0 var(--figure-pad);
+  padding: 0.7rem 0 0.95rem;
+  border-top: 1px dashed var(--border-strong);
+  font-size: 15.5px;
+  line-height: 1.62;
+  color: var(--text-soft);
+}
 
 .prose blockquote {
   margin: 0 0 1.2rem;

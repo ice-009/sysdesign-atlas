@@ -7,6 +7,12 @@ tags: [s3, storage, blob, media]
 prereqs: [replication, cdn]
 ---
 
+:::predict Guess first
+1. Why not just store users' photos in a database column?
+2. A user uploads a 10 MB video from a phone. Should the file pass through your application servers?
+3. Three full copies of every object cost 3× the storage. Is there a cheaper way to survive several disk failures?
+:::
+
 ## The rule
 
 **Never store large binary files in your relational database.** This comes up in nearly every media-related design, and stating it early with reasons is quick, easy signal.
@@ -169,3 +175,39 @@ Key properties: the upload completes fast and independently of processing; proce
 
 *Windows Azure Storage* (Calder et al., SOSP 2011) is the most complete published description of a production object store, including the erasure coding and the stream layer. For durability arithmetic, read any provider's description of how they get to eleven nines.
 :::
+
+## Check yourself
+
+```recall
+Q: Give four reasons not to store large files in your relational database.
+A: Backups and restores become hours long; every byte replicates to every copy; big blobs push hot index pages out of the cache; storage costs about ten times more per GB; and you can't put a CDN in front of a row.
+
+Q: What is the standard pattern for files?
+A: Metadata in the database — owner, storage key, size — and the bytes in object storage served through a CDN.
+
+Q: How does a presigned upload work, and what must the server still do?
+A: The server hands the client a short-lived signed URL limited by size and type; the client uploads straight to storage. Before writing the metadata row, the server must verify the object exists and matches the expected size and checksum.
+
+Q: What do multipart uploads give you, and what's the hidden cost?
+A: Parallel parts that retry independently, so a dropped connection doesn't restart a big file. Abandoned uploads leave invisible parts that cost money — set a lifecycle rule to delete incomplete uploads.
+
+Q: How do storage tiers and lifecycle policies save money, and what's the trap?
+A: Move objects to cheaper tiers as they cool (infrequent access, archive). But colder tiers charge per retrieval, so data you misjudge as cold can cost more than standard storage.
+
+Q: Erasure coding (10, 4) versus triple replication: what does each cost?
+A: Erasure coding stores 14 shards, any 10 of which rebuild the object: survives 4 failures at 1.4× storage. Replication costs 3× for 2 failures, but a degraded erasure-coded read must fetch 10 shards and compute.
+
+Q: Why does object storage use erasure coding while databases use replication?
+A: Object reads are rarely degraded, so cheap durable storage wins. A database replica must serve reads immediately, with no reconstruction.
+
+Q: Why must media processing workers be idempotent?
+A: Storage events and queues deliver at least once, so the same object will be processed twice. Key work on the object version so repeats are harmless.
+```
+
+## What to carry forward
+
+- Bytes go in object storage, metadata in the database, delivery through a CDN.
+- Upload directly with presigned URLs — and verify the object before trusting the client.
+- Use multipart uploads for big files and lifecycle rules for tiers and abandoned parts.
+- Object storage is extremely durable (erasure coding) but less available — design for retries.
+- Process uploads asynchronously through a queue with idempotent workers, and use immutable keys for caching.

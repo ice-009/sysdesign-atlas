@@ -7,6 +7,12 @@ tags: [estimation, capacity, math]
 prereqs: [latency-throughput, hardware-numbers]
 ---
 
+:::predict Guess first
+1. How many seconds are in a day, rounded to make mental arithmetic easy?
+2. 500 million people each view 50 photos a day. Roughly how many views is that per second?
+3. Your estimate says 160 TB of new photos a day. What does that number rule out?
+:::
+
 ## The point of estimation
 
 Not precision. **Estimation exists to make architectural decisions.**
@@ -203,3 +209,39 @@ Enrico Fermi's estimation problems are the origin of the genre; Sanjoy Mahajan's
 
 For the specific numbers, Jeff Dean's "Latency Numbers Every Programmer Should Know" and Colin Scott's interactive version tracking hardware drift.
 :::
+
+## Check yourself
+
+```recall
+Q: What is estimation for in a design interview?
+A: Making decisions, not being precise. Compute a number only if it flips a choice — one database or a sharded cluster, origin servers or a CDN — and say what it changed.
+
+Q: Turn DAU into average QPS in your head.
+A: DAU × actions per user, then drop five zeros (a day is about 10⁵ seconds). 500M × 50 = 25 × 10⁹ → about 250,000 a second.
+
+Q: Which peak factor do you use, and when?
+A: About 2× for smooth global traffic, 3× as the default, 5–10× for strong daily peaks like dinner-time delivery, and 50–1000× for event spikes such as ticket sales — which need a design of their own.
+
+Q: A photo service sees 250 reads for every write. What does that ratio tell you to build?
+A: Something cache- and CDN-first with read replicas, where the write path can be slow and do heavy processing.
+
+Q: Your estimate is 160 TB of uploads a day. What design decision does that force?
+A: Media goes to object storage, not database rows, with only metadata in a database.
+
+Q: Peak egress is 150 GB/s — about 1.2 Tbps. What follows?
+A: No origin fleet serves that economically: a CDN is mandatory, and its hit rate becomes a primary design metric.
+
+Q: Which three multipliers do people forget when sizing storage?
+A: Replication (about 3×), index overhead (20–50%), and backups. Also size for peak traffic, not average.
+
+Q: How many base62 characters do you need for 100 billion unique short codes?
+A: Seven: 62⁶ ≈ 57 billion is too few, while 62⁷ ≈ 3.5 trillion is plenty.
+```
+
+## What to carry forward
+
+- Estimate only what changes a decision, and end each number with the decision it informs.
+- A day is about 10⁵ seconds: DAU × actions, drop five zeros, multiply by about 3 for peak.
+- Storage needs replication, index overhead and backups on top of the raw data.
+- The read:write ratio is often the most useful single output — it decides caching, CDN and replica strategy.
+- Round hard and state assumptions first, so a disagreement lands on the input, not the arithmetic.

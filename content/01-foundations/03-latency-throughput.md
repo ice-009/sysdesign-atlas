@@ -7,6 +7,12 @@ tags: [latency, performance, p99]
 prereqs: [scalability-basics, hardware-numbers]
 ---
 
+:::predict Guess first
+1. Nine requests take 10 ms and one takes 1,000 ms. What is the average — and does any request actually take that long?
+2. A page makes 20 backend calls, and each is slower than its p99 one time in a hundred. What share of page loads hit at least one slow call?
+3. An API takes 50 ms per request and gets 2,000 requests a second. How many requests are in flight at any moment?
+:::
+
 ## Two numbers people confuse
 
 **Latency** is how long one operation takes. **Throughput** is how many operations complete per unit time. They're related but not inverse — a system can have high latency *and* high throughput if it's sufficiently parallel.
@@ -157,3 +163,39 @@ Jeff Dean and Luiz André Barroso's *The Tail at Scale* (CACM, 2013) is the esse
 
 Gil Tene's talk *How NOT to Measure Latency* is the definitive treatment of coordinated omission and why most published latency numbers are optimistic by an order of magnitude.
 :::
+
+## Check yourself
+
+```recall
+Q: Latency too high versus throughput too low — how do the fixes differ?
+A: Latency: shorten the critical path — cache, co-locate, remove a hop, precompute. Throughput: add parallelism — more workers, more shards, batching.
+
+Q: Why is average latency close to useless?
+A: It describes no real request: nine at 10 ms and one at 1,000 ms average 109 ms — too slow for the nine and far too fast for the one. Use percentiles.
+
+Q: A page makes 20 calls, each with a 1% chance of exceeding its p99. What share of page loads hit a slow call?
+A: 1 − 0.99²⁰ ≈ 18% — nearly one in five page loads, not one in a hundred.
+
+Q: A request fans out to 100 backends, each slow 1% of the time. What share of requests are slow?
+A: About 63% (1 − 0.99¹⁰⁰). At wide fan-out, the backends' p99 becomes your median.
+
+Q: How do hedged requests cut tail latency, and what do they cost?
+A: If the first copy hasn't answered by about its p95, send the same request to a second replica and take whichever answers first. It costs a few percent of extra load.
+
+Q: State Little's law, then use it: 5,000 requests a second at 200 ms each — how many in flight?
+A: Requests in the system = arrival rate × time each spends there (L = λ × W). 5,000 × 0.2 = 1,000 in flight; cutting latency to 50 ms drops it to 250.
+
+Q: Why does throughput fall, not just flatten, when a system is overloaded?
+A: Past the knee, queues grow, requests time out, clients retry and add load, and the system ends up busy with work nobody is waiting for — congestion collapse. Shedding load early prevents it.
+
+Q: Of the four golden signals, which is the leading indicator?
+A: Saturation — how full the constrained resource is. Latency, traffic and errors tend to move after it.
+```
+
+## What to carry forward
+
+- Latency is how long one operation takes; throughput is how many finish per second — and they have different fixes.
+- Use percentiles, not averages: p99 is what users at fan-out actually feel.
+- Fan-out multiplies the tail — with 100 backends, their p99 becomes your median. Hedge, reduce fan-out, accept partial results.
+- Little's law (L = λ × W) sizes pools and shows that cutting latency creates capacity.
+- Keep the bottleneck at 60–70% utilisation; past the knee, throughput collapses.

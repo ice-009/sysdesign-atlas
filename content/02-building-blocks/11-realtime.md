@@ -7,6 +7,12 @@ tags: [websocket, realtime, sse, push]
 prereqs: [networking, load-balancing]
 ---
 
+:::predict Guess first
+1. One million clients poll for new messages every 5 seconds. How many requests a second is that, and how many return nothing?
+2. A dashboard only needs the server to push updates; the client never sends anything back. Do you need WebSockets?
+3. A server holding 100,000 WebSocket connections restarts. What happens in the next minute if you've done nothing special?
+:::
+
 ## The problem
 
 HTTP is request/response: the client asks, the server answers. But chat, notifications, live scores, collaborative editing, and presence all need the **server** to initiate. Four techniques exist, and picking the simplest one that works is the scored decision.
@@ -154,3 +160,39 @@ RFC 6455 (WebSocket) and RFC 8895 / the HTML Server-Sent Events spec are the pri
 
 For scale, *Scaling Slack's Job Queue* and Discord's engineering posts on maintaining millions of concurrent WebSocket connections cover the practical problems — connection state, presence, and fan-out — better than any paper. See also [concurrency and the OS](../01-foundations/concurrency-and-the-os.html) for why 100K idle connections became cheap.
 :::
+
+## Check yourself
+
+```recall
+Q: Short polling versus long polling: what does each cost?
+A: Short polling is trivial and stateless but wasteful — a million clients every 5 s is 200,000 mostly empty requests a second. Long polling holds each request open until data arrives, near real time, at the cost of an open connection per client.
+
+Q: When is Server-Sent Events the better choice than WebSockets?
+A: When only the server sends: notifications, live feeds, progress, streaming LLM tokens. It's plain HTTP with built-in reconnection and Last-Event-ID replay, and far simpler.
+
+Q: What makes WebSockets harder to scale than plain HTTP?
+A: Connections are stateful, so servers aren't interchangeable; you need balancers that support long-lived upgraded connections, plus your own heartbeats, reconnection and replay, across millions of open sockets.
+
+Q: A message for user B arrives at server 3, but B's socket is on server 17. How does it get there?
+A: Keep a registry of which gateway holds each connection (say in Redis, refreshed by heartbeat) and forward to it — or publish to a per-user or per-room channel that the right gateway subscribes to.
+
+Q: What is usually the binding resource for a WebSocket server, and how big is it?
+A: Memory: socket buffers and state run about 10–50 KB per connection, so 1M connections at 30 KB is about 30 GB. Raise file-descriptor limits too.
+
+Q: Why do you need heartbeats on WebSockets?
+A: TCP can keep a connection "open" long after the other side is gone. Without ping/pong and closing after missed pongs, ghost connections pile up and the registry lies about where users are.
+
+Q: How do you make WebSocket delivery reliable?
+A: Persist the message first, then push over the socket, have the client acknowledge by message ID, and on reconnect replay everything after the client's last-seen ID. The socket is the fast path, not the record.
+
+Q: How do you deploy a connection tier without an outage?
+A: Drain gradually: stop accepting new connections, then close existing ones in batches with jitter so clients reconnect elsewhere — and clients reconnect with jittered backoff to avoid a thundering herd.
+```
+
+## What to carry forward
+
+- Pick the simplest technique that meets the latency need: polling, long polling, SSE, then WebSockets.
+- SSE is the underrated choice for server-to-client streams; mobile background delivery needs platform push.
+- Persistent connections make routing the core problem — a registry or pub/sub gets each message to the right gateway.
+- Plan for memory per connection, heartbeats, jittered reconnects, bounded send queues and draining deploys.
+- Persist first and replay on reconnect; keep presence cheap by pushing only changes, with TTLs.

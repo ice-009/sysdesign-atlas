@@ -7,6 +7,12 @@ tags: [bloom-filter, hyperloglog, sketch, memory]
 prereqs: [caching, hardware-numbers]
 ---
 
+:::predict Guess first
+1. Storing a billion URLs exactly takes about 60 GB. How small could a structure be that answers "have I seen this URL?" with 1% error?
+2. A Bloom filter says an item is "probably present". Can it ever say "definitely absent" for something you actually added?
+3. How much memory do you need to count roughly how many distinct visitors a site had — whether it's a thousand or a billion?
+:::
+
 ## The core trade
 
 Three questions come up constantly: *have I seen this before?* (membership), *how many different things have I seen?* (cardinality), and *how often has this one appeared?* (frequency). Answering any of them exactly means keeping the data. Answering them **approximately, with a known and tunable error rate**, takes dramatically less space — often 100× to 1000× less.
@@ -139,3 +145,39 @@ Burton Bloom's *Space/Time Trade-offs in Hash Coding with Allowable Errors* (CAC
 
 *Cuckoo Filter: Practically Better Than Bloom* (Fan et al., CoNEXT 2014) supports deletion and is often smaller at the same false-positive rate. For the wider family, *Sketching Algorithms* (Cormode's survey) covers HyperLogLog and Count-Min Sketch, which trade exactness for space the same way.
 :::
+
+## Check yourself
+
+```recall
+Q: What are a Bloom filter's two possible answers, and which can be wrong?
+A: "Definitely not present" or "probably present". It never gives false negatives, but sometimes gives false positives, so a "no" is trustworthy and can skip an expensive lookup.
+
+Q: About how many bits per element does a Bloom filter need for a 1% false-positive rate?
+A: About 10 (9.6), whatever the element size — so a billion URLs fit in about 1.2 GB instead of 60 GB.
+
+Q: Why can't you delete from a plain Bloom filter, and what can you use instead?
+A: Bits are shared between items, so clearing one could create false negatives. Counting Bloom filters (4× the space) or cuckoo filters support deletion.
+
+Q: What's the single most important real-world use of Bloom filters?
+A: LSM-tree reads: each SSTable has a filter, so a lookup skips files that definitely don't contain the key instead of checking every level.
+
+Q: What does HyperLogLog estimate, in how much memory, and what makes it so useful?
+A: The number of distinct items — about 2% error in 12 KB, at any scale. Sketches merge by element-wise max, so per-server or per-hour sketches combine into global or weekly counts without rescanning.
+
+Q: How does a count-min sketch estimate frequency, and which way is it wrong?
+A: Each item increments one counter in each of several rows; the estimate is the minimum across rows. Collisions only inflate counters, so it over-estimates, never under-estimates.
+
+Q: What is the classic use of a count-min sketch?
+A: Heavy hitters: with a small heap it tracks the top-K items — trending tags, hot cache keys, noisiest IPs — in kilobytes. It's the standard hot-key detector.
+
+Q: When is approximation the wrong answer, and what's the common hybrid?
+A: Whenever someone reconciles the number — billing, finance, inventory, compliance. Hybrid: approximate on the hot path (a live trending list) and recompute exact numbers in batch from the raw log.
+```
+
+## What to carry forward
+
+- Probabilistic structures trade a known, tunable error for 100–1000× less memory — often the difference between RAM and disk.
+- A Bloom filter is a cheap negative filter in front of an exact check: about 10 bits per item for 1% error.
+- HyperLogLog counts distinct items in 12 KB and merges across servers and time windows.
+- Count-min sketches over-estimate frequency and find heavy hitters; t-digest estimates quantiles like p99.
+- Never approximate numbers people reconcile; approximate live, compute exactly in batch.

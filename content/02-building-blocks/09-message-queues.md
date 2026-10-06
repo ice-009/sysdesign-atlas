@@ -7,6 +7,12 @@ tags: [queue, kafka, async, decoupling]
 prereqs: [scalability-basics, queueing-theory]
 ---
 
+:::predict Guess first
+1. A queue sits between your API and a slow email worker. What does the user gain — and what do you give up?
+2. Can a message queue guarantee every message is delivered exactly once?
+3. You add more consumers, but one message keeps failing at the head of a partition. Does the backlog clear?
+:::
+
 ## What a queue actually buys you
 
 A queue sits between a producer and a consumer, holding work until it can be processed. It looks like a small addition and it changes four properties of your system at once:
@@ -199,3 +205,39 @@ Don't use a queue for everything. A direct synchronous call is right when the ca
 
 *Amazon SQS* and Google Pub/Sub's documentation cover the visibility-timeout model, which is a genuinely different design from the log model and suited to different problems.
 :::
+
+## Check yourself
+
+```recall
+Q: Name the four things a queue buys you, and the cost.
+A: Decoupling, buffering of spikes, load levelling so slow consumers don't slow users, and durable retries. The cost: work happens later, duplicates and ordering need handling, and there's one more component to fail.
+
+Q: Traditional broker versus log: what's the core difference?
+A: A broker tracks each message and deletes it once acknowledged, each going to one consumer — rich routing, no replay. A log keeps an ordered, retained record and consumers track their own offsets — replay, many independent readers, very high throughput.
+
+Q: At-most-once versus at-least-once: where is the acknowledgement?
+A: At-most-once acknowledges before doing the work, so a crash loses the message. At-least-once acknowledges after, so a crash means redelivery — duplicates, but nothing lost.
+
+Q: Why is exactly-once delivery impossible, and what do systems provide instead?
+A: A sender with no acknowledgement can't know whether the message arrived (the two generals problem). Systems give exactly-once effect: at-least-once delivery plus idempotent consumers.
+
+Q: How do you get ordering without capping throughput at one partition?
+A: Order per key: hash an ordering key — user or conversation — to a partition, so that entity's events stay in order while different entities run in parallel.
+
+Q: What breaks ordering even with correct partitioning?
+A: Processing a partition's messages concurrently, retrying a failed message after later ones succeeded, and producer retries without sequence numbers. Prefer operations that are commutative or check a version.
+
+Q: Six partitions and eight consumers in one group: what happens?
+A: Two consumers sit idle — partition count caps a group's parallelism. Over-provision partitions up front, because adding them later remaps keys.
+
+Q: What is the outbox pattern for?
+A: Updating the database and publishing an event without one happening without the other: write the event to an outbox table in the same transaction, and have a relay publish it.
+```
+
+## What to carry forward
+
+- A queue trades immediacy and simplicity for decoupling, buffering and retries.
+- Brokers delete on acknowledgement and route richly; logs retain, replay and scale to many readers.
+- Use at-least-once delivery with idempotent consumers; "exactly-once" means exactly-once effect.
+- Order per key through partitioning — and watch for concurrency and retries breaking it.
+- Alarm on consumer lag in time, bound your queues, dead-letter poison messages, and use an outbox for DB-plus-event writes.

@@ -7,6 +7,12 @@ tags: [proxy, networking, reverse-proxy, load-balancing]
 prereqs: [load-balancing]
 ---
 
+:::predict Guess first
+1. A forward proxy and a reverse proxy are both middlemen. Whose side is each one on?
+2. A phone on a weak connection takes 20 seconds to upload a request. Why might you not want your app server waiting for it?
+3. Is a load balancer a kind of proxy?
+:::
+
 A **proxy** is a computer that sits between two others and passes messages along, acting on one side's behalf. That's the whole definition. The two kinds differ only in *whose* side the proxy is on — and that one difference decides everything it's used for.
 
 ## The two kinds, side by side
@@ -114,3 +120,36 @@ A photo-sharing app has mobile clients, an upload service, a feed API, and calls
 2. The app logs every request's client IP for abuse detection, and every log line shows `10.0.0.5`. What happened, and what's the fix — including the security catch?
 3. Payments must only ever go to the provider's addresses, and the API key must not live on every app server. Which kind of proxy solves both, and where does it sit?
 :::
+
+## Check yourself
+
+```recall
+Q: Forward proxy versus reverse proxy: which side is each on, and what does each hide?
+A: A forward proxy works for clients and hides them from servers (company egress, caching, privacy). A reverse proxy works for servers and hides them from clients — the clients think it is the site.
+
+Q: Name five jobs a reverse proxy takes off your application servers.
+A: Load balancing, TLS termination, caching, compression, path-based routing, rate limiting and blocking, buffering slow clients, and hiding internal topology.
+
+Q: Why does buffering slow clients matter?
+A: The proxy receives a slow phone's whole request (and response) before involving the app server, so app servers spend milliseconds computing instead of seconds waiting on bad networks.
+
+Q: How do load balancers, CDNs, API gateways and sidecars relate to reverse proxies?
+A: They're all reverse proxies named for their main job: spreading load, caching near users worldwide, auth and quotas for many services, or handling one service's network calls.
+
+Q: Your app logs every request as coming from 10.0.0.5. What happened, and what's the catch in the fix?
+A: It's seeing the proxy's address. Read X-Forwarded-For — but only trust it from your own proxies, because any client can send that header.
+
+Q: What is an egress proxy for?
+A: Letting services in a locked-down network call outside APIs through one controlled point that holds the allow-list and credentials and logs every outbound call.
+
+Q: Layer 4 versus layer 7 proxying in one line each?
+A: L4 forwards TCP connections without looking inside — fast, any protocol. L7 reads the HTTP request — it can route, cache, rewrite and rate-limit per user.
+```
+
+## What to carry forward
+
+- A forward proxy hides clients; a reverse proxy hides servers — and the reverse proxy is in almost every design.
+- Reverse proxies terminate TLS, balance load, cache, route, rate-limit and buffer slow clients.
+- Load balancers, CDN edges, API gateways and sidecars are reverse proxies named for their main job.
+- Behind a proxy, read client IP and scheme from forwarded headers you trust, and align timeouts.
+- Run at least two proxies so the proxy layer is never a single point of failure.

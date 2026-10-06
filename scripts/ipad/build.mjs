@@ -116,6 +116,9 @@ function toText(html) {
 const topicMeta = [];
 const searchDocs = [];
 const headingIds = new Map(); // "section/slug" → heading ids, for checking links into topics
+const cardsByTopic = {}; //       slug → [[cardId, questionHtml, answerHtml]], for the Review page
+const CARD_RE =
+  /<details class="recall-card" data-card="([^"]+)">\s*<summary><span class="recall-q">([\s\S]*?)<\/span><span class="recall-show">Show answer<\/span><\/summary>\s*<div class="recall-a">([\s\S]*?)<\/div>\s*<\/details>/g;
 let fragmentBytes = 0;
 
 for (const t of topics) {
@@ -125,6 +128,8 @@ for (const t of topics) {
   const html = rewriteLinks(full.html, t);
   fragmentBytes += html.length;
   headingIds.set(`${t.section.slug}/${t.slug}`, new Set(full.headings.map((h) => h.id)));
+  const cards = [...html.matchAll(CARD_RE)].map((m) => [m[1], m[2], m[3]]);
+  if (cards.length) cardsByTopic[t.slug] = cards;
 
   topicMeta.push({
     slug: t.slug,
@@ -148,13 +153,16 @@ for (const t of topics) {
 }
 
 const searchFile = emitHashed('search.json', JSON.stringify(searchDocs));
+// Every recall card in one file, so a review session can show cards from
+// topics that haven't been opened. Precached with the content.
+const cardsFile = emitHashed('cards.json', JSON.stringify(cardsByTopic));
 
 /* ---------- curriculum index ---------- */
 
 // Deterministic on purpose — no timestamps. Rebuilding unchanged content must
 // produce byte-identical output, or every deploy of the website would make the
 // installed app announce an "update" that changes nothing.
-const version = hash(topicMeta.map((t) => t.file).join() + searchFile);
+const version = hash(topicMeta.map((t) => t.file).join() + searchFile + cardsFile);
 const dataBody = `window.ATLAS=${JSON.stringify({
   version,
   groups: content.GROUPS,
@@ -164,6 +172,7 @@ const dataBody = `window.ATLAS=${JSON.stringify({
   scopes: SCOPE_META,
   topics: topicMeta,
   search: searchFile,
+  cards: cardsFile,
   api: API,
 })};\n`;
 
@@ -204,19 +213,26 @@ for (const it of plan.items) {
   }
 }
 const { default: ts } = await import('typescript');
-const prepJs = ts.transpileModule(fs.readFileSync(path.join(ROOT, 'lib/prep.ts'), 'utf8'), {
-  compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020 },
-}).outputText;
-const prepFile = emitHashed(
-  'prep.js',
-  `/* lib/prep.ts and lib/prep-plan.json, bundled by scripts/ipad/build.mjs */\n(function () {\nvar exports = {};\n${prepJs}\nwindow.AtlasPrepCore = exports;\nwindow.ATLAS_PREP = ${JSON.stringify(plan)};\n})();\n`
-);
+// A dependency-free module from lib/, transpiled for the browser and exposed
+// as one global — the website imports the same file directly.
+function libScript(name, file, global, extra = '') {
+  const js = ts.transpileModule(fs.readFileSync(path.join(ROOT, file), 'utf8'), {
+    compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020 },
+  }).outputText;
+  return emitHashed(
+    name,
+    `/* ${file}, bundled by scripts/ipad/build.mjs */\n(function () {\nvar exports = {};\n${js}\nwindow.${global} = exports;\n${extra}})();\n`
+  );
+}
+const prepFile = libScript('prep.js', 'lib/prep.ts', 'AtlasPrepCore', `window.ATLAS_PREP = ${JSON.stringify(plan)};\n`);
+const fsrsFile = libScript('fsrs.js', 'lib/fsrs.ts', 'AtlasFSRS');
 const script = (name) => emitHashed(name, fs.readFileSync(path.join(SRC, name), 'utf8'));
-// Load order matters: store → app → track → prep → plan → sync → annotate (see ipad/index.html).
+// Load order matters: store → app → track → prep → plan → fsrs → recall → sync → annotate (see ipad/index.html).
 const storeFile = script('store.js');
 const jsFile = script('app.js');
 const trackFile = script('track.js');
 const planFile = script('plan.js');
+const recallFile = script('recall.js');
 const syncFile = script('sync.js');
 const annotateFile = script('annotate.js');
 
@@ -261,6 +277,8 @@ const index = fs
   .replaceAll('{{TRACK}}', trackFile)
   .replaceAll('{{PREP}}', prepFile)
   .replaceAll('{{PLAN}}', planFile)
+  .replaceAll('{{FSRS}}', fsrsFile)
+  .replaceAll('{{RECALL}}', recallFile)
   .replaceAll('{{SYNC}}', syncFile)
   .replaceAll('{{ANNOTATE}}', annotateFile);
 if (/\{\{\w+\}\}/.test(index)) throw new Error(`ipad/index.html has an unfilled placeholder: ${index.match(/\{\{\w+\}\}/)[0]}`);
@@ -278,12 +296,14 @@ const shellFiles = [
   trackFile,
   prepFile,
   planFile,
+  fsrsFile,
+  recallFile,
   syncFile,
   annotateFile,
   'manifest.webmanifest',
   ...icons.filter((f) => f.startsWith('icon-')).map((f) => `icons/${f}`),
 ];
-const contentFiles = [...topicMeta.map((t) => t.file), searchFile];
+const contentFiles = [...topicMeta.map((t) => t.file), searchFile, cardsFile];
 // Any change to any file changes this, which is what makes the browser
 // notice the new service worker.
 const build = hash(index + shellFiles.join() + contentFiles.join());

@@ -7,6 +7,12 @@ tags: [geo, geohash, quadtree, proximity]
 prereqs: [indexing, sharding]
 ---
 
+:::predict Guess first
+1. Why can't an ordinary index on (lat, lng) quickly find restaurants within 5 km of you?
+2. Two cafés are 10 metres apart. Could their geohashes share almost no characters?
+3. Uber's H3 uses hexagons instead of squares. What might hexagons do better?
+:::
+
 ## The problem
 
 "Find all restaurants within 5 km of me." The naive query:
@@ -151,3 +157,39 @@ Guttman's *R-trees: A Dynamic Index Structure for Spatial Searching* (SIGMOD 198
 
 Uber's engineering post on H3 covers hexagonal indexing and the specific reason hexagons beat squares for movement and neighbour analysis.
 :::
+
+## Check yourself
+
+```recall
+Q: Why do B-trees struggle with "find things near me"?
+A: They're one-dimensional: an index on (lat, lng) seeks the latitude band, then must filter every row in that planet-wide band by longitude. Every fix maps two dimensions to one while keeping nearby points nearby.
+
+Q: How does a geohash turn proximity into a prefix query?
+A: It interleaves bits from repeatedly halving longitude and latitude, so a longer string is a smaller box and a shared prefix means proximity — "find nearby" becomes WHERE geohash LIKE 'tdr1v%'.
+
+Q: What is geohash's boundary problem, and the fix?
+A: Two close points either side of a grid line can share almost no prefix. Always query the cell plus its eight neighbours, then filter by true distance.
+
+Q: What does a quadtree do better than a fixed grid?
+A: It splits a cell only when it holds too many points, so dense cities subdivide deeply and empty areas stay large — every leaf holds about the same number, so query cost is predictable.
+
+Q: S2 versus H3: when do you choose each?
+A: S2 maps the sphere onto a cube with a Hilbert curve: uniform cells, good locality and exact nesting — for region coverage and containment. H3's hexagons have six equidistant neighbours — better for movement, zones and heatmaps, though nesting is approximate.
+
+Q: You're already on Postgres with millions of static points. What's the pragmatic answer?
+A: PostGIS with a GiST (R-tree) index: ST_DWithin for radius queries and the <-> operator for k-nearest neighbours, with correct geodesic maths, in the system you already run.
+
+Q: A million drivers report every 4 seconds. How do you handle 250,000 writes a second?
+A: Keep live positions in memory (Redis GEO), update the index only when a driver changes cell, shard by region, and slow updates for stationary drivers. Durability barely matters for positions this stale.
+
+Q: What final step does every geospatial index still need?
+A: Exact distance filtering: cells are rectangles or hexagons but the query is a circle, so compute true distance on the candidates.
+```
+
+## What to carry forward
+
+- Geospatial indexing maps two dimensions to one while keeping neighbours close, so a normal index works again.
+- Geohash makes proximity a prefix query — always add the eight neighbours.
+- Quadtrees adapt to density; S2 gives uniform nested cells; H3's hexagons suit movement and zones.
+- PostGIS is often the right answer if you already run Postgres.
+- Moving objects need in-memory indexes updated on cell change; the index gives candidates, exact distance finishes.

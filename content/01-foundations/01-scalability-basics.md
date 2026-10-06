@@ -7,6 +7,12 @@ tags: [scaling, architecture]
 prereqs: []
 ---
 
+:::predict Guess first
+1. One well-indexed Postgres server on a big machine: roughly how many transactions a second can it handle — hundreds, thousands, or tens of thousands?
+2. 100 million requests a day sounds like a lot. What is that per second, on average?
+3. Your app servers keep each user's login session in their own memory. What goes wrong when you add a second server?
+:::
+
 ## What "scalable" actually means
 
 A system is scalable if you can handle *N* times the load with roughly *N* times the resources — without redesigning it. That "without redesigning" clause is the entire difficulty. Almost any system handles 2× load fine. The question is whether getting to 100× requires new hardware or a new architecture.
@@ -156,3 +162,39 @@ Gene Amdahl's 1967 argument — "Validity of the Single Processor Approach to Ac
 
 Neil Gunther's **Universal Scalability Law** extends both with a coherency term, which is what actually bends real throughput curves downward past a point rather than merely flattening them.
 :::
+
+## Check yourself
+
+```recall
+Q: What is the difference between scalability and performance?
+A: Performance is how fast one request is. Scalability is whether N times the load needs only about N times the resources, without a redesign. A system can be fast and unscalable, or slow and scalable.
+
+Q: Why is vertical scaling "genuinely underrated"?
+A: One big modern machine — 128+ cores, terabytes of RAM — runs a Postgres that handles tens of thousands of transactions a second, and it avoids every distributed-systems problem: partial failure, consistency, cross-node latency.
+
+Q: What does "stateless" ask of an app server, and why does scaling out depend on it?
+A: It keeps nothing request-specific in its own memory between requests, so any request can go to any server. Then you scale by adding servers behind a load balancer.
+
+Q: Why are sticky sessions mostly a trap?
+A: Pinning users to servers breaks load spreading, makes deploys disruptive, and turns one crash into visible logouts. Move the state out of the server instead.
+
+Q: Of the three scaling axes — clone, decompose, partition — which one helps with data volume and write throughput?
+A: Partitioning (sharding), where each node owns a subset of the data. Clones all hold the same data, and decomposing splits code, not data.
+
+Q: Do the division: 100M requests a day is how many a second on average, and at a 3× peak?
+A: About 1,160 a second on average (100M ÷ 86,400) and about 3,500 at peak — a few app servers and one well-tuned database.
+
+Q: Asked "how would you scale this?", what comes before adding machines?
+A: Measure which resource is saturated, then optimise (missing indexes, N+1 queries), cache, and scale up. Only then add read replicas, make writes asynchronous, and — last — shard.
+
+Q: Amdahl's law: if 5% of the work can't run in parallel, what's the most speed-up any number of machines can give?
+A: 20× (1 ÷ 0.05). The serial part — one lock, one counter, one write path — sets the ceiling.
+```
+
+## What to carry forward
+
+- Scalability means N times the load costs about N times the resources without a redesign; it is not the same as speed.
+- Start vertical: one big machine avoids every distributed problem and covers most products for their whole life.
+- Stateless app servers make the app tier the easy part; the real difficulty lives in databases, caches and queues.
+- Always do the division — requests a day to requests a second — and separate read scale (replicas, caches) from write scale (partitioning, async).
+- Scale in order: measure, optimise, cache, scale up, replicate reads, queue writes, shard last.
