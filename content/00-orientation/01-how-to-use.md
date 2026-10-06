@@ -7,6 +7,12 @@ tags: [orientation, meta]
 unlocks: A route through the material that matches what you're actually trying to do.
 ---
 
+:::predict Guess first
+1. Is it better to read a finished design first, or to try designing it yourself before reading?
+2. Should you be able to read the AI infrastructure material without the core systems material?
+3. What do you think makes a choice like "I'll use Cassandra" strong or weak?
+:::
+
 ## What this is
 
 A curriculum for understanding how large systems actually work — from the physics of the hardware up through distributed correctness, storage internals, and the AI infrastructure now sitting underneath a growing share of production systems.
@@ -80,6 +86,8 @@ Read the [appendix](../10-appendix/framework.html) first, then work through case
 
 ## How pages are structured
 
+**Every topic** opens with a *Guess first* box — two or three questions to answer before reading — and ends with *Check yourself* recall cards and a short *What to carry forward*. The [next page](how-to-study.html) explains why: guessing first and testing yourself afterwards are the two cheapest ways to make reading stick, and on the iPad edition the cards feed a spaced-review deck.
+
 **Concept pages** open with the problem the concept exists to solve, then the mechanism — *why* it works, not just what it does — then the tradeoffs, then when it's the wrong choice. Where a number is asserted, the arithmetic behind it is shown.
 
 **Case studies** present a finished design: requirements, estimation, API and data model, high-level design, deep dives, failure modes.
@@ -118,6 +126,35 @@ The difference isn't presentation. A choice without its tradeoff is a memorised 
 
 ## Scope
 
-This covers distributed systems design and AI infrastructure. It deliberately does not cover coding practice, behavioural interviews, or low-level object-oriented design. Those are separate skills.
+This covers distributed systems design, AI infrastructure, and — in its own track — low-level, class-level design. It deliberately does not cover coding practice or behavioural interviews; those are separate skills. Algorithm practice is the one place the atlas points outside itself, to LeetCode, from the HLD and LLD plan.
 
 Next: [How to Study Systems](how-to-study.html) — the reading and practice habits that make the rest of this stick.
+
+## Check yourself
+
+```recall
+Q: What are the atlas's four groups?
+A: Core Systems (foundations, building blocks, distributed, data), AI Systems (AI foundations, infrastructure, applied), Applied Design (case studies, builds, LLD, HLD bridge) and the optional interview Appendix.
+
+Q: Why isn't the AI group a bolt-on?
+A: It reuses core ideas with GPUs as the scarce resource: serving is queueing, the KV cache is caching, training is coordination, vector search is indexing. Without Core it reads as jargon.
+
+Q: What do the readiness banners do?
+A: They show which prerequisites a page assumes and which you've completed. Nothing is locked — reading unprepared gives recognition, prepared gives understanding.
+
+Q: What are the three ways to run the atlas?
+A: Depth-first (Core in order, then AI or Applied), problem-first (start from the nearest case study or build and follow prerequisites backwards), and interview-first (appendix, then case studies) under a deadline.
+
+Q: Why design before reading a case study?
+A: Reading gives recognition; designing gives generation, the skill you actually use. The gap between your sketch and the page is your real curriculum.
+
+Q: What is the one habit the atlas asks for?
+A: State the trade-off, not just the choice — the alternative, the constraint and the cost — so it's reasoning you can rerun when constraints change, not a memorised association.
+```
+
+## What to carry forward
+
+- Read Core first; the AI and applied material build on it.
+- Readiness banners guide but never lock.
+- Pick depth-first, problem-first or interview-first to match your goal.
+- Design before you read, and always state the trade-off.

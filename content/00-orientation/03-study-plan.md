@@ -7,6 +7,12 @@ tags: [plan, schedule, orientation]
 unlocks: A specific next page to open, instead of a table of contents to stare at.
 ---
 
+:::predict Guess first
+1. Is reading all the topics front to back a good plan?
+2. Can you skip the core systems material if you only care about AI infrastructure?
+3. In a three-week interview sprint, what should matter more — reading more case studies, or live mock interviews?
+:::
+
 ## Pick the one that matches your goal
 
 There are 159 topics here. Reading them front to back is a valid plan and a slow one. These four routes exist because "learn system design" usually means one of four different things.
@@ -28,7 +34,7 @@ The intended path. Depth-first, in prerequisite order, interleaving application 
 
 **Phase 1 — Foundations (3–4 weeks).** The whole Foundations track in order. Do the exercises; they're the point. By the end you should be able to do capacity arithmetic out loud without a calculator, and explain from first principles why a service at 85% utilization has terrible tail latency.
 
-**Phase 2 — Building Blocks (4–5 weeks).** Nineteen components. After every three or four, open a [case study](../08-case-studies/url-shortener.html) that uses them and read only as far as the section that applies. Application within 48 hours is what makes them stick.
+**Phase 2 — Building Blocks (4–5 weeks).** Twenty-one components. After every three or four, open a [case study](../08-case-studies/url-shortener.html) that uses them and read only as far as the section that applies. Application within 48 hours is what makes them stick.
 
 **Phase 3 — Distributed Systems (3–4 weeks).** The hardest track, and the one that changes how you think. Read [consensus](../03-distributed/consensus.html) twice — once for the mechanism, once after you've designed something that needs it.
 
@@ -114,6 +120,8 @@ If you have the time, Route A. If you don't, run Route D without pretending it's
 
 ## Regardless of route
 
+**Review before you read.** On the iPad edition, start each session with your due *Review* cards — ten to fifteen minutes — then move on to new pages. It's what stops week 1 from evaporating by week 6. See [How to Study Systems](how-to-study.html) for how the schedule works.
+
 **Track your stalls, not your reading.** Once a month, design a random system from the [question bank](../10-appendix/question-bank.html) in 45 minutes with no reference. Where you stall is the only honest measure of progress.
 
 **Keep your sketches.** Redesigning the same system three months later and diffing against your first attempt shows improvement that a progress bar cannot.
@@ -125,3 +133,32 @@ If you have the time, Route A. If you don't, run Route D without pretending it's
 2. Open the first page of week 1 now, not later.
 3. Before reading it, write down what you already think you know about the topic. Compare afterwards — that comparison is the first rep of the habit that makes all of this work.
 :::
+
+## Check yourself
+
+```recall
+Q: What are the four routes?
+A: A — the full curriculum (4–6 months); B — AI infrastructure (6–10 weeks); C — competent at work (3–4 weeks); D — interview in three weeks.
+
+Q: What is Route A's order?
+A: Foundations, Building Blocks, Distributed Systems, Data & Storage, then Applied (case studies and builds designed cold first, plus LLD if wanted), then the AI tracks — with a cold 45-minute design checkpoint after each phase.
+
+Q: Why can't Route B skip core material?
+A: The AI material is built on it: hardware numbers, latency, queueing and estimation first, then caching, queues, load balancing, consistent hashing and backpressure, before AI foundations and infrastructure.
+
+Q: What does Route C cover?
+A: Vocabulary with substance (scalability, hardware numbers, latency, queueing, availability), the components in your stack, the things that break (failure, idempotency, backpressure, consistency, durability), then tracing a real request.
+
+Q: What does Route D do, and what does it cost?
+A: Framework and numbers, eight case studies designed cold, LLD if the loop has it, AI builds, then live mocks. It covers specific systems but not reasoning about unseen ones — come back to Route A afterwards.
+
+Q: What applies regardless of route?
+A: Review due cards before reading, track your stalls with a monthly cold design, keep your sketches, and never go more than a week of theory without applying it.
+```
+
+## What to carry forward
+
+- Pick the route that matches your goal and commit to a finish date.
+- Every route depends on guessing first and designing before reading.
+- Review daily so earlier weeks don't evaporate.
+- Measure progress by where you stall, not by pages read.
