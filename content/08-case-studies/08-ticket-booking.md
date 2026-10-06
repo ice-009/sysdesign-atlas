@@ -7,6 +7,12 @@ tags: [case-study, consistency, transactions, burst]
 prereqs: [transactions-isolation, distributed-locks, idempotency]
 ---
 
+:::predict Guess first
+1. 2 million people try to buy 50,000 seats in the same ten seconds. What fraction of their requests must fail?
+2. Should the database transaction stay open while the user types in their card details?
+3. Would a distributed lock in Redis be a good way to stop two people booking the same seat?
+:::
+
 :::interview Why this question
 Almost every other case study lets you choose availability over consistency. This one doesn't — **double-booking a seat is unacceptable**, and the traffic pattern is the most extreme in this curriculum (1000× spikes). It tests whether you can identify the small transactional core and design everything else around protecting it.
 :::
@@ -204,3 +210,39 @@ It also solves **fairness**: admission is by arrival order (with a randomized dr
 - *"Adjacent seats for a group?"* — the seat-selection algorithm must find contiguous blocks; hold them atomically in one transaction. Also introduces a packing problem (don't strand single seats).
 - *"Multi-region?"* — **don't distribute the booking core.** Pin each event's inventory to one region — it's a natural [home-region partition](../03-distributed/multi-region.html). Browse traffic can be served globally from caches.
 - *"How do you test the on-sale?"* — load test at 10× expected, with a game day. And note the part that is easy to forget: the *waiting room* must be load-tested too, since it is now the component absorbing the full burst.
+
+## Check yourself
+
+```recall
+Q: How should you reframe the on-sale problem?
+A: It's a contention and burst problem, not a scale problem: about 97.5% of attempts must fail, so the design's job is to reject them cheaply and fairly without touching the database.
+
+Q: Why shard by event_id and use a relational database?
+A: Everything for one event lives on one shard, so a booking is a single-shard ACID transaction with a uniqueness constraint — no distributed transactions.
+
+Q: What is reserve-then-confirm?
+A: A short transaction marks seats HELD with held_by and held_until; payment happens with no locks held; a second short transaction flips HELD to BOOKED only if still held by that user.
+
+Q: Why is the hold's TTL the elegant part?
+A: Expiry is the compensating transaction: a failed, timed-out or abandoned payment frees the seat automatically, with no saga or rollback path. Check held_until in queries so expiry doesn't depend on the cleanup job.
+
+Q: Name the three layers that prevent double-booking.
+A: Row locking (SELECT … FOR UPDATE), a conditional UPDATE … WHERE status = 'AVAILABLE' (optimistic, nothing blocks), and a unique constraint on (event_id, seat_id) as the safety net.
+
+Q: Why reject a Redis distributed lock here?
+A: A lease can't guarantee mutual exclusion under GC pauses or partitions. When the data already lives in one database, a transaction is simpler and strictly safer.
+
+Q: How does a virtual waiting room work?
+A: Arrivals queue at the edge on a cheap static, CDN-backed page with a position and ETA, and are admitted at a rate the core can handle — 200,000 QPS becomes a steady few hundred. A random draw for simultaneous arrivals keeps it fair.
+
+Q: What is the core architectural split?
+A: A display path (cached seat map, 1–5 s stale, huge) and a booking path (strongly consistent, small). Stale display is fine because the authoritative check happens at hold time.
+```
+
+## What to carry forward
+
+- Diagnose it as contention, not scale: make 97% of requests fail cheaply.
+- Keep the booking core boring: one shard per event, ACID, unique constraints.
+- Never hold a transaction while a human acts; a hold with a TTL is the compensation.
+- Layer the guarantees: conditional update, row lock, unique constraint.
+- Absorb bursts at the edge with a waiting room; pre-scale, cache browsing, fight bots.

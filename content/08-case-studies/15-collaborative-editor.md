@@ -7,6 +7,12 @@ tags: [case-study, crdt, ot, realtime, collaboration]
 prereqs: [crdts, realtime, clocks]
 ---
 
+:::predict Guess first
+1. Document "HELLO". Alice inserts X at position 1 while Bob inserts Y at position 3. If each client applies the other's edit at the raw position, do they end up with the same text?
+2. Should a user's own keystroke wait for the server before appearing on screen?
+3. Should collaborators' cursor positions be saved to the database?
+:::
+
 :::interview Why this question
 It's the one case study where the hard problem is an **algorithm**, not an architecture. Two people typing in the same paragraph at the same instant must converge to the same document, and the naive answers (locking, last-write-wins) are all obviously wrong. It's also a great test of whether you can explain a subtle mechanism clearly.
 :::
@@ -142,6 +148,8 @@ Naming the *decision criterion* — offline/P2P requirement — rather than decl
 
 There's also a pragmatic third option worth mentioning: since a server is present anyway, it can simply **assign a total order** to incoming operations and rebroadcast. Clients apply operations in server order, using a small amount of local transformation for optimistic display. This is simpler than full OT and adequate for many products.
 
+Recent research has narrowed the gap between the two. **Eg-walker** (Gentle & Kleppmann, EuroSys 2025) stores only the plain operation history, as OT does, and builds CRDT state temporarily only while merging concurrent branches — so everyday memory use is close to OT's, while offline merges keep CRDT-style correctness. **Fugue** (Weidner & Kleppmann, 2023) fixes a classic CRDT anomaly where two people typing at the same spot get their words interleaved character by character.
+
 ## 7. Architecture
 
 ```diagram
@@ -208,3 +216,39 @@ This is a good example of data whose correct durability is *zero*, and saying so
 - *"Undo in a collaborative context?"* — undo must remove *your* operation, not the last global one. Requires selective undo, which means generating an inverse operation and transforming it against everything since. Genuinely subtle.
 - *"Access control?"* — enforce at the session server on connect and on each operation; a permission revoked mid-session must terminate the connection.
 - *"Why not just lock paragraphs?"* — some products do exactly this, and it's a legitimate simplification. It trades true concurrency for a dramatically simpler implementation. Naming it as a valid product-level tradeoff rather than dismissing it reads well.
+
+## Check yourself
+
+```recall
+Q: Why do raw character positions fail in collaborative editing?
+A: A position only means something relative to one document state; after concurrent edits, applying "insert at 3" lands in different places on different clients, and they diverge.
+
+Q: What does operational transformation do?
+A: It adjusts an incoming operation against the operations it hadn't seen (an insert before position 3 shifts it to 4), so every client converges. It usually needs a central server to order operations.
+
+Q: What makes OT hard?
+A: Transformation functions must be correct for every pair of operation types — famously error-prone — and the matrix explodes with formatting, tables and lists.
+
+Q: How do text CRDTs avoid conflicts?
+A: Every character gets a permanent identifier that can always be minted between two others, so inserts say "between these two characters"; deletes leave tombstones. All clients sort by ID and converge.
+
+Q: What do CRDTs cost?
+A: Per-character metadata (mitigated by run-length encoding in Yjs and Automerge), tombstones that need coordination to collect, and convergence that doesn't guarantee sensible intent.
+
+Q: OT or CRDT — what decides it?
+A: Whether offline-first or peer-to-peer editing is a core requirement. Server-mediated: a server-ordered log or OT. Offline or P2P: a CRDT, accepting metadata overhead up front.
+
+Q: What is the key architectural decision?
+A: One server owns each document (routed by hash of doc ID), giving a natural ordering point with no distributed coordination; fencing tokens stop a stale owner writing.
+
+Q: How are documents persisted?
+A: An append-only operation log (history, undo, replay) plus periodic snapshots, so opening loads the last snapshot and the operations since — event sourcing with snapshots.
+```
+
+## What to carry forward
+
+- The hard problem is an algorithm: positions break under concurrency.
+- OT transforms operations with a central order; CRDTs give characters stable IDs and converge by construction.
+- Choose by the offline and peer-to-peer requirement.
+- One owner per document, local-first edits, op log plus snapshots.
+- Presence is ephemeral — broadcast it, never persist it.

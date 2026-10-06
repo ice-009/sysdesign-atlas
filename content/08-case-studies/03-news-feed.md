@@ -7,6 +7,12 @@ tags: [case-study, fanout, feed, cache]
 prereqs: [caching, sharding, message-queues]
 ---
 
+:::predict Guess first
+1. When someone posts, should the post be written into every follower's feed right away, or gathered when each follower opens the app?
+2. A celebrity with 100 million followers posts once. Under the first approach, how many writes is that?
+3. A user posts and doesn't see it in their own feed for five seconds. Will they notice?
+:::
+
 :::interview Why this question
 It's the most common hard prompt at Meta and appears everywhere else. The whole design turns on one decision — how the feed is materialized — and every other choice is downstream of it. Get to that decision fast; don't spend 15 minutes on the write path for posts.
 :::
@@ -231,3 +237,39 @@ If asked to move beyond chronological: retrieve a candidate set (the merged feed
 - *"How would you add stories/ephemeral content?"* — different shape: small, expiring, viewed once. Pull works better; TTL handles cleanup.
 - *"Feed for a user following 5,000 accounts?"* — the merge cost at read time grows; cap the pull portion and rely more heavily on push for these users.
 - *"Multi-region?"* — feed caches are regional and rebuildable, so don't replicate them. Replicate posts and follows; regenerate feeds locally. Recognizing that derived data shouldn't cross regions is a good instinct.
+
+## Check yourself
+
+```recall
+Q: What is the one number that justifies the news-feed design?
+A: Fanout cost: 10,000 posts/s × 200 followers = 2 million feed writes a second, and one celebrity post with 100 million followers = 100 million writes from a single action.
+
+Q: Fanout on write versus fanout on read?
+A: Write (push): each post goes into every follower's cached feed — reads are one cache lookup, writes unbounded. Read (pull): store once and merge followees' posts at load — cheap writes, a 200-way scatter-gather on every load.
+
+Q: What is the hybrid fanout design?
+A: Push for authors below a tunable threshold (~10,000 followers); pull for the few celebrities a user follows, merged at read time. Cheap reads for nearly everyone, capped write amplification.
+
+Q: Name two refinements to the hybrid.
+A: Only fan out to recently active users (build others' feeds on demand), and cache celebrity posts aggressively — every follower requests the same few.
+
+Q: How is the feed cache stored and bounded?
+A: A Redis sorted set of post IDs per user, scored by time and trimmed to ~800, only for active users — about 640 GB rather than 3.2 TB.
+
+Q: What is hydration, and why does it matter?
+A: The cache holds only post IDs; rendering needs text, author, counts and "did I like it" from several services. Batch and cache it — this is where tail-latency amplification bites.
+
+Q: How do you handle deletes and unfollows?
+A: Filter at read time instead of scrubbing millions of caches: hydration finds a deleted post missing, and unfollowed authors are dropped when assembling the response.
+
+Q: Why use cursor pagination for feeds?
+A: Offset pagination on a constantly growing list shows duplicates and skips; a cursor (post ID or timestamp) is stable and O(1).
+```
+
+## What to carry forward
+
+- Compute the fanout number first — it justifies the whole design.
+- Hybrid fanout: push for normal authors, pull for celebrities, merged at read.
+- Materialise feeds only for active users and trim them; fall back to the pull path.
+- Fan out asynchronously via a queue; fix read-your-writes for the author's own posts.
+- Filter deletes and unfollows at read time; regenerate derived feeds per region.

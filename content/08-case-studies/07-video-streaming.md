@@ -7,6 +7,12 @@ tags: [case-study, cdn, video, pipeline]
 prereqs: [cdn, object-storage, load-balancing]
 ---
 
+:::predict Guess first
+1. 35 million people watch at 5 Mbps each at peak. Roughly how much bandwidth is that — and could your own servers send it?
+2. A two-hour film must be encoded into five qualities. How could that take minutes instead of hours?
+3. When a viewer's connection weakens mid-video, who should decide to switch to a lower quality — the server or the player?
+:::
+
 :::interview Why this question
 It's really two systems joined at the hip: an asynchronous processing pipeline (upload → transcode) and a read path that is almost entirely CDN. Candidates who treat it as "a website with big files" miss the point. The estimation drives everything here more than in any other case study — do the bandwidth math early and loudly.
 :::
@@ -239,3 +245,39 @@ The view-count point generalizes: **never put a hot counter on the request path.
 - *"DRM?"* — encrypt segments, deliver keys via a license server, per-session key rotation. Note it hurts cacheability if done naively — keys must be per-user, segments must not be.
 - *"How do you handle a video going viral?"* — it's a cache hit by definition, so the CDN absorbs it. The risk is the *first* minutes before it's cached everywhere; pre-warm on view-velocity signals.
 - *"Cheaper encoding?"* — per-title encoding (analyze complexity and choose bitrates per video rather than a fixed ladder) meaningfully cuts bandwidth for the same perceived quality. A great cost-conscious answer.
+
+## Check yourself
+
+```recall
+Q: What number defines a video platform's design?
+A: Viewing bandwidth: ~35 million concurrent viewers × 5 Mbps ≈ 175 Tbps. That can't come from origin servers, so the CDN is the architecture, not an optimisation.
+
+Q: What do the storage and compute estimates force?
+A: ~1.5 EB a year makes tiered storage mandatory; ~75,000 cores of transcoding makes it a massive elastic batch system and a major cost centre.
+
+Q: Rendition, segment, manifest?
+A: A rendition is one quality level; a segment is a few seconds of video in its own file; a manifest lists every rendition and segment so the player knows what exists.
+
+Q: How does transcoding run in minutes?
+A: Split the source at keyframes into chunks and encode chunk × rendition as thousands of independent, idempotent tasks (keyed by video, rendition, chunk) on preemptible workers, then assemble.
+
+Q: What cost trick suits user-generated video?
+A: Transcode a base set (360p, 720p) eagerly so it's playable, and higher renditions lazily on first request or when view velocity crosses a threshold — most videos get few views.
+
+Q: How does adaptive bitrate streaming work, and why does it suit CDNs?
+A: The player picks the quality of each next segment from measured throughput and buffer level. Every segment is a static file identical for all viewers, so it caches perfectly.
+
+Q: Name three CDN tactics for skewed popularity.
+A: Pre-warm hot releases to edges, an origin shield so 200 edge misses become one origin fetch, ISP-embedded caches, and immutable versioned cache keys.
+
+Q: Why never update view counts synchronously?
+A: A viral video would be one hot row taking ~100,000 writes a second. Publish playback events to Kafka, aggregate in a stream processor, serve approximate rollups.
+```
+
+## What to carry forward
+
+- Do the bandwidth maths first: 175 Tbps makes the CDN the architecture.
+- Two systems: a slow, elastic transcoding DAG and a cached playback path.
+- Chunked, idempotent transcoding on preemptible workers; lazy high renditions save compute.
+- Adaptive bitrate keeps segments static and puts adaptation in the player.
+- Tier storage by age and popularity, keep source masters, never put counters on the hot path.

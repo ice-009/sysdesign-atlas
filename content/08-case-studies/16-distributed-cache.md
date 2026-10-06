@@ -7,6 +7,12 @@ tags: [case-study, cache, consistent-hashing, memory]
 prereqs: [caching, consistent-hashing, replication]
 ---
 
+:::predict Guess first
+1. A cache uses key mod N to pick a node. You add one node to 16. Roughly what fraction of keys move?
+2. One key gets 40% of all traffic. Does a perfectly balanced hash ring help?
+3. The whole cache cluster restarts empty while full production traffic is flowing. What happens to the database?
+:::
+
 :::interview Why this question
 It's a compact systems design with no product ambiguity, so the whole conversation is technical. It rewards depth on [consistent hashing](../02-building-blocks/consistent-hashing.html), eviction, and — the part that is usually skipped — the failure modes that consistent hashing *doesn't* fix.
 :::
@@ -176,3 +182,39 @@ Recognizing that recovery is its own overload event is a genuinely production-fl
 - *"Multi-region?"* — don't replicate cache data across regions. It's regenerable, and cross-region invalidation is unreliable. Each region gets its own cluster; short TTLs bound the divergence.
 - *"How do you add capacity without a miss storm?"* — add nodes gradually so only a small fraction of keys move at a time, and warm new nodes by copying from their predecessors before putting them in rotation.
 - *"Persistence?"* — usually the wrong instinct for a cache, but useful for fast restart (Redis RDB/AOF). Be clear it's for warm restart, not durability, and that treating a cache as a system of record is how outages become data loss.
+
+## Check yourself
+
+```recall
+Q: What sizes a 1 TB, 1 million ops/s cache cluster?
+A: Memory: 1 TB ÷ 64 GB usable ≈ 16 nodes, ~24 with headroom, at only ~42,000 ops/s each.
+
+Q: Client-side routing, proxy or server redirect?
+A: Client-side routing gives one hop and no extra tier, but every client needs the topology. A proxy keeps clients simple at ~0.3 ms extra. Server redirects (Redis MOVED) self-heal with an occasional extra hop. For latency, route in the client.
+
+Q: Why consistent hashing with virtual nodes?
+A: Mod N remaps ~94% of keys when one node is added — a miss storm. Consistent hashing moves ~1/N; ~150 vnodes even out load and spread a dead node's keys across many successors.
+
+Q: Why approximate LRU?
+A: True LRU updates a linked list on every read — locks and cache-line contention on the hot path. Sampling about five keys and evicting the oldest gets very close at a fraction of the cost.
+
+Q: Why lazy plus active expiry?
+A: Lazy (checked on read) is free, but expired keys nobody reads would stay forever; a background sampler expiring a fraction per cycle bounds memory.
+
+Q: What doesn't consistent hashing solve, and how do you handle it?
+A: Hot keys — it spreads keys, not load. Detect them with a count-min sketch, replicate as key:0…key:9, add a short-TTL in-process cache, and coalesce misses.
+
+Q: When does a cache need replication?
+A: Only when the origin can't absorb a node's misses, cold recovery is too slow, or the data isn't cheaply recomputable (sessions, counters). Then use async primary–replica.
+
+Q: Why is a cold start dangerous, and how do you recover?
+A: An empty cache sends 100% of reads to the database, which falls over again on each retry. Ramp traffic gradually and pre-warm the top keys.
+```
+
+## What to carry forward
+
+- A cache is sized by memory; losing it must cost speed, never correctness.
+- Client-side routing with consistent hashing or rendezvous hashing.
+- Approximate LRU and lazy-plus-active expiry keep the hot path cheap.
+- Consistent hashing spreads keys, not load: detect and replicate hot keys.
+- Replicate only if the origin can't take the misses; ramp up after cold starts.

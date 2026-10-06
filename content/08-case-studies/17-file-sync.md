@@ -7,6 +7,12 @@ tags: [case-study, storage, sync, deduplication]
 prereqs: [object-storage, sharding, realtime]
 ---
 
+:::predict Guess first
+1. A user edits one paragraph of a 200 MB file. How could the upload be much smaller than 200 MB?
+2. You split files into fixed 4 MB pieces and someone inserts one byte at the very start. What happens to every piece?
+3. Two people edit the same spreadsheet offline and both sync. Should the later upload simply win?
+:::
+
 :::interview Why this question
 It separates two kinds of data that beginners lump together — small, transactional *metadata* (names, folders, versions) and huge, immutable *file contents* — and each needs a different store. Then it asks how many devices stay in step, which is a log-replay problem in disguise. The one idea that makes everything else work is chunking by content.
 :::
@@ -195,3 +201,39 @@ More on choosing shard keys in [Sharding](../02-building-blocks/sharding.html).
 3. Asha's laptop has cursor #500 on a shared folder now at #620. Entries 501–620 include a file created then deleted. Does her laptop download it? (Think about what replaying the log in order produces.)
 4. Ravi deletes a folder while Asha, offline, edits a file inside it. Both sync. What should the outcome be, and which rule in section 7 produces it?
 :::
+
+## Check yourself
+
+```recall
+Q: Why do file contents and metadata get separate systems?
+A: Contents are petabytes of large immutable blobs (object storage by hash); metadata is hundreds of terabytes of small transactional rows — files, folders, versions, sharing — in sharded SQL.
+
+Q: What does naming chunks by their content hash buy?
+A: Only changed chunks upload, identical chunks are stored once (deduplication), uploads resume per chunk, and integrity is checked by rehashing.
+
+Q: Why content-defined chunking?
+A: With fixed offsets, one inserted byte shifts every boundary so every hash changes. Cutting where a rolling hash matches a pattern makes boundaries follow content, so an insert changes only its own chunk.
+
+Q: What is the upload order, and why?
+A: Ask which chunks are missing, upload only those, then commit a version listing the hashes — so a version can never point at missing data. Orphaned chunks are cleaned later.
+
+Q: How do other devices sync?
+A: Each folder tree has an append-only change log; each device keeps a cursor and asks for entries after it, downloading only missing chunks. Notifications only say "look", so a lost one costs delay, not correctness.
+
+Q: How are concurrent offline edits handled?
+A: Commits are compare-and-set on the base version: a stale base is rejected and the client saves a "conflicted copy". Nothing is silently lost; arbitrary files can't be merged safely.
+
+Q: How is metadata sharded?
+A: By folder tree (namespace) so a commit and its change-log entry share one local transaction; shared folders are their own namespaces mounted into members' trees.
+
+Q: How do you delete unused chunks safely?
+A: Mark every chunk referenced by a live version, then delete unmarked chunks older than a grace period, so chunks from in-flight uploads aren't removed.
+```
+
+## What to carry forward
+
+- Split metadata (transactional rows) from contents (immutable blobs).
+- Content-addressed, content-defined chunks: move and store each byte once.
+- Chunks first, then an atomic metadata commit plus log entry.
+- Devices replay a per-folder change log from a cursor; notifications only nudge.
+- Compare-and-set on versions turns conflicts into conflicted copies, never lost work.

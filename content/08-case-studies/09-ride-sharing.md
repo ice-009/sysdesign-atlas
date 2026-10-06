@@ -7,6 +7,12 @@ tags: [case-study, geospatial, realtime, matching]
 prereqs: [geospatial, realtime, sharding]
 ---
 
+:::predict Guess first
+1. 5 million drivers each send their location every 4 seconds. Should each update be written to a disk-backed database?
+2. Is the nearest driver as the crow flies always the fastest one to reach the rider?
+3. Two riders request at once and both are offered the same driver. How do you make sure only one gets them?
+:::
+
 :::interview Why this question
 Two hard problems in one: **high-frequency writes of moving locations** (a workload unlike anything else in this curriculum) and **spatial matching** under a tight latency budget. It also has a genuine state machine with money attached, so failure handling gets probed hard.
 :::
@@ -210,3 +216,39 @@ This is the [real-time delivery](../02-building-blocks/realtime.html) problem, s
 - *"Ride pooling?"* — a much harder matching problem: you're now solving a dynamic vehicle routing problem with detour constraints. Batch matching over short windows beats greedy per-request assignment. Flagging the difficulty honestly is better than hand-waving.
 - *"Why not a database with PostGIS?"* — it would handle the *queries* fine, but not 1.25M writes/s of ephemeral data. The read pattern suits it; the write pattern doesn't. Naming exactly which half fails is the precise answer.
 - *"How do you prevent a driver gaming location?"* — server-side plausibility checks (speed between updates, GPS accuracy metadata), and never trust client-reported distance for fare calculation — recompute from the recorded path.
+
+## Check yourself
+
+```recall
+Q: What is the defining number in ride-sharing, and what does it force?
+A: 5 million drivers ÷ 4 s ≈ 1.25 million location writes a second of data worthless after seconds — so an in-memory geospatial index, never a disk database. The working set is only about 1 GB.
+
+Q: What is the core architectural split?
+A: Ephemeral location (in memory, history to Kafka) versus durable trip state (small, transactional, in a relational store).
+
+Q: How do you cut location write volume?
+A: Never persist each update, adapt frequency to movement, only rewrite the index when a driver changes cell, and batch updates from the connection tier.
+
+Q: Why shard locations by city?
+A: Queries and data are inherently local — Pune never needs Berlin — so there are essentially no cross-shard queries, and a failed shard affects one city.
+
+Q: How does matching work beyond "nearest"?
+A: Query candidates in an expanding radius from the geo index, filter by availability and vehicle class, rank by road-network ETA from a routing service, then offer one at a time with a ~15 s timeout.
+
+Q: How do you prevent double-assigning a driver?
+A: A conditional UPDATE … SET status = 'ASSIGNED' WHERE status = 'AVAILABLE' — 0 rows means taken, try the next — plus an offer TTL that returns an unaccepted driver to available.
+
+Q: What properties must trip state transitions have?
+A: Conditional on the current state (retries are no-ops), durable before acknowledgement, events published asynchronously, and a timeout on every waiting state.
+
+Q: Why not PostGIS for live locations?
+A: It handles the queries fine but not 1.25 million writes a second of ephemeral data — the read pattern suits it, the write pattern doesn't.
+```
+
+## What to carry forward
+
+- Separate ephemeral, high-churn location from durable trip records.
+- Keep live locations in memory, sharded by city; send history to a log.
+- Retrieve candidates by straight-line proximity, then rank by real ETA.
+- A conditional update plus an offer TTL prevents double assignment without locks.
+- Trip transitions are conditional, durable and timed; payment failures recover forwards.

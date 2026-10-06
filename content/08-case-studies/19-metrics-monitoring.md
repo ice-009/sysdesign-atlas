@@ -7,6 +7,12 @@ tags: [case-study, time-series, storage, observability]
 prereqs: [consistent-hashing, wal-and-durability, olap-columnar]
 ---
 
+:::predict Guess first
+1. Each sample is a timestamp plus a value — 16 bytes. Could you store it in under 2 bytes?
+2. A team adds user_id as a label on a request metric. What happens to the number of stored series?
+3. A dashboard shows a year of latency using hourly averages. Could a five-second spike to 5,000 ms disappear?
+:::
+
 :::interview Why this question
 It's a write-heavy system with an unusual data shape — numbers over time, labelled — and the generic answer ("put it in a database") fails on cost long before it fails on speed. It tests whether you can see that the data's shape suggests its own storage engine, and whether you know the one mistake that kills real monitoring systems: labels with too many values.
 :::
@@ -147,6 +153,8 @@ Two ways to collect, both used in practice:
 
 **The answer to give:** *"Pull for long-running services — the system knows what it expects to hear from, so a dead host is an alert, not a gap. Push through a small gateway for short-lived jobs and anything the collector can't reach."* The first point is the important one: with pull, **missing data is itself a signal**.
 
+In practice, most new services are instrumented with **OpenTelemetry**, the vendor-neutral standard for metrics, logs and traces. Its protocol (OTLP) pushes, so a modern system accepts both: scraping for the services it knows about, plus an OTLP endpoint — with a heartbeat or "expected sources" list, so a silent pusher still raises an alert.
+
 ## 7. Deep dive — queries and long time ranges
 
 **Counters are queried as rates.** A counter's raw value (1,042,316 requests) means nothing; the useful number is "requests per second over the last 5 minutes". The rate calculation must handle the counter **resetting to zero** when a process restarts — a drop is treated as a restart, not as negative traffic.
@@ -203,3 +211,39 @@ Each team (or tenant) gets limits: maximum active series, samples per second, an
 
 *Monarch: Google's Planet-Scale In-Memory Time Series Database* (Adams et al., VLDB 2020) describes a global, multi-region design and the trade-offs of pushing aggregation close to the source.
 :::
+
+## Check yourself
+
+```recall
+Q: What is the main design problem in a metrics system?
+A: Storage format: 5 million samples a second is ~7 TB a day raw but ~650 GB compressed. Ten-times compression decides whether keeping the data is affordable.
+
+Q: What is the cardinality trap?
+A: Every distinct label combination is a separate series. A label like user_id creates millions of series and exhausts index and memory. Labels must have small bounded value sets; enforce per-team active-series limits.
+
+Q: How do time series compress to ~1.5 bytes a sample?
+A: Delta-of-delta timestamps (regular intervals give mostly zeros) and XOR of each value with the previous (mostly zero bits) — the Gorilla encoding — on per-series chunks of about two hours.
+
+Q: How does a query find the right series?
+A: An inverted index maps each label value to a sorted list of series IDs; intersecting the lists finds series matching every label, as a search engine does.
+
+Q: Describe the write path.
+A: Ingesters keep the last two hours in memory, protected by a WAL; every two hours they seal an immutable compressed block to object storage; a compactor merges blocks and writes downsampled summaries.
+
+Q: Pull or push collection?
+A: Pull for long-running services — a failed scrape means a dead host, so missing data is itself a signal. Push (OTLP, or a gateway) for short-lived jobs and unreachable sources, with an expected-sources list.
+
+Q: Why store min, max, sum and count in summaries rather than an average?
+A: An average hides spikes and an average of averages is wrong. Sum and count give any correct average; max keeps the spike visible.
+
+Q: Who monitors the monitoring?
+A: A small, separate, simple setup — ideally in another region — that pages if the main system stops receiving data, since it's most needed when everything else fails.
+```
+
+## What to carry forward
+
+- The data's shape suggests its own storage engine: per-series compressed chunks.
+- Cardinality, not volume, is what kills monitoring — keep labels bounded and limit series.
+- Recent data in memory with a WAL, immutable blocks in object storage, compaction for summaries.
+- Query counters as rates; summarise with min, max, sum and count.
+- Pull makes silence a signal; watch the watcher from outside.

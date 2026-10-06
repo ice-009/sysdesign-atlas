@@ -7,6 +7,12 @@ tags: [case-study, dynamo, quorum, consistent-hashing]
 prereqs: [consistent-hashing, quorums, replication]
 ---
 
+:::predict Guess first
+1. Two clients write the same key at the same moment on different replicas. Can "newest timestamp wins" safely pick one?
+2. A node holding 1/750th of the data fails. If all its keys move to its single neighbour, what might happen next?
+3. Two replicas each hold a million keys and a handful differ. How could they find the differences without sending each other everything?
+:::
+
 :::interview Why this question
 This is the *systems* question — no product to reason about, just distributed systems fundamentals. It's common at Google and Amazon for senior roles because it can't be answered from pattern-matching; you have to actually understand replication, quorums, and failure. Expect deep pushback on every component.
 :::
@@ -201,3 +207,39 @@ The [Bloom filter](../02-building-blocks/bloom-filters.html) per SSTable is esse
 - *"Range scans?"* — not supported by a random partitioner. Requires an ordered partitioner, which reintroduces hot spots on sequential keys. A genuine architectural fork worth naming.
 - *"How would you add strong consistency?"* — put a [Raft group](../03-distributed/consensus.html) per partition instead of quorum replication. That's essentially the design of Spanner/CockroachDB, and it trades availability and latency for linearizability. Being able to describe *both* architectures and when each is right is a strong close.
 - *"Secondary indexes?"* — either local (query every partition — scatter-gather) or global (a separate index, eventually consistent). Both have real costs; there's no free version.
+
+## Check yourself
+
+```recall
+Q: What resource sizes a 1 PB key-value cluster at 1 million QPS?
+A: Storage, not throughput: 3 PB with replication ÷ 4 TB per node ≈ 750 nodes at only ~1,300 QPS each — so choose dense storage nodes.
+
+Q: Why are virtual nodes non-negotiable?
+A: Without them a failed node's keys all land on one successor, which may fail in turn and cascade. With ~200 vnodes per node, load spreads across the cluster and hardware can be weighted.
+
+Q: What is the preference-list trap?
+A: Taking the next N virtual nodes can put several replicas on the same physical machine; walk clockwise collecting N distinct physical nodes, ideally in different AZs.
+
+Q: What does R + W > N give you — and not?
+A: Read and write sets overlap, so reads see the latest completed write, tunable per request. Not linearizability: concurrent writes conflict, failed writes can resurface, reads can go backwards.
+
+Q: Why vector clocks rather than last-write-wins?
+A: Clock skew makes LWW silently drop the real latest write. Vector clocks record what each writer had seen: a dominating version wins, truly concurrent ones are kept as siblings for the application to merge.
+
+Q: Why does a shopping cart merge siblings by union?
+A: A business choice: a partition may resurrect a removed item, but can never lose an added one — a spurious item is an annoyance, a lost purchase is lost revenue.
+
+Q: Hinted handoff, read repair and Merkle trees — which failure does each handle?
+A: Hinted handoff: temporary failure (a neighbour holds writes, a sloppy quorum). Read repair: hot data, fixed during reads. Merkle trees: cold data and permanent loss, exchanging only differing subtrees.
+
+Q: How would you make this store strongly consistent?
+A: A Raft group per partition instead of quorum replication — the Spanner/CockroachDB design, trading availability and latency for linearizability.
+```
+
+## What to carry forward
+
+- No queries, joins or transactions — that constraint makes Dynamo possible.
+- Consistent hashing with vnodes, gossip membership and symmetric nodes: no special node.
+- Quorums are tunable per request but aren't linearizable; say so precisely.
+- Vector clocks expose concurrent writes; merging is often a product decision.
+- Three repair mechanisms for three failure durations: hinted handoff, read repair, Merkle anti-entropy.

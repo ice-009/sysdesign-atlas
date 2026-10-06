@@ -7,6 +7,12 @@ tags: [case-study, rate-limit, redis, latency]
 prereqs: [rate-limiting, caching, distributed-locks]
 ---
 
+:::predict Guess first
+1. A gateway reads a counter of 99 from Redis, allows the request and writes 100. Another gateway does the same at the same moment. What went wrong?
+2. Calling Redis on every request adds about half a millisecond. Is there a way to avoid most of those calls?
+3. Redis goes down. Should every API request now be rejected?
+:::
+
 :::interview Why this question
 It looks like an algorithms question and isn't. Interviewers use it because a good answer must cover distributed state, atomicity, latency budgets, failure modes, and a clean availability/correctness tradeoff — all in a small enough problem to finish in 45 minutes.
 :::
@@ -198,3 +204,39 @@ A single very high-volume client (a large enterprise tenant, or an attacker) con
 - *"Global limits across regions?"* — cross-region coordination on the hot path costs 100 ms+, which defeats the purpose. Standard answer: per-region limits at 1/N of the global budget, accepting imprecision. If a true global limit is required, it must be an approximate one reconciled asynchronously.
 - *"How do you handle a distributed attack from many IPs?"* — per-IP limiting fails by design here. You need behavioural detection and challenges (CAPTCHA/proof-of-work) at the edge; rate limiting alone is the wrong tool, and saying so is better than pretending otherwise.
 - *"Can clients cheat?"* — anything client-side is advisory. Enforce server-side, and treat client-side limiting purely as a courtesy that helps well-behaved clients stay under.
+
+## Check yourself
+
+```recall
+Q: What is the hardest constraint on a distributed rate limiter?
+A: Sub-millisecond added latency, because it sits on the path of every request — and it must never become the reason the API is down.
+
+Q: Why token bucket for an API limiter?
+A: Real traffic is bursty — a page load fires a dozen requests. Token bucket separates burst capacity from sustained rate, unlike a fixed window, which rejects legitimate bursts yet allows a 2× boundary burst.
+
+Q: How do you make check-and-decrement atomic in Redis?
+A: Run it as one Lua script, which executes as a single command: refill lazily, compare, decrement, write, and set an EXPIRE so idle counters clean themselves up.
+
+Q: What is two-tier counting?
+A: Each gateway holds a local share of tokens and fetches batches (say 50) from Redis when low — Redis is hit about once per 50 requests and added latency drops to roughly zero.
+
+Q: What does two-tier counting cost, and when shouldn't you use it?
+A: Overshoot bounded by gateway count × batch size. Fine for abuse prevention; for hard cost limits such as a per-customer LLM quota, check centrally and accept the latency.
+
+Q: How should you shard the counters?
+A: By the rate-limit key with consistent hashing, so no cross-shard coordination is needed. Counters are ephemeral, so losing some during a rebalance only gives a few clients a fresh allowance.
+
+Q: What should happen when Redis is down?
+A: Refuse the binary: degrade to local-only limiting at global limit ÷ gateway count. Pure fail-open suits abuse protection; fail-closed suits hard quotas.
+
+Q: Name three details that show experience.
+A: Don't count rejected requests, jitter Retry-After, ship in log-only mode first, allow-list health checks, alert on near-limit clients, use monotonic elapsed time so clock skew can't matter.
+```
+
+## What to carry forward
+
+- The algorithm is easy; distributed accuracy, latency and failure are the interview.
+- Atomic Lua scripts with EXPIRE make each check one self-cleaning round trip.
+- Local token batches cut Redis load about 50× at the cost of bounded overshoot.
+- Choose exactness by purpose: approximate for abuse, central for cost control.
+- When the store fails, degrade to local limits rather than choosing open or closed.

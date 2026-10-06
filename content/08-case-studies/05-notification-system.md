@@ -7,6 +7,12 @@ tags: [case-study, queue, fanout, idempotency]
 prereqs: [message-queues, idempotency, pub-sub]
 ---
 
+:::predict Guess first
+1. A marketing campaign enqueues 50 million messages. A user then requests a login code. Where is their code in the queue?
+2. A worker sends an SMS successfully, then crashes before acknowledging the queue message. What happens next?
+3. Someone is mentioned 500 times in one thread. How many push notifications should they get?
+:::
+
 :::interview Why this question
 It's a queue-and-worker design where all the interesting problems come from **things outside your control**: third-party providers fail, rate limit you, and duplicate. It's an excellent test of [idempotency](../03-distributed/idempotency.html), retry discipline, and prioritization.
 :::
@@ -201,3 +207,39 @@ Preferences are read on **every** notification, so they must be cached aggressiv
 - *"Exactly-once?"* — not achievable across a third-party boundary. Explain the layered mitigation above and pick a failure direction per category.
 - *"Scheduled notifications?"* — a time-bucketed store (e.g. sorted set per minute) scanned by a scheduler that publishes to the normal pipeline. See [Job Scheduler](job-scheduler.html).
 - *"How do you test this?"* — a sandbox provider mode plus a shadow lane; never send real messages from a test environment. Practical and rarely mentioned.
+
+## Check yourself
+
+```recall
+Q: What is the central notification design insight?
+A: Priority lanes: separate queues with their own dedicated workers for critical (OTP), transactional, social and bulk, so a login code never waits behind a campaign.
+
+Q: Where should preference resolution happen?
+A: At ingest — once, before queuing — so disabled notifications never enter a queue. Check again in the worker, because a user may opt out while a message waits.
+
+Q: What are the two distinct duplication problems?
+A: Caller retries (fixed with a caller idempotency key and a unique constraint) and queue redelivery after an external send (mitigated with a conditional claim, a provider idempotency key and a sent check).
+
+Q: Why can't notifications be exactly-once, and what do you do instead?
+A: The side effect is a third-party call. Make duplicates rare, then choose the failure direction per category: retry security alerts aggressively, don't retry marketing.
+
+Q: How do you handle third-party providers?
+A: A shared token bucket per provider to respect their limits, circuit breakers with failover to a secondary for critical traffic, bulkheaded async calls, webhook delivery receipts, and pruning of expired device tokens.
+
+Q: How do you send a 50-million-user campaign safely?
+A: Use the bulk lane, rate-cap it to leave provider headroom, page through the audience lazily instead of materialising 50 million messages (so it can be stopped), and respect per-timezone quiet hours.
+
+Q: How do you protect users from your own system?
+A: Per-user, per-category rate limits with aggregation ("50 new mentions"), digest windows for low priority, quiet hours with critical overrides, and unsubscribes honoured even for in-flight messages.
+
+Q: If the preferences service is down and the cache is cold?
+A: Fail closed for marketing and open for critical — don't spam users on a cache miss, but don't drop a security alert.
+```
+
+## What to carry forward
+
+- Priority lanes with dedicated workers keep OTPs fast during bursts.
+- Resolve preferences at ingest and re-check in the worker.
+- Exactly-once is impossible across a provider boundary; pick a failure direction per category.
+- Treat providers as unreliable: rate limits, breakers, failover, async receipts.
+- Expand campaigns lazily, and protect users with limits, digests and quiet hours.

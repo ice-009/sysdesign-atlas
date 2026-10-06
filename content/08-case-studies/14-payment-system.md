@@ -7,6 +7,12 @@ tags: [case-study, ledger, idempotency, consistency]
 prereqs: [idempotency, distributed-transactions, transactions-isolation]
 ---
 
+:::predict Guess first
+1. 10 million payments a day — is that a hard scale problem for one Postgres database?
+2. What is wrong with keeping each account's money in a balance column you update?
+3. You call the payment provider and the request times out. Did the customer get charged?
+:::
+
 :::interview Why this question
 This is the case study where **correctness dominates everything**. Availability, latency, and scale all take second place to "the money must be right." It's a strong test of [idempotency](../03-distributed/idempotency.html), [distributed transactions](../03-distributed/distributed-transactions.html), and auditability, which is routinely left until it is legally required.
 :::
@@ -225,3 +231,39 @@ The framing to use: *"No matter how careful the design, distributed systems prod
 - *"Refunds?"* — a new transaction with reversing entries, never a deletion or update of the original. Partial refunds are partial reversals. The original charge remains visible forever, which is what auditors require.
 - *"How do you test this?"* — provider sandbox environments, deterministic replay of the ledger, property-based tests asserting the sum-to-zero invariant, and chaos testing of the timeout paths specifically, since that's where the ambiguity lives.
 - *"Wallets / holding balances?"* — the ledger already handles it: a customer wallet is just another account. Payouts move between accounts. This is where the double-entry model pays off, because you don't need a new mechanism.
+
+## Check yourself
+
+```recall
+Q: What is the real constraint in a payment system?
+A: Correctness and auditability, not throughput: ~500 TPS at peak fits one well-tuned Postgres. No lost or duplicated money, and every change reconstructible.
+
+Q: What is double-entry bookkeeping?
+A: Every transaction writes immutable entries that sum to zero — one account loses what another gains. Balances are derived, corrections are reversing entries, and the zero-sum invariant is continuously checkable.
+
+Q: How do you store amounts?
+A: As integers in the smallest unit (paise, cents) with the currency on every amount — never floats.
+
+Q: Name four details of payment idempotency.
+A: A unique constraint on the key is the atomic gate; store and replay the exact response; hash the request body and reject a reused key with different parameters (422); pass your payment ID to the provider as its idempotency key.
+
+Q: What do you do when the provider call times out?
+A: The outcome is unknowable from your side. Query the provider by your idempotency key before retrying — never blind-retry a charge — and let reconciliation catch the rest.
+
+Q: How is the payment saga ordered?
+A: Reversible steps first (reserve inventory, create the intent), the irreversible charge as the pivot, then roll forward: after a charge, confirm the order or issue a recorded refund.
+
+Q: What is reconciliation, and why is it mandatory?
+A: Routinely comparing your ledger against the provider's settlement report and classifying every mismatch, plus continuous internal invariant checks. It finds the edge cases every distributed system produces before customers or auditors do.
+
+Q: Why not rely on webhooks alone?
+A: They're at-least-once and sometimes never arrive: dedupe on the provider's event ID, log every event first, and poll any payment stuck in processing past a threshold.
+```
+
+## What to carry forward
+
+- Diagnose correctness, not scale; use a relational database with synchronous replication.
+- Lead with an immutable double-entry ledger; derive balances, reverse mistakes.
+- Idempotency end to end — your API, your provider calls, your webhooks.
+- Timeouts are fundamentally ambiguous: query, then reconcile.
+- Put the irreversible charge last and recover forwards after it; reconciliation is not optional.

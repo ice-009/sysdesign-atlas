@@ -7,6 +7,12 @@ tags: [case-study, scheduling, queue, idempotency]
 prereqs: [message-queues, leader-election, idempotency]
 ---
 
+:::predict Guess first
+1. 1,000 workers each run SELECT … WHERE run_at <= now() every second. What goes wrong?
+2. A worker claims a job and then crashes. Without anything extra, what happens to that job?
+3. A daily job is scheduled for 02:30 local time. What happens to it on the day the clocks change?
+:::
+
 :::interview Why this question
 It's a compact test of [leader election](../03-distributed/leader-election.html), [idempotency](../03-distributed/idempotency.html), and failure recovery — with a scheduling problem whose obvious solution fails quietly (a database poll for `WHERE run_at < now()`, which neither scales nor survives worker death).
 :::
@@ -206,3 +212,39 @@ Add cycle detection at submission time — a dependency cycle means nothing ever
 - *"How do you handle long-running jobs?"* — lease renewal covers it, plus checkpointing so a restart resumes rather than restarting. Better still, break long jobs into smaller resumable steps.
 - *"Timezone-aware cron?"* — store the timezone with the schedule and compute occurrences in local time. **DST is the trap**: 02:30 daily occurs twice on one day per year and not at all on another. Naming DST is a nice detail — it's a real bug people ship.
 - *"How would you test this?"* — an injectable clock so you can simulate time passing, plus chaos testing that kills workers mid-execution to verify lease recovery actually works.
+
+## Check yourself
+
+```recall
+Q: Why does the naive polling scheduler fail?
+A: Every worker grabs the same rows (one job runs 1,000 times), every poll range-scans a hot index, and a worker that dies after claiming leaves its job stuck in "running" forever.
+
+Q: Why separate scheduling from execution?
+A: A central scheduler decides what is due and enqueues it once; workers scale horizontally to run it.
+
+Q: How do you find due jobs without scanning everything?
+A: A Redis sorted set per minute bucket scored by run time; each second, read only the current bucket. Far-future jobs stay in the database and are loaded a few hours ahead; recurring jobs compute their next occurrence lazily.
+
+Q: How do you stop two workers claiming one job?
+A: An atomic conditional claim: UPDATE … SET status = 'running', lease_until = now() + 60s WHERE status = 'pending'. The loser gets 0 rows — no lock service needed.
+
+Q: How do leases rescue jobs from dead workers?
+A: The worker renews its lease every ~20 s; a reaper resets expired running jobs to pending. A worker whose renewal fails must stop immediately (self-fence). Reclaimed jobs may run twice, so jobs must be idempotent.
+
+Q: How does the scheduler avoid being a single point of failure?
+A: Leader election with standbys; the new leader scans back over the gap and re-enqueues (workers dedupe on run_id). At scale, shard jobs and elect a leader per shard.
+
+Q: How are job dependencies run?
+A: Each job tracks its unmet dependency count; on success, decrement dependents and enqueue those reaching zero. Reject cycles when the DAG is submitted.
+
+Q: Name two scheduling traps.
+A: A midnight thundering herd of daily jobs (jitter or spread them) and DST — 02:30 happens twice one day a year and not at all on another.
+```
+
+## What to carry forward
+
+- Separate scheduling (once, centrally) from execution (scaled out).
+- Time-bucketed indexes keep "what's due now" tiny regardless of total jobs.
+- Claims are conditional updates; leases with renewal and a reaper rescue stuck jobs.
+- At-least-once execution means idempotent jobs are a platform requirement.
+- Partition scheduling with per-shard leaders; retry with backoff, cap runtime, jitter schedules.

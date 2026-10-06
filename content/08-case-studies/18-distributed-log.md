@@ -7,6 +7,12 @@ tags: [case-study, messaging, log, replication]
 prereqs: [message-queues, consensus, idempotency]
 ---
 
+:::predict Guess first
+1. A traditional queue deletes a message once it's read. What becomes possible if messages are kept for a week instead?
+2. Messages for order #8821 must arrive in order, but the topic has 64 partitions. How do you keep them in order?
+3. A message is on the leader but not yet on any follower, and the leader dies. Should consumers have been allowed to read it?
+:::
+
 :::interview Why this question
 Most candidates have *used* a message queue; this asks them to *build* one. It tests the idea of a log as a storage structure, replication with a precise definition of "safely written", consumer groups, and delivery guarantees — plus why sequential disk access is fast. It's also the foundation under [stream processing](../04-data/stream-processing.html) and much of [pub/sub](../02-building-blocks/pub-sub.html), so the ideas pay off widely.
 :::
@@ -89,7 +95,7 @@ This one change gives you most of the requirements for free:
 ```
 
 - **Brokers** store partitions. Each partition has one **leader** that takes all writes and reads, and **followers** on other brokers that copy it.
-- A **controller** — a small cluster agreeing by [consensus](../03-distributed/consensus.html) — holds the cluster's map: who leads what, and who's alive. It's the only part that needs consensus; the data path doesn't.
+- A **controller** — a small cluster agreeing by [consensus](../03-distributed/consensus.html) — holds the cluster's map: who leads what, and who's alive. It's the only part that needs consensus; the data path doesn't. (Kafka ran this on ZooKeeper until Kafka 4.0, in 2025, made its own Raft-based controller, KRaft, the only option.)
 - **Consumers in a group split the partitions** among themselves. Each partition is read by exactly one consumer in the group, which is what keeps per-partition ordering.
 
 ## 5. Deep dive — storage, and why it's fast
@@ -172,6 +178,8 @@ At-least-once is the usual choice, with consumers that are [idempotent](../03-di
 
 **Tiered storage.** Keep recent segments on local disk and move older ones to [object storage](../02-building-blocks/object-storage.html). Retention can then be months, at object-storage prices, while the brokers only hold the hot tail.
 
+**Diskless topics** go a step further. In the cloud, brokers copying data to followers in other availability zones pay for every byte that crosses a zone — often the largest line on a Kafka bill. A diskless design has brokers batch incoming messages and write them straight to object storage, which already replicates across zones. Brokers become stateless, and any broker can serve any partition. The cost is latency: an object-storage write takes hundreds of milliseconds rather than a few. WarpStream (acquired by Confluent in 2024) built a Kafka-compatible system this way, and Apache Kafka accepted KIP-1150 for diskless topics in March 2026. Choose per topic: classic replication where latency matters, diskless for high-volume logs where a second of delay doesn't.
+
 ## 9. Failure modes & follow-ups
 
 **A broker dies.** Its leaderships move to in-sync followers within seconds; producers and consumers refresh the map and carry on. When it returns, it catches up from the new leaders before rejoining the in-sync set.
@@ -195,3 +203,39 @@ At-least-once is the usual choice, with consumers that are [idempotent](../03-di
 
 *The Log: What every software engineer should know about real-time data's unifying abstraction* (Jay Kreps, 2013) is an essay arguing that the append-only log is the central structure behind databases, replication and stream processing.
 :::
+
+## Check yourself
+
+```recall
+Q: Why is a log better than a queue for many consumers?
+A: Reading doesn't delete; each consumer group keeps its own offset. Independent readers, rewind and slow readers come free, and retention is by time — delete whole old segment files.
+
+Q: How do partitions scale a topic while keeping order?
+A: Each partition is its own log; a message goes to hash(key) % partitions, so one key always lands in one partition. Order is guaranteed within a partition, never across them.
+
+Q: Why can one broker move gigabytes a second?
+A: Sequential appends to segment files, recent reads served from the OS page cache, zero-copy sends from cache to socket, and compressed producer batches stored as-is.
+
+Q: What are the ISR and the high-water mark?
+A: In-sync replicas are copies keeping up with the leader. The high-water mark is the highest offset on every in-sync copy; consumers only read below it, so they never see a message that could vanish on failover.
+
+Q: What is an unclean leader election?
+A: If every in-sync copy is gone: wait (no loss, unavailable) or promote a stale copy (available, but acknowledged messages are lost). A per-topic setting — never for payments, maybe for clicks.
+
+Q: How do commit timing and delivery guarantees relate?
+A: Commit after processing gives at-least-once (crashes cause reprocessing — make consumers idempotent); commit before gives at-most-once. Exactly-once holds inside the log via idempotent producers and transactions, not for external side effects.
+
+Q: Why over-provision partitions up front?
+A: Partition count caps a group's parallelism, and adding partitions later changes hash(key) % N, breaking per-key ordering.
+
+Q: What do tiered storage and diskless topics change?
+A: Tiered storage moves old segments to object storage for cheap long retention. Diskless topics write everything to object storage, removing costly cross-zone replication and making brokers stateless, at the cost of hundreds of milliseconds of latency.
+```
+
+## What to carry forward
+
+- Keep messages in an append-only log; consumers track their own offsets.
+- Partition by key: ordering per partition, parallelism capped by partition count.
+- Sequential writes, page cache and zero-copy make the broker network-bound.
+- acks=all with in-sync replicas and a high-water mark defines "safely written".
+- At-least-once plus idempotent consumers; object storage extends retention or replaces replication.

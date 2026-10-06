@@ -7,6 +7,12 @@ tags: [case-study, streaming, kafka, analytics]
 prereqs: [stream-processing, message-queues, olap-columnar]
 ---
 
+:::predict Guess first
+1. A stream processor crashes and replays from its last checkpoint. Could some clicks be counted twice?
+2. If a dashboard number is 0.1% too high, does it matter? What if the same number goes on an invoice?
+3. A phone was offline for three hours and now uploads its clicks. Which hour should they be counted in?
+:::
+
 :::interview Why this question
 It's the canonical **stream processing** design, and it has a twist that catches people: these numbers are billed to advertisers, so "eventually roughly right" is not acceptable. It forces you to reconcile a low-latency approximate path with an exact one — and to handle late-arriving and duplicate events properly.
 :::
@@ -207,3 +213,39 @@ Use a real-time OLAP store (Druid, Pinot, ClickHouse): they ingest directly from
 - *"Reduce cost?"* — sample impressions (they're 10× clicks and less valuable individually), but **never sample clicks**, since those are billed. Choosing what to approximate by business value is the right instinct.
 - *"Budget enforcement — stop a campaign at its cap?"* — this needs low latency and can't wait for batch. Maintain a fast decrementing counter in the serving path with a conservative buffer, then reconcile exactly in batch. Slight overspend is usually absorbed rather than risking underspend.
 - *"Multi-region?"* — aggregate locally per region, then merge. Sums and counts are commutative and associative, so regional pre-aggregation is safe — a nice property to point out.
+
+## Check yourself
+
+```recall
+Q: What makes the ad click aggregator different from most analytics?
+A: The numbers are billed to advertisers, so approximate isn't good enough — yet advertisers also need to see results within about a minute.
+
+Q: Why does the architecture exist, in one number?
+A: Aggregation shrinks ~9.5 TB of raw events a day to ~24 GB of rollups — about 400× — so dashboards never query raw events.
+
+Q: Why both a speed layer and a batch layer?
+A: Streaming under failure is at-least-once and may double-count — fine for a "preliminary" dashboard. Billing comes from an exact, deduplicated batch recomputation over the raw log. That's lambda architecture; its cost is two codebases.
+
+Q: What is kappa architecture?
+A: Only a streaming path; when logic changes, replay the retained event log through the new version instead of maintaining a separate batch implementation.
+
+Q: Name the four layers of click deduplication.
+A: An event ID at the source, an ingest check against a short-window store or Bloom filter, keyed stream state within the watermark window, and the authoritative batch dedup across all raw events.
+
+Q: How should late events be handled?
+A: Aggregate by event time with a watermark plus allowed lateness (~10 minutes); later events go to a side output the batch layer picks up. Never drop billable events silently.
+
+Q: How does the serving layer stay fast?
+A: Pre-aggregate at minute, hour, day and month and query the coarsest that answers; use a real-time OLAP store; pre-aggregate common dimension combinations to tame cardinality.
+
+Q: What may you approximate, and what not?
+A: Unique reach via mergeable HyperLogLog sketches, and sampled impressions; never clicks or spend, which are billed.
+```
+
+## What to carry forward
+
+- Billing-grade numbers need an exact path; dashboards can use a fast, approximate one.
+- Kafka partitioned by campaign is both the buffer and the replay log — keep a week.
+- Deduplicate in layers; only the batch pass makes billing correct.
+- Aggregate by event time with watermarks; route late events, never drop them.
+- Pre-aggregate at several granularities and approximate only what isn't billed.

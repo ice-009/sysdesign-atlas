@@ -7,6 +7,12 @@ tags: [case-study, websocket, realtime, messaging]
 prereqs: [realtime, message-queues, sharding]
 ---
 
+:::predict Guess first
+1. Alice's message arrives at gateway server G1, but Bob's open connection is on G7. How could G1 get the message to him?
+2. Should the server confirm "sent" to Alice before or after saving the message to the database?
+3. A 500-member group gets one message. Should the server store 500 copies?
+:::
+
 :::interview Why this question
 It tests something most designs don't: **stateful connection management**. Every other case study has interchangeable stateless servers. Here, a user's socket lives on one specific machine, and getting a message to it is the central problem. Interviewers push on delivery guarantees and ordering, which are genuinely subtle.
 :::
@@ -195,6 +201,7 @@ If required, it constrains the design significantly — and saying *how* is a st
 - The server stores and routes **ciphertext only**. It cannot search messages, generate previews, or do server-side spam filtering.
 - Key exchange (Diffie-Hellman style with prekeys) allows asynchronous session setup while the recipient is offline.
 - **Group encryption** typically uses a sender key distributed to members, so a message is encrypted once rather than per-recipient.
+- **The newer standard for groups is MLS** (Messaging Layer Security, IETF RFC 9420, 2023). It arranges members' keys in a tree, so adding or removing someone costs work proportional to log(group size) rather than the whole group — which is what makes encrypted groups of thousands practical. Signal's PQXDH (2023) and Apple's PQ3 (2024) also added post-quantum key agreement, so traffic recorded today can't be decrypted by a future quantum computer.
 - **Multi-device** requires per-device sessions — each device is a separate cryptographic identity.
 - Backups become a genuine problem: encrypted backups need a key the user holds, and losing it means losing history. This is a real product tradeoff, not just an implementation detail.
 
@@ -204,3 +211,39 @@ If required, it constrains the design significantly — and saying *how* is a st
 - *"Presence at scale?"* — heartbeat with Redis TTL so offline expires automatically; push only *changes*, never steady state; debounce flapping. See [Real-Time Delivery](../02-building-blocks/realtime.html).
 - *"Typing indicators?"* — pure ephemeral pub/sub, never persisted, dropped freely under load. A good example of data whose correct durability is *zero*.
 - *"Message search?"* — a separate index sharded by user, populated via CDC. Impossible with E2E encryption unless done on-device.
+
+## Check yourself
+
+```recall
+Q: What makes a chat system different from most case studies?
+A: Stateful connections: each user's socket lives on one specific gateway, so routing a message to the right machine is the central problem.
+
+Q: Why split gateways from chat services?
+A: Gateways hold sockets and stay dumb, sized by memory; business logic lives in stateless services, so deploying logic doesn't drop every connection.
+
+Q: Why persist before acknowledging "sent"?
+A: A socket write isn't a delivery guarantee. Persisting first means the worst case is a stored message not yet delivered, recovered when the client re-syncs from its last-seen ID.
+
+Q: Session registry versus pub/sub for routing?
+A: Registry (user → gateway in Redis, refreshed by heartbeat): one lookup, one hop — best for 1:1. Pub/sub (gateways subscribe per user or room): natural fanout and multi-device — best for groups.
+
+Q: How does a chat system achieve "no message loss"?
+A: At-least-once delivery with dedup on (sender, client message ID), plus reconnect sync: the client sends its highest message ID per conversation and the server replays everything after it.
+
+Q: Why shard messages by conversation_id rather than user_id?
+A: The whole conversation lives on one shard, so history is one range scan. By user, every message is written twice or read from two shards. Per-user search goes in a separate CDC-fed index.
+
+Q: How do group messages avoid 500× write amplification?
+A: Write once to the conversation partition; each member tracks a read cursor. Push to online members, others pull on reconnect, and drop per-member receipts in big groups.
+
+Q: What does end-to-end encryption constrain?
+A: The server holds only ciphertext — no search, previews or server-side spam filtering; each device is its own identity; backups need a user-held key. MLS makes large group key changes scale logarithmically.
+```
+
+## What to carry forward
+
+- Separate stateful, dumb gateways from stateless chat logic.
+- Persist first; the socket is a fast path and the database the truth.
+- At-least-once with client message IDs plus reconnect sync makes loss impossible.
+- Shard by conversation; store group messages once with per-reader cursors.
+- Drain gateways gradually and jitter reconnects, or deploys become storms.

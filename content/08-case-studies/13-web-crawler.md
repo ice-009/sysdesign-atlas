@@ -7,6 +7,12 @@ tags: [case-study, crawler, bloom-filter, queue]
 prereqs: [message-queues, bloom-filters, rate-limiting]
 ---
 
+:::predict Guess first
+1. A site has a million pages in your queue and you have 10,000 workers. What stops them all hitting that site at once?
+2. Storing 10 billion URLs exactly takes about 600 GB. How else could you answer "have I seen this URL?"
+3. A calendar page links to "next month" forever. What happens to a naive crawler?
+:::
+
 :::interview Why this question
 It's a distributed producer-consumer system where the interesting constraints are **external and social** — you must not overwhelm the sites you crawl. It's also the best natural home for [Bloom filters](../02-building-blocks/bloom-filters.html), and it has a subtle prioritization problem.
 :::
@@ -202,4 +208,41 @@ Conditional requests are the cheap win here: you learn "unchanged" for a fractio
 - *"JavaScript-rendered pages?"* — needs a headless browser per fetch, which is roughly 10–100× the cost in CPU and memory. Answer: render selectively, based on whether the static HTML looks content-free. Acknowledging the cost difference is the key point.
 - *"How do you keep the index fresh?"* — adaptive recrawl above, plus sitemaps and change-notification protocols where sites publish them.
 - *"Detect when you've crawled 'enough' of a site?"* — track the new-unique-content rate per domain; when it falls below a threshold, deprioritize.
+- *"What about crawling for AI training?"* — sites now treat it as a separate purpose: dedicated `robots.txt` user agents (GPTBot, Google-Extended, ClaudeBot), IETF work on standard AI-usage preference signals, and CDNs that block unverified AI crawlers by default. A crawler should identify itself honestly, publish its IP ranges so sites can verify it, and honour per-purpose opt-outs. Politeness now covers consent as well as rate.
 - *"Distributed politeness with multiple crawler clusters?"* — domain ownership must be globally exclusive, so the domain→node mapping needs to be authoritative and consistent. This is a coordination problem best solved with a [consensus-backed](../03-distributed/consensus.html) assignment table rather than independent hashing per cluster.
+
+## Check yourself
+
+```recall
+Q: What constraint shapes a crawler's architecture?
+A: Politeness: thousands of workers must look like one well-behaved visitor to any single site, respecting robots.txt and crawl-delay.
+
+Q: How does the two-layer frontier work?
+A: Front queues prioritise (news high, static low); back queues are one per domain, each served by one worker that waits the crawl delay between fetches. Priority and politeness stay separate.
+
+Q: Why a Bloom filter for seen URLs?
+A: 10 billion URLs exactly is ~600 GB; a 1% false-positive filter is ~12.5 GB in memory. Occasionally skipping an uncrawled page is an acceptable loss.
+
+Q: What must happen before URL deduplication?
+A: Normalisation: lowercase the host, strip default ports, resolve ./ and ../, drop fragments and tracking parameters, and fix a trailing-slash policy.
+
+Q: Name the three deduplication problems.
+A: Same URL (Bloom filter after normalisation), same content at different URLs (hash of extracted text), and near-duplicates (SimHash or MinHash fingerprints).
+
+Q: Name four crawler traps and defences.
+A: Infinite URL spaces (depth and per-domain caps, repeating-path detection), huge files (content-length cap), slow servers (tight timeouts), redirect loops (cap at ~5) — and treat HTML as untrusted input.
+
+Q: How do you recrawl efficiently?
+A: Estimate each page's change rate and schedule accordingly, and use conditional requests (If-Modified-Since, ETag) — a 304 costs almost nothing.
+
+Q: How is a crawler distributed?
+A: Partition by domain hash so one node owns each domain (politeness and robots state stay local), route extracted URLs to their owner, and run a local caching DNS resolver — DNS is a forgotten bottleneck.
+```
+
+## What to carry forward
+
+- Politeness is the architecture: per-domain back queues with one worker each.
+- Separate prioritisation (front queues) from politeness (back queues).
+- Normalise URLs, then dedupe with a Bloom filter; dedupe content and near-duplicates too.
+- Assume hostile input: cap depth, size, time and redirects.
+- Recrawl adaptively with conditional requests; partition by domain; cache DNS.
