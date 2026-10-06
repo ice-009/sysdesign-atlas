@@ -7,6 +7,12 @@ tags: [cdc, outbox, events, consistency]
 prereqs: [transactions-isolation, message-queues, idempotency]
 ---
 
+:::predict Guess first
+1. Your code saves an order, then publishes an "order placed" event. What happens if the publish fails after the save succeeded?
+2. Would publishing the event first, then saving, fix it?
+3. The database already records every change it makes. Could you read events from there instead of publishing them yourself?
+:::
+
 ## The dual-write problem
 
 You update the database and you need to tell someone — reindex in Elasticsearch, invalidate a cache, publish an event, notify another service.
@@ -163,3 +169,39 @@ The bottom row is the one to recommend when the design warrants it. The middle r
 
 The outbox pattern is documented most clearly in Chris Richardson's microservices patterns catalogue; the underlying problem — the dual-write — is the same one described in [vector databases](../07-ai-systems/vector-databases.html).
 :::
+
+## Check yourself
+
+```recall
+Q: What is the dual-write problem?
+A: Writing to two systems — say a database and a broker — with no shared transaction. Whichever order you choose, a crash or failure between them leaves one updated and the other not, permanently.
+
+Q: How does the outbox pattern fix dual writes?
+A: Insert the event into an outbox table in the same local transaction as the business change, so both commit or neither does. A relay publishes outbox rows afterwards, at least once.
+
+Q: Why must outbox consumers be idempotent?
+A: The relay can publish and then crash before marking the row published, so it publishes again on restart. Delivery is at least once.
+
+Q: What ordering bug hits a polling relay that follows an ID cursor?
+A: Transaction A takes ID 100, B takes 101, but B commits first. The poller reads 101, advances past 100, and never sees A. Poll by "unpublished" status or read the log in commit order.
+
+Q: What is change data capture, and why is it attractive?
+A: Reading the database's replication log (WAL or binlog) and turning each committed change into an event. The application doesn't change, nothing can be missed, commit order is kept, and latency is milliseconds.
+
+Q: Name CDC's two biggest costs.
+A: Events mirror your table schema, coupling consumers to it; and a stalled consumer holding a replication slot stops WAL cleanup and can fill the primary's disk.
+
+Q: What combination is best in practice?
+A: An outbox table for deliberately designed domain events, with CDC tailing that table: CDC's latency and guaranteed capture, plus a clean contract decoupled from your tables.
+
+Q: What must derived stores fed by CDC handle?
+A: Eventual consistency (tens to hundreds of milliseconds behind), at-least-once duplicates, and ordering only within a partition — so partition by entity ID and measure lag in time, not messages.
+```
+
+## What to carry forward
+
+- Two independent writes can't be made atomic by ordering them — derive the second from the first.
+- Outbox: the event commits in the same local transaction; a relay delivers it at least once.
+- CDC reads the database's own log: no app changes and nothing missed, but schema coupling and replication-slot risk.
+- Outbox plus CDC on the outbox table gives the clean contract and the low latency.
+- Derived stores are eventually consistent: idempotent consumers, per-entity ordering, lag measured in seconds.

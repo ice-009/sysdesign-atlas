@@ -7,6 +7,12 @@ tags: [leader-election, coordination, split-brain]
 prereqs: [consensus, failure-modes]
 ---
 
+:::predict Guess first
+1. A five-node cluster splits 3 and 2. Can the two-node side elect its own leader?
+2. The old leader was cut off but doesn't know it, and a new leader takes over. What stops the old one from writing?
+3. Is a faster failover always better for availability?
+:::
+
 ## Why elect a leader
 
 A leader is a designated node that performs a role no one else may perform simultaneously:
@@ -175,3 +181,36 @@ Chandra and Toueg's *Unreliable Failure Detectors for Reliable Distributed Syste
 
 The Raft paper (Ongaro & Ousterhout, ATC 2014) has the most readable practical election protocol, including the randomised timeouts that prevent split votes.
 :::
+
+## Check yourself
+
+```recall
+Q: What does a leader really buy you, and what does it cost?
+A: Serialisation: one node orders all decisions, turning a distributed problem into a single-machine one. Costs: a throughput bottleneck, a single point of failure, and a gap during every election.
+
+Q: How does election with etcd or ZooKeeper work?
+A: Candidates race to create a key with a lease (etcd) or an ephemeral sequential node (ZooKeeper, lowest number wins, each watching only its predecessor). The store is linearizable, so two nodes can't both win.
+
+Q: How does a majority quorum prevent two leaders being elected?
+A: Only a partition with more than half the nodes can elect, and two disjoint majorities can't exist. It's also why clusters have odd sizes.
+
+Q: Why isn't quorum election enough to guarantee a single writer?
+A: The old leader may not know it lost and keep writing. Fencing tokens fix this: each new leader has a higher epoch, and storage rejects writes from older epochs.
+
+Q: What dominates the failover gap, and why tune it conservatively?
+A: Failure detection — 5–30 s of heartbeat timeout — dominates. Spurious failovers risk losing unreplicated writes, reset connection pools and cold-start caches, so systems that flap are less available than ones that fail over slowly.
+
+Q: Name three ways to avoid needing a single global leader.
+A: Partitioned ownership (an owner per shard, so blast radius is 1/N); leaderless replication with quorums; making jobs idempotent so every instance can run them; or hashing tasks to instances.
+
+Q: What's the common leader-election design mistake?
+A: Putting the leader on the data path. Keep it on the control path — membership, ownership, config — and route actual reads and writes straight to the owning shard.
+```
+
+## What to carry forward
+
+- A leader serialises decisions — simple, but a bottleneck and a failover gap.
+- Elect through a consensus store or Raft with majority quorums, never "highest ID wins".
+- Election doesn't stop an old leader acting: fence at the resource with epoch numbers.
+- Failure detection dominates failover time; tune conservatively, because flapping costs availability.
+- Prefer partitioned ownership, and keep leaders on the control path, not the data path.

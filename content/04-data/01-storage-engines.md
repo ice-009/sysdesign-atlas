@@ -7,6 +7,12 @@ tags: [b-tree, lsm, storage, compaction]
 prereqs: [indexing, hardware-numbers]
 ---
 
+:::predict Guess first
+1. Which is faster to write to disk: a million small updates scattered across a file, or the same bytes appended at the end?
+2. A database never modifies a file once written. How would it handle an update or a delete?
+3. Looking up a key that doesn't exist — is that cheaper or more expensive than one that does?
+:::
+
 ## Why this matters
 
 "Should I use Postgres or Cassandra?" is really a question about storage engines. The read/write asymmetry of your workload maps almost directly onto B-tree versus LSM, and being able to explain *why* an LSM tree suits write-heavy workloads means reasoning one level below where most explanations stop.
@@ -181,3 +187,39 @@ Bayer & McCreight (1972) for the B-tree; O'Neil et al., *The Log-Structured Merg
 
 *Optimal Bloom Filters and Adaptive Merging for LSM-Trees* (Dayan, Athanassoulis & Idreos, TODS 2018) and the *RUM Conjecture* (Athanassoulis et al., EDBT 2016) formalise the read/update/memory trade every storage engine navigates. RocksDB's tuning guide is the practical companion.
 :::
+
+## Check yourself
+
+```recall
+Q: What one constraint drives every storage-engine design?
+A: Sequential writes are far faster than scattered ones — about 100× on spinning disks, still significant on SSDs, where random writes also cause internal write amplification.
+
+Q: How does a B-tree write, and what does that cost?
+A: It finds the leaf page and modifies it in place: random reads to traverse, a WAL append, then a random page write later. Changing 100 bytes rewrites an 8 KB page, so write amplification of 10–100× is normal.
+
+Q: Describe the LSM write path.
+A: Append to the WAL for crash recovery, insert into an in-memory sorted memtable, and when it fills, flush it as an immutable sorted SSTable in one sequential write. No page reads, no random I/O.
+
+Q: Why are LSM reads harder, and what saves them?
+A: A key could be in the memtable or any SSTable, so a read may check several files. Per-SSTable Bloom filters skip files that can't hold the key; sparse indexes and block caches do the rest. Missing keys are the worst case.
+
+Q: Size-tiered versus leveled compaction?
+A: Size-tiered merges similar-sized files: better write throughput, worse reads, about 2× transient space. Leveled keeps each level non-overlapping and 10× bigger: one file per level on reads, predictable space, higher write amplification.
+
+Q: Why do heavy deletes hurt an LSM store?
+A: A delete writes a tombstone instead of removing anything. Until compaction drops them, space isn't reclaimed and reads must scan past them — a well-known Cassandra pathology with TTL-heavy data.
+
+Q: What is the RUM conjecture?
+A: You can't minimise read, update (write) and memory (space) amplification all at once; every storage engine picks a point on that trade-off.
+
+Q: Which engine for which workload?
+A: B-tree for OLTP with mixed reads and writes, joins and range scans. LSM for write-heavy, append-mostly, time-ordered data and as an embedded KV (RocksDB). Columnar for analytics over huge scans.
+```
+
+## What to carry forward
+
+- Every engine is a strategy for turning scattered writes into sequential ones — or a choice not to.
+- B-trees: predictable reads, in-place updates, random writes. LSM: fast sequential writes, reads spread across files.
+- Bloom filters make LSM reads viable; compaction makes them bounded, at the cost of background I/O.
+- Read, write and space amplification trade against each other — name which one the workload can afford.
+- Tombstones and untuned compaction are the LSM operational traps, showing up as p99 spikes.

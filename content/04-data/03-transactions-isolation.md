@@ -7,6 +7,12 @@ tags: [acid, isolation, mvcc, transactions]
 prereqs: [consistency-models, storage-engines]
 ---
 
+:::predict Guess first
+1. Two doctors are on call and at least one must stay on. Both check "two on call", and both go off call at once. Can a database prevent this if the two updates touch different rows?
+2. What isolation level do you think Postgres uses by default — the strongest one?
+3. How could a long analytical query read a table without blocking the writers changing it?
+:::
+
 ## ACID, precisely
 
 - **Atomicity** — all operations commit or none do. Note this is about *abortability*, not concurrency.
@@ -91,7 +97,7 @@ Write skew is nasty precisely because the transactions don't touch the same row 
 :::trap The default is not Serializable
 Most engineers assume their database gives them serial behaviour. It doesn't. Under Read Committed, lost updates and write skew are both possible, and the resulting bugs are timing-dependent, rare in testing, and appear in production under load.
 
-Stated precisely: the default isolation level won't prevent write skew, so for the seat-booking invariant you either use `SELECT ... FOR UPDATE` to take explicit locks, add a uniqueness constraint that makes the conflict a write-write conflict the database *can* detect, or run that specific transaction at Serializable." Naming three graded fixes is much stronger than naming one.
+Stated precisely: "The default isolation level won't prevent write skew, so for the seat-booking invariant I'd either use `SELECT ... FOR UPDATE` to take explicit locks, add a uniqueness constraint that turns the clash into a write–write conflict the database *can* detect, or run that specific transaction at Serializable." Naming three graded fixes is much stronger than naming one.
 :::
 
 ## MVCC
@@ -186,3 +192,39 @@ Then: 6. Snapshot isolation prevents 1–4 but not 5. Construct the classic writ
 
 *Serializable Snapshot Isolation in PostgreSQL* (Ports & Grittner, VLDB 2012) explains how SSI detects the dangerous structures that make snapshot isolation non-serializable. Martin Kleppmann's *Designing Data-Intensive Applications* chapter 7 is the best textbook treatment.
 :::
+
+## Check yourself
+
+```recall
+Q: Why is the C in ACID different from the C in CAP?
+A: ACID's consistency means the data respects its invariants — mostly the application's job. CAP's consistency means linearizability: every read sees the latest write.
+
+Q: ACID or BASE — how do you choose?
+A: Per piece of data, not per system: ask what a stale or lost update costs. Money, inventory and bookings want ACID; likes, view counts and feeds can be eventually consistent.
+
+Q: What is a lost update?
+A: Two transactions read the same value, each modifies it and writes it back, and one silently overwrites the other — two increments of 10 both write 11.
+
+Q: What is write skew, and why do conflict checks miss it?
+A: Two transactions each read a shared condition, decide it's safe, and write to different rows — together breaking an invariant. No row was written twice, so write–write conflict detection sees nothing.
+
+Q: What are common default isolation levels, and what do they still allow?
+A: Read Committed in Postgres, Oracle and SQL Server; Repeatable Read in MySQL InnoDB. Neither is Serializable, so lost updates (under Read Committed) and write skew remain possible.
+
+Q: How does MVCC work, and what does it cost?
+A: Writes add new row versions stamped with transaction IDs; each transaction reads from its snapshot, so readers and writers never block each other. The cost: old versions pile up until vacuum or purge, and one long transaction holds back cleanup for the whole database.
+
+Q: How does Serializable Snapshot Isolation work, and what must applications do?
+A: It runs transactions optimistically on snapshots, tracks read–write dependencies, and aborts one transaction when a dangerous pattern appears. Applications must catch serialization failures and retry; it degrades under high contention.
+
+Q: What's the most underrated concurrency control?
+A: A unique constraint. "No two bookings for one seat" becomes an ordinary insert failure the database handles, with no locks or Serializable needed.
+```
+
+## What to carry forward
+
+- Isolation levels are defined by which anomalies they allow — learn the anomalies.
+- Default levels are not Serializable; write skew survives them.
+- MVCC lets readers and writers coexist; long transactions are its main operational hazard.
+- Serializable comes as serial execution, two-phase locking or SSI — each with a different cost.
+- Name the invariant, then pick the cheapest mechanism that holds it: unique constraint, FOR UPDATE, version check, then Serializable.

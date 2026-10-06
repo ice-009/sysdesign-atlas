@@ -8,6 +8,12 @@ prereqs: [storage-engines, failure-modes]
 unlocks: Knowing exactly what a database has guaranteed when it returns success.
 ---
 
+:::predict Guess first
+1. When write() returns success, is the data on the disk?
+2. If every commit must wait for the disk to confirm, roughly how many commits per second can one SSD support?
+3. A database page is 8 KB but the drive only writes 4 KB atomically. What can a crash leave behind?
+:::
+
 ## The question nobody asks precisely enough
 
 Your database returns `OK` on a write. What just happened?
@@ -189,6 +195,34 @@ Reasoning to check against: (1) up to `wal_writer_delay` (default 200 ms) of com
 
 *Can Applications Recover from fsync Failures?* (Rebello et al., USENIX ATC 2020) is the empirical study of exactly what happens when fsync fails — the source of much of the fsyncgate discussion. The PostgreSQL "fsyncgate 2018" mailing-list thread is worth reading in full for how a whole industry discovered a shared wrong assumption at once.
 :::
+
+## Check yourself
+
+```recall
+Q: Name the five things "the write succeeded" can mean.
+A: In the database's memory; in the OS page cache; fsynced to the drive (survives power loss); on the drive plus another machine; on a majority across several buildings. They differ by about six orders of magnitude in safety and cost.
+
+Q: What is the write-ahead log rule?
+A: Append the intent to a sequential log and fsync it before modifying data pages. Recovery replays the log, so a half-finished page update can always be completed or redone.
+
+Q: Three things a WAL buys besides crash recovery?
+A: Sequential instead of random writes (commits get faster), a ready-made replication stream, and the raw material for CDC and point-in-time recovery. The log is the database; tables are a materialised view.
+
+Q: What is group commit, and what does it trade?
+A: Batch the transactions that commit within a small window into one write and one fsync. Each waits slightly longer, but throughput scales with batch size instead of being capped by fsync latency.
+
+Q: Name two ways the storage stack has lied about fsync.
+A: Consumer SSDs acknowledging flushes with data still in volatile cache; Linux before 4.13 reporting a writeback error to only one caller then marking pages clean (fsyncgate); network storage caches; a file fsync not covering its directory entry.
+
+Q: What is a torn page, and the three defences?
+A: A crash mid-write leaves a page half new, half old. Defences: full-page writes into the WAL (Postgres), a doublewrite buffer (InnoDB), or copy-on-write with a pointer swap (ZFS, LMDB). Checksum every page regardless.
+
+Q: Why is checkpoint frequency an RTO decision?
+A: Recovery replays the log since the last checkpoint. Frequent checkpoints mean fast recovery but constant background writes; rare ones mean little steady-state I/O but long recovery.
+
+Q: Which replication mode loses nothing acknowledged without stalling on one slow node?
+A: Quorum commit: wait for a majority to fsync. It costs about one cross-AZ round trip, but the majority proceeds without a laggard, unlike synchronous replication to one specific follower.
+```
 
 ## What to carry forward
 

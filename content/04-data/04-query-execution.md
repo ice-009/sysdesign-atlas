@@ -8,6 +8,12 @@ prereqs: [indexing, storage-engines]
 unlocks: Reading an EXPLAIN plan and knowing which part is the problem.
 ---
 
+:::predict Guess first
+1. The same query on the same data can run in 200 ms or 40 minutes. What could differ between the two runs?
+2. The optimizer estimates that a filter returns 10 rows; it actually returns 2 million. Which join strategy suffers?
+3. Why might processing rows in batches of 1,000 be much faster than one at a time, even doing the same work?
+:::
+
 ## From text to results
 
 SQL is declarative: you state what you want, not how to get it. Everything between the string you send and the rows you receive is the database deciding *how*, and that decision can vary the runtime by four orders of magnitude on identical data.
@@ -186,6 +192,31 @@ Take any table you have with a few million rows and:
 
 *How Good Are Query Optimizers, Really?* (Leis et al., VLDB 2015) is the empirical demolition of cardinality estimation and the best single paper on why plans go wrong.
 :::
+
+## Check yourself
+
+```recall
+Q: Why do query plans go wrong?
+A: The optimizer must guess how many rows each step produces from statistics collected earlier. A bad estimate gives a bad plan — and that is what most "mysteriously slow queries" are.
+
+Q: When is each join algorithm right?
+A: Nested loop: tiny outer side, indexed inner side. Hash join: large unsorted inputs joined on equality, with the smaller side fitting in memory. Merge join: inputs already sorted.
+
+Q: What is the classic nested-loop disaster?
+A: Statistics predict 10 outer rows, so the optimizer picks a nested loop, but 2 million rows arrive. It does 2 million index lookups instead of one hash build — 200 ms becomes 40 minutes.
+
+Q: Name the three causes of a plan going bad with no code change.
+A: Stale statistics, correlated predicates (city = Mumbai AND country = India estimated as independent), and parameter sniffing (a cached plan built for a rare value reused for a common one).
+
+Q: Why are deep join trees fragile?
+A: Estimation errors multiply as they move up the tree — 2× off per join becomes 8× after three joins — and the plan space grows factorially past 8–10 tables.
+
+Q: What do you look at first in EXPLAIN ANALYZE?
+A: Estimated versus actual rows at each node. A gap above about 10× marks where the optimizer had bad information, and everything above that node inherits the error.
+
+Q: What does vectorized execution buy, and where doesn't it help?
+A: Processing about 1,024 values per operator call amortises per-row overhead and lets the loop use SIMD — 10–100× on analytical scans. It does nothing for a point lookup returning one row.
+```
 
 ## What to carry forward
 

@@ -7,6 +7,12 @@ tags: [backpressure, load-shedding, circuit-breaker, resilience]
 prereqs: [queueing-theory, message-queues]
 ---
 
+:::predict Guess first
+1. A system is overloaded. Is it better to accept every request and try your best, or reject some on purpose?
+2. Should every queue in a system have a size limit? What goes wrong if one doesn't?
+3. A dependency is down and every call waits 30 seconds to time out. What happens to your service?
+:::
+
 ## The counterintuitive premise
 
 The instinct under overload is to accept every request and try your best. That instinct destroys systems.
@@ -162,3 +168,39 @@ That answer covers shedding, prioritization, bulkheads, breakers, deadlines, and
 
 Netflix's `concurrency-limits` library and its design notes apply TCP congestion-control algorithms (Vegas, gradient) to service concurrency — an unusually direct transfer of an idea between layers. See also [queueing theory](../01-foundations/queueing-theory.html) for why unbounded queues do not help.
 :::
+
+## Check yourself
+
+```recall
+Q: Why does accepting every request under overload destroy a system?
+A: Queues grow, responses outlast client patience, clients retry and add load, and useful throughput falls to zero while every machine is 100% busy. Shedding 20% so 80% succeed is strictly better.
+
+Q: What is backpressure, and what's its key design rule?
+A: A slow consumer telling a fast producer to slow down. Rule: bound every queue — an unbounded one hides the bottleneck, turning it into memory exhaustion and unbounded latency.
+
+Q: Name three mechanisms that create backpressure.
+A: Bounded buffers that block or reject; TCP flow control; pull-based consumption (the consumer asks for N); credit-based flow control; and blocking calls that propagate upstream.
+
+Q: Why shed load by priority, and how?
+A: So the most valuable work survives: never shed checkout or login, shed recommendations and analytics first. Graceful degradation becomes a load policy — which needs product knowledge.
+
+Q: Why might you serve the newest queued requests first under overload?
+A: The oldest are closest to their deadline and least likely to still be wanted. Requests already past their deadline should be dropped without doing any work.
+
+Q: What is an adaptive concurrency limit?
+A: Instead of a fixed cap, measure latency continuously and adjust the concurrency limit to stay at the throughput knee — TCP congestion control applied to service calls.
+
+Q: Describe the circuit breaker's three states.
+A: Closed: calls pass while the failure rate is tracked. Open: fail immediately without calling, protecting your threads and giving the dependency room. Half-open: after a cooldown, let a few probes through to decide whether to close.
+
+Q: Name three circuit-breaker details that matter.
+A: Trip on failure rate with a minimum volume, not a raw count; always have a fallback (cache, default, degraded response); scope breakers per dependency or endpoint; pair them with bulkheads.
+```
+
+## What to carry forward
+
+- Under overload, shed rather than queue — doing less on purpose keeps the rest fast.
+- Bound every queue; propagate pressure upstream with blocking, pull or credits.
+- Shed early, by priority, newest-first, and drop requests already past their deadline.
+- Circuit breakers stop a failing dependency from taking you down — trip on rate, with fallbacks.
+- Retries amplify overload: jitter, a fleet-wide budget, one layer only, and never on 4xx.

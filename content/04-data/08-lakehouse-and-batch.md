@@ -8,6 +8,12 @@ prereqs: [olap-columnar, object-storage]
 unlocks: Designing the storage layer that every analytics and ML training pipeline sits on.
 ---
 
+:::predict Guess first
+1. A table is stored as 500,000 one-megabyte files in S3. Each request takes about 50 ms. What dominates query time?
+2. Object storage has no transactions. How could a table in it give readers a consistent view while someone appends?
+3. One key holds 40% of a dataset. In a 1,000-task group-by, what happens?
+:::
+
 ## Why not just use a database
 
 An analytical warehouse works well until one of three things happens:
@@ -140,6 +146,8 @@ That one atomic pointer swap delivers:
 
 The three contenders — **Iceberg**, **Delta Lake**, **Hudi** — differ less than the discourse suggests. Iceberg has the broadest engine-neutral adoption; Delta is strongest inside the Databricks ecosystem; Hudi was built around incremental upserts and still leads there. For a new project without an existing platform commitment, Iceberg is the safe default.
 
+The formats are also converging. Databricks bought Tabular — the company founded by Iceberg's creators — in 2024; Delta can publish Iceberg metadata for the same files (UniForm); Iceberg's v3 spec (2025) adopted Delta-style deletion vectors and a semi-structured `variant` type; and the clouds now sell managed Iceberg tables outright. Amazon S3 Tables (December 2024) runs compaction and snapshot expiry for you, which removes the most common way a lakehouse rots.
+
 :::goat Time travel is not a novelty feature
 Reproducibility is the reason it matters. "Retrain the model on exactly the data we had on 1 August" is impossible on a mutable table and trivial with snapshots.
 
@@ -196,6 +204,34 @@ You're storing clickstream events: 2 billion per day, 40 columns, ~500 bytes eac
 
 *Lakehouse: A New Generation of Open Platforms that Unify Data Warehousing and Advanced Analytics* (Armbrust et al., CIDR 2021) is the architecture argument. The Apache Iceberg spec is unusually readable and worth skimming directly for the metadata layout.
 :::
+
+## Check yourself
+
+```recall
+Q: Name the four layers of a lakehouse.
+A: Object storage (cheap, durable), a columnar file format (Parquet), a table format (Iceberg, Delta, Hudi) and interchangeable query engines — each replaceable without moving data.
+
+Q: What three wins compound in Parquet?
+A: Column pruning (read only needed columns), predicate pushdown using per-row-group min/max statistics, and 5–10× compression from homogeneous columns.
+
+Q: Why do small files ruin a lakehouse, and what's the fix?
+A: Each object request costs about 20–100 ms, so 500,000 small files spend the query on request overhead and listing. Target 128 MB–1 GB per file and run compaction as a scheduled, first-class job.
+
+Q: What are the partitioning rules?
+A: Partition by what you filter on (usually time), aim for 100 MB–1 GB per partition, don't partition high-cardinality columns like user_id, and watch for skew.
+
+Q: What is Iceberg's hidden partitioning?
+A: The table declares a transform such as days(event_time), and the engine prunes from predicates on the natural column. Users needn't know the layout, and the scheme can change without rewriting old data.
+
+Q: How does a table format give a pile of files ACID?
+A: Metadata lists exactly which files form each snapshot, and a commit is one atomic swap of the catalog pointer. Readers pin a snapshot, giving isolation, time travel and safe concurrent writes.
+
+Q: Why does time travel matter?
+A: Reproducibility — retrain on exactly the data as of a date, roll back a bad ingest by repointing, diff snapshots, and audit what a report was computed from.
+
+Q: Why is the shuffle the hard part of batch jobs, and how do you avoid it?
+A: Group-bys, joins and sorts must move every record across the network to the task owning its key, paying disk, network and often a sort; skew and spills strike there. Broadcast small tables and pre-bucket by join key.
+```
 
 ## What to carry forward
 

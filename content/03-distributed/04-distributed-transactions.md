@@ -7,6 +7,12 @@ tags: [transactions, saga, 2pc, consistency]
 prereqs: [idempotency, consistency-models]
 ---
 
+:::predict Guess first
+1. In two-phase commit, the coordinator crashes right after everyone voted "yes". What are the participants stuck doing?
+2. A saga books a flight and then fails to book the hotel. How do you "undo" a step that has already committed?
+3. Order and inventory must always change together, but they live in two services. What might that tell you about the design?
+:::
+
 ## The problem
 
 A single database gives you ACID across many rows for free. Split those rows across two databases — or two services — and atomicity disappears.
@@ -162,3 +168,39 @@ Jim Gray's *Notes on Data Base Operating Systems* (1978) introduced 2PC; the sta
 
 *Sagas* (Garcia-Molina & Salem, SIGMOD 1987) is the compensating-transaction alternative. Pat Helland's *Life beyond Distributed Transactions* (CIDR 2007) is the argument for avoiding the problem entirely.
 :::
+
+## Check yourself
+
+```recall
+Q: How does two-phase commit work?
+A: Phase 1: the coordinator asks every participant to prepare — do the work, hold locks and promise it can commit. Phase 2: if all said yes, it sends commit; any no means abort.
+
+Q: Why is 2PC largely avoided across services?
+A: It blocks: if the coordinator dies after the votes, participants can neither commit nor abort and hold locks indefinitely. Locks span the whole round trip, and all participants must be up, so availability multiplies down.
+
+Q: What makes 2PC viable inside systems like Spanner and CockroachDB?
+A: The coordinator is itself replicated by consensus, so it can't vanish mid-decision — and it all runs within one trust and latency domain.
+
+Q: What is a saga, and what does it give up?
+A: A sequence of local transactions, each committed immediately, each with a compensating action that semantically undoes it. It gives up atomicity and isolation: other transactions can see the in-between state.
+
+Q: Orchestration or choreography for a saga with real money involved?
+A: Orchestration: a coordinator drives the steps as a state machine, so you can always see each booking's state and run compensations in reverse. Choreography hides the process across services.
+
+Q: Name three rules for designing compensations.
+A: Compensations are new semantic actions (a refund, not an un-charge); they must be idempotent; they can fail too, so retry then escalate to a human; and irreversible steps go last.
+
+Q: How does reserve-with-TTL avoid compensation entirely?
+A: Reserve inventory with an expiry, take payment, then confirm. If payment fails or times out, the reservation simply expires — the TTL is the compensation.
+
+Q: What should you check before designing any distributed transaction?
+A: Whether you need one at all: maybe the service boundary is wrong, a better partition key keeps it local, or an outbox (database write plus event) is all that's needed. Add reconciliation for anything financial.
+```
+
+## What to carry forward
+
+- Splitting data across systems loses free atomicity; there are two real answers and one better one.
+- 2PC blocks on coordinator failure; it's viable only with a consensus-replicated coordinator in one domain.
+- Sagas trade atomicity and isolation for availability; orchestrate them and design idempotent, ordered compensations.
+- Reserve-with-TTL and the outbox remove the need for most coordination.
+- The best fix is usually redrawing boundaries or partition keys — and reconciliation is the safety net.

@@ -7,6 +7,12 @@ tags: [crdt, convergence, collaboration, offline]
 prereqs: [consistency-models, clocks]
 ---
 
+:::predict Guess first
+1. Two offline phones each increment a shared like counter. When they sync, how do you make sure neither increment is lost?
+2. Could a data structure merge updates correctly no matter what order they arrive in?
+3. Could a CRDT enforce "never sell more than 100 tickets" across replicas?
+:::
+
 ## The problem they solve
 
 Two replicas accept writes concurrently. When they sync, which wins?
@@ -163,3 +169,39 @@ Shapiro, Preguiça, Baquero & Zawirski, *A Comprehensive Study of Convergent and
 
 *Delta State Replicated Data Types* (Almeida et al., 2018) fixes the bandwidth problem with state-based CRDTs. For text specifically, the Yjs and Automerge documentation explain the practical trade against operational transformation.
 :::
+
+## Check yourself
+
+```recall
+Q: What three properties make a CRDT's merge converge?
+A: It is commutative (order doesn't matter), associative (grouping doesn't matter) and idempotent (repeats don't matter). So replicas given the same updates in any order end in the same state.
+
+Q: Why can CRDTs use an unreliable, unordered network?
+A: Because merging is idempotent and commutative, duplicates, reordering and retries are all harmless.
+
+Q: How does a G-Counter avoid losing increments?
+A: Each replica increments only its own slot; merging takes the element-wise maximum, and the value is the sum of the slots.
+
+Q: Why does a PN-Counter need two G-Counters?
+A: Max-based merging would discard a decrement, so increments and decrements are tracked as separate grow-only counters and the value is P − N.
+
+Q: How does an OR-Set let a concurrent re-add survive a remove?
+A: Each add carries a unique tag, and a remove deletes only the tags it has seen. A re-add made concurrently has a new tag, so it survives — "add wins".
+
+Q: CRDTs versus operational transformation for collaborative editing?
+A: OT transforms concurrent operations and needs a central server for canonical order; it's battle-tested but hard to get right. CRDTs need no central authority and are correct by construction, but carry per-character metadata and tombstones.
+
+Q: Name three real costs of CRDTs.
+A: Tombstones and tags grow forever unless garbage-collected (which needs coordination); they converge, but not necessarily to what users meant; and they can't enforce cross-item invariants.
+
+Q: What one question decides whether a CRDT fits?
+A: Is the data mergeable with no global invariant? Counters, sets, carts and documents fit; overdraft rules, limited inventory and unique usernames need consensus.
+```
+
+## What to carry forward
+
+- CRDTs make concurrent updates unable to conflict: merges are commutative, associative and idempotent.
+- They tolerate unreliable, unordered, duplicated delivery.
+- Know the workhorses: G- and PN-Counters, OR-Sets, registers, and sequence CRDTs for text.
+- Costs: growing metadata, convergence that may not match intent, and no cross-item invariants.
+- Use them for counters, carts, offline and collaborative data — never for invariants like balances or seats.

@@ -7,6 +7,12 @@ tags: [gossip, membership, failure-detection, epidemic]
 prereqs: [failure-modes, networking]
 ---
 
+:::predict Guess first
+1. If every one of 1,000 nodes sends a heartbeat to every other node each second, how many messages is that?
+2. Each node tells three random peers every second. Roughly how many rounds until 1,000 nodes all know something?
+3. A node misses one heartbeat during a garbage-collection pause. Should the cluster declare it dead?
+:::
+
 ## The membership problem
 
 Every distributed system needs to know which nodes exist and which are alive. The obvious approaches don't scale:
@@ -157,3 +163,36 @@ Demers et al., *Epidemic Algorithms for Replicated Database Maintenance* (PODC 1
 
 *SWIM: Scalable Weakly-consistent Infection-style Process Group Membership Protocol* (Das, Gupta & Motivala, DSN 2002) is the membership protocol most modern systems implement, and its indirect-probing mechanism is the key idea. HashiCorp's Serf documentation describes a production implementation.
 :::
+
+## Check yourself
+
+```recall
+Q: Why don't all-to-all heartbeats scale?
+A: N nodes send N² messages per interval — a million a second at 1,000 nodes. Gossip costs a constant number of messages per node, so the total grows only linearly.
+
+Q: How fast does gossip spread, and why?
+A: In about log N rounds — roughly 10 rounds for 1,000 nodes and 20 for a million — because the number of informed nodes multiplies each round, like an epidemic.
+
+Q: Anti-entropy versus rumour-mongering?
+A: Anti-entropy constantly compares full state with a peer — thorough and guaranteed to catch up. Rumour-mongering only passes on new facts until they seem widely known — cheap, but may miss a node. Production uses both.
+
+Q: What must never be decided by gossip?
+A: Anything needing agreement, such as who the leader is or who owns a shard. Gossip is eventually consistent; decisions belong to consensus, built on top of gossiped membership.
+
+Q: Why can a fixed failure-detection timeout cause a cascade?
+A: Under load, healthy nodes miss heartbeats and get evicted, which shrinks capacity, loads the survivors further and causes more false evictions.
+
+Q: What does phi accrual failure detection output instead of alive/dead?
+A: A suspicion level based on how unusual the current silence is for that particular peer's history. It adapts to network jitter, and each caller picks its own threshold — reroute at low φ, fail over at high φ.
+
+Q: Name SWIM's three key ideas.
+A: Indirect probing — ask other nodes to ping a silent one, separating a dead node from a bad network path; a suspect state so a paused node can refute; and incarnation numbers so a node can override stale rumours about itself.
+```
+
+## What to carry forward
+
+- Gossip spreads facts in about log N rounds at constant cost per node, with no coordinator.
+- It's eventually consistent: use it for membership and metadata, never for decisions.
+- Combine fast rumour-mongering with periodic anti-entropy, exchanging digests first.
+- Failure detection is a guess: prefer phi accrual and SWIM's indirect probes and suspect state over fixed timeouts.
+- Typical stack: gossip for "who is here", consensus for "what have we decided".

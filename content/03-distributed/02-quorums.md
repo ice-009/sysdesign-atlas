@@ -7,6 +7,12 @@ tags: [quorum, replication, consistency]
 prereqs: [replication, consistency-models]
 ---
 
+:::predict Guess first
+1. Three replicas: a write must reach 2 and a read must ask 2. Why does that read always see the latest completed write?
+2. Does R + W > N make a leaderless store linearizable?
+3. Two of a key's three home replicas are unreachable. Should the write fail, or go somewhere else?
+:::
+
 ## The idea
 
 A **quorum** is simply "enough of them" — the minimum number of copies that must take part for an operation to count.
@@ -148,3 +154,36 @@ Gifford's *Weighted Voting for Replicated Data* (SOSP 1979) is where R + W > N c
 
 *Probabilistically Bounded Staleness for Practical Partial Quorums* (Bailis et al., VLDB 2012) is the important refinement: it quantifies how stale a partial quorum read actually is in practice, which turns out to be much less than the worst case.
 :::
+
+## Check yourself
+
+```recall
+Q: Why does R + W > N guarantee a read sees the latest completed write?
+A: The read set and write set must share at least one replica (the pigeonhole principle), and version numbers pick the newest value among the responses.
+
+Q: N=3: what do W=3, R=1 and W=1, R=1 give you?
+A: W=3, R=1: very fast reads, but a write fails if any replica is down. W=1, R=1: fastest, with no overlap guarantee — pure eventual consistency.
+
+Q: Why can higher N with the same W reduce tail latency?
+A: You wait for the W-th fastest replica, not the slowest, so more replicas means more to race.
+
+Q: Name three things R + W > N does not give you.
+A: Linearizability: concurrent writes still conflict; a failed partial write can survive on one replica and appear later; successive reads can go backwards; and there's no atomicity across keys.
+
+Q: What does a sloppy quorum trade?
+A: It accepts writes on any W reachable nodes when home replicas are down — much higher write availability — but breaks the overlap guarantee, so a strict-quorum read may miss the write.
+
+Q: How do Merkle trees make background repair affordable?
+A: Replicas compare root hashes and descend only into subtrees that differ, so data exchanged is proportional to the differences, not the dataset — catching cold data read repair never touches.
+
+Q: Quorum versus consensus: what's the core difference?
+A: Quorums give per-key overlap with no coordinator and no ordering, so conflicts are possible. Consensus adds an elected leader and a totally ordered log — linearizable but less available.
+```
+
+## What to carry forward
+
+- R + W > N forces read and write sets to overlap, so reads see the latest completed write.
+- It is not linearizability: concurrent writes conflict, failed writes linger, reads can go backwards.
+- Tune N, R and W per workload; you wait for the W-th fastest replica.
+- Sloppy quorums and hinted handoff buy availability at the cost of overlap; read repair and Merkle trees restore convergence.
+- Use quorums for highly available data, consensus for coordination and anything needing total order.

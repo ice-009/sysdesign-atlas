@@ -7,6 +7,12 @@ tags: [olap, columnar, analytics, warehouse]
 prereqs: [storage-engines, query-execution]
 ---
 
+:::predict Guess first
+1. A monthly sales report runs on the same database as checkout. What could go wrong at 9 a.m. on the 1st?
+2. A query sums one column out of 50. If each row is stored together on disk, how much of the table must it read?
+3. Why might a column of city names compress far better than a whole row?
+:::
+
 ## Two workloads, two systems
 
 **OLTP (Online Transaction Processing)** — the operational database. Many small, fast operations touching few rows each, found by key.
@@ -143,3 +149,39 @@ That names the failure mode, the fix, the consistency cost, and why the cost is 
 
 *MonetDB/X100* (Boncz, Zukowski & Nes, CIDR 2005) is vectorized execution — see [query execution](query-execution.html) — and *Dremel* (Melnik et al., VLDB 2010) is the nested columnar format Parquet implements.
 :::
+
+## Check yourself
+
+```recall
+Q: OLTP versus OLAP?
+A: OLTP: many small key lookups and updates touching few rows, in milliseconds, on current state. OLAP: few large read-only queries scanning and aggregating millions of rows over full history, in seconds.
+
+Q: Why run analytics on a separate system?
+A: A big scan competes with checkout for the same buffer pool and I/O, so a report can cause a production incident. Replicate to a columnar store via CDC and accept seconds of lag.
+
+Q: Why is column storage so much faster for analytics?
+A: A query reads only the columns it touches — 3 of 50 is about 6% of the data — and same-typed columns compress about 10:1 and suit vectorised, SIMD execution.
+
+Q: Name two encodings that make columns compress well.
+A: Dictionary encoding (store each distinct value once and refer to it by number) and run-length encoding ("Pune, 40,000 times"). Delta encoding suits sorted numbers and timestamps.
+
+Q: Why are column stores bad at OLTP?
+A: Writing or updating one row touches every column file, so they favour appends and batches; many don't support efficient single-row updates at all.
+
+Q: How do analytical stores avoid reading data?
+A: Partition pruning (usually by date), zone maps (per-block min/max), sort keys that make zone maps selective, and materialised rollups. Scan fast and skip aggressively rather than seek with B-trees.
+
+Q: ETL versus ELT — why did ELT win?
+A: ELT loads raw data first and transforms inside the warehouse. Storage is cheap and warehouse compute is strong, and keeping raw data means a bad transformation can be reprocessed.
+
+Q: Lambda versus kappa architecture?
+A: Lambda runs a streaming path and a batch path and merges them, so logic is written twice. Kappa uses one streaming path and replays the log to reprocess. Real-time OLAP stores like Druid, Pinot and ClickHouse often make the question moot.
+```
+
+## What to carry forward
+
+- Separate OLTP from OLAP early; replicate via CDC and accept seconds of lag for reporting.
+- Column storage reads only touched columns and compresses about 10:1 — the root of analytical speed.
+- Analytical stores skip data (partitions, zone maps, sort keys) instead of seeking with B-trees.
+- Separating storage from compute is the defining feature of the modern warehouse.
+- ELT keeps raw data so mistakes can be reprocessed; organise it as bronze, silver and gold.

@@ -7,6 +7,12 @@ tags: [idempotency, exactly-once, retries, correctness]
 prereqs: [failure-modes, message-queues]
 ---
 
+:::predict Guess first
+1. A payment request times out. Did the charge happen? Can the client find out by itself?
+2. Which of these are safe to repeat: "set balance to 100", "subtract 50", "delete user 42", "send an email"?
+3. Two retries of the same request arrive at the same instant. How do you make sure only one is processed?
+:::
+
 ## Why this is unavoidable
 
 A client sends a payment request and the connection times out. Did the charge happen?
@@ -176,3 +182,39 @@ When any design involves retries, queues, or payments, say this early — it's a
 
 Stripe's engineering post on idempotency keys is the best practical reference for the API-level pattern.
 :::
+
+## Check yourself
+
+```recall
+Q: Why must every real system handle duplicate requests?
+A: After a timeout the client can't tell if the request was lost, crashed mid-way, succeeded with the reply lost, or is still running. Since losing operations is worse, systems retry — so duplicates will happen.
+
+Q: What makes an operation idempotent? Give an example of each kind.
+A: Doing it twice has the same effect as once. Assignment is idempotent ("set status to shipped", upsert, add to a set); changes relative to current state aren't ("subtract 50", append, send an email).
+
+Q: What does Kafka's "exactly-once semantics" actually cover?
+A: Atomic read-process-write within Kafka, using transactions over offsets and output topics. Once a consumer writes to an external database or API, you're back to needing idempotency.
+
+Q: Describe a correct idempotency-key implementation.
+A: The client sends a unique key with every attempt. The server inserts the key under a unique constraint as the atomic gate, does the work, stores the response against the key, and returns that stored response on any retry. Scope keys per account and expire them after about a day.
+
+Q: Why is "SELECT the key, then INSERT it" a broken idempotency check?
+A: Two concurrent retries can both see no key and both proceed. The unique-constraint insert itself must be the gate.
+
+Q: How do you make a balance deduction naturally idempotent?
+A: Make it conditional on a version that changes: UPDATE … SET balance = balance − 50, version = 8 WHERE id = 42 AND version = 7. A repeat matches zero rows.
+
+Q: How does a consumer-side dedupe table stay correct?
+A: Insert the message ID under a unique constraint in the same transaction as the work, so a crash can't lose one without the other. Expire old IDs, and put a Bloom filter in front at high volume.
+
+Q: How do you handle a side effect you can't undo, like sending an email?
+A: Record the intent transactionally (an outbox row), claim it with a conditional update, call the provider with the row ID as its idempotency key, then mark it done.
+```
+
+## What to carry forward
+
+- Timeouts make duplicates unavoidable, so retried paths must be idempotent.
+- Exactly-once delivery is impossible; exactly-once effect comes from at-least-once delivery plus idempotent consumers.
+- Idempotency keys: a unique-constraint gate, the stored response returned on retry, scoped and expiring.
+- Prefer natural idempotency — conditional updates, upserts, sets — and explicit state machines.
+- For irreversible side effects, record intent, perform once, and push idempotency onto the provider.

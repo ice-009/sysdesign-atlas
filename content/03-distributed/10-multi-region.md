@@ -7,6 +7,12 @@ tags: [multi-region, geo, disaster-recovery, cells]
 prereqs: [replication, cap-pacelc, consensus]
 ---
 
+:::predict Guess first
+1. A write must be confirmed by a region on another continent. Can it ever take less than about 80 milliseconds?
+2. Two regions both accept writes. How could you set things up so they never write the same record?
+3. Your service runs in two regions, each at 70% load. One region fails. What happens?
+:::
+
 ## Why go multi-region
 
 Four distinct motivations, and they demand different architectures. Establishing *which one* applies is the first move.
@@ -164,3 +170,39 @@ Worth having ready as a checklist:
 
 *Don't Settle for Eventual: Scalable Causal Consistency for Wide-Area Storage with COPS* (Lloyd et al., SOSP 2011) is the middle ground — causal consistency across regions, which is often exactly what applications need.
 :::
+
+## Check yourself
+
+```recall
+Q: Name the four reasons to go multi-region — and why it matters which one.
+A: Latency, disaster recovery, data residency, or scale. Each needs a different design, and multi-region roughly doubles cost, so a warm standby or CDN plus read replicas may meet the real need.
+
+Q: Why is an untested failover dangerous?
+A: Failover is a risky multi-step operation that takes 5–30 minutes even when practised. Untested, the first real attempt discovers stale replicas, missing secrets and day-long DNS TTLs. Run game days.
+
+Q: What is "active–active with partitioned writes", and why is it the sweet spot?
+A: Every user or tenant has a home region that owns their writes, while reads are served anywhere. Both regions stay warm, writes are local and fast, and there are no write conflicts because each record has one writer.
+
+Q: When do global consensus stores make sense, and how do they limit latency?
+A: For ledgers and global uniqueness, where every write pays a cross-region round trip. They place a shard's replicas in nearby regions so the quorum round trip is about 30 ms, not 200.
+
+Q: How do you classify data for a multi-region design?
+A: Global read-mostly (replicate everywhere asynchronously), user-partitioned (home region), region-local (don't replicate — sessions, caches, limits), and globally consistent (consensus or one authoritative region). Most data doesn't need the last class.
+
+Q: Why can't two regions at 70% absorb each other's failure, and why do three regions help?
+A: The survivor would need 140%. Two regions must run at 50% or less; with three regions each needs only about 33% headroom.
+
+Q: What is a cell-based architecture, and what does it buy?
+A: Many independent, complete stacks (cells), each serving a slice of users behind a thin router. A failure or bad deploy affects one cell's users, rollouts go cell by cell, and one load-tested cell is the scaling unit.
+
+Q: Name three things that break at multi-region scale.
+A: Shared sequential IDs, uniqueness constraints enforced locally in two regions, cross-region cache invalidation, replicated sessions (use signed tokens), global rate limits, and cross-region egress costs.
+```
+
+## What to carry forward
+
+- Find out why you need multi-region first — latency, disaster recovery, residency or scale need different designs.
+- Cross-region round trips are a physical floor: accept the latency or weaker consistency.
+- Prefer active–active with a home region per entity; avoid conflicting writes unless ownership can't be partitioned.
+- Classify data — most of it doesn't need global consistency — and size regions to absorb a failed one.
+- Cells bound the blast radius of failures and deploys, even within one region.

@@ -7,6 +7,12 @@ tags: [raft, paxos, consensus, replication]
 prereqs: [replication, consistency-models, failure-modes]
 ---
 
+:::predict Guess first
+1. Why do consensus clusters almost always have 3, 5 or 7 nodes — never 4 or 6?
+2. If every follower waited exactly the same time before starting an election, what would go wrong?
+3. Should every user write in a big system go through one Raft group?
+:::
+
 ## The problem
 
 Get N machines to agree on a value, given that machines crash, messages are lost, delayed, and reordered, and no one has a reliable clock.
@@ -164,3 +170,39 @@ Lamport's *The Part-Time Parliament* (1998) is Paxos, and is famously hard going
 
 *Paxos Made Live* (Chandra, Griesemer & Redstone, PODC 2007) is Google's account of what it actually takes to implement consensus correctly, and is the best argument for using an existing implementation.
 :::
+
+## Check yourself
+
+```recall
+Q: What does FLP impossibility say, and how do real protocols live with it?
+A: With arbitrary message delays and even one possible crash, no protocol can guarantee agreement, validity and termination together, because a dead node looks like a slow one. Real protocols are always safe and make progress once the network behaves.
+
+Q: Why is "consensus on an ordered log" so powerful?
+A: Deterministic copies fed the same commands in the same order end in the same state, so agreeing on log order gives a fault-tolerant version of any deterministic service.
+
+Q: Why does Raft use randomised election timeouts?
+A: If all followers timed out together they'd all become candidates, split the vote, and repeat forever. Randomness means one node usually times out first and wins.
+
+Q: What stops a Raft candidate that's missing committed entries from becoming leader?
+A: Nodes only vote for a candidate whose log is at least as up to date as theirs. Committed entries live on a majority, and any winning majority overlaps it, so such a candidate can't win.
+
+Q: When is a Raft log entry committed, and why is it then safe?
+A: Once a majority has it. Any future leader needs a majority of votes, which must overlap that majority, so the entry survives even if the leader dies at once.
+
+Q: A cluster of 4 tolerates how many failures, compared with 3 and 5?
+A: One — the same as 3 (majority 3 of 4), while 5 tolerates two. Even sizes add coordination without extra tolerance.
+
+Q: How do systems scale write throughput when Raft funnels writes through one leader?
+A: Shard into many independent Raft groups, one per partition, so throughput grows with the number of groups — as Spanner, CockroachDB and TiKV do.
+
+Q: What should and shouldn't go through consensus?
+A: Yes: small, critical, rarely written state — membership, shard ownership, leader election, config, safe locks. No: bulk data. Keep consensus in the control plane, scoped per shard in the data plane.
+```
+
+## What to carry forward
+
+- Consensus lets unreliable machines agree on one ordered log: safe always, live once the network behaves.
+- Raft: randomised elections, majority votes for up-to-date candidates, entries committed once on a majority.
+- Use 3, 5 or 7 nodes — 5 is standard; even sizes add nothing.
+- Writes cost a majority round trip and funnel through the leader — scale by running many groups.
+- Use etcd or ZooKeeper rather than implementing it, and keep consensus to small control-plane state.

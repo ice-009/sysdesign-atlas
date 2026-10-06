@@ -8,6 +8,12 @@ prereqs: [consensus, failure-modes]
 unlocks: A defensible answer to "how do you know your replication protocol is right?"
 ---
 
+:::predict Guess first
+1. A distributed database has thousands of passing tests. Does that tell you it never loses acknowledged writes?
+2. What is easier to verify formally — a whole implementation, or just the 200-line core of a protocol?
+3. How could you reproduce a distributed bug that only appears once in a million runs?
+:::
+
 ## Why ordinary testing fails here
 
 A distributed bug needs three things to line up: a specific interleaving of concurrent operations, a specific failure at a specific moment, and a specific piece of state. Your test suite explores maybe a dozen interleavings out of an astronomically large space, always on a healthy network, and always at the same speed.
@@ -188,6 +194,31 @@ Chris Newcombe et al., *How Amazon Web Services Uses Formal Methods* (CACM, 2015
 
 For simulation: FoundationDB's "Testing Distributed Systems w/ Deterministic Simulation" talk (Will Wilson, Strange Loop 2014), and the FoundationDB paper (SIGMOD 2021).
 :::
+
+## Check yourself
+
+```recall
+Q: Why don't ordinary tests find most distributed bugs?
+A: A bug needs a specific interleaving, a failure at a specific moment and specific state. The space is astronomically large, and CI explores about one path on a healthy network at one speed.
+
+Q: What does model checking (TLA+) verify, and what doesn't it?
+A: It exhaustively explores every reachable state of a protocol specification and hands you a step-by-step counterexample when an invariant breaks. It verifies the design, not your code.
+
+Q: What did AWS report from using TLA+?
+A: It found design bugs needing rare failure sequences that testing would likely never have caught and that would have lost data — and writing the spec was valuable even when it found nothing, because stating invariants exposed disagreements.
+
+Q: How does Jepsen decide a database broke its promise?
+A: It runs the real system under concurrent clients while injecting partitions, pauses, clock skew and kills, records every operation's start and finish, then checks whether any valid ordering under the claimed model explains the history.
+
+Q: What are the recurring lessons from Jepsen reports?
+A: Documentation overstates guarantees, default configurations are often weaker than advertised, and the interesting bugs appear during recovery, when healed nodes rejoin.
+
+Q: What is deterministic simulation, and what are its two big benefits?
+A: Run the whole cluster in one process, replacing clock, scheduling, network, disk and randomness with a seeded generator. Simulated time runs far faster than real time, and any failing run replays exactly from its seed.
+
+Q: Why is deterministic simulation hard to adopt late?
+A: Every call to the clock, randomness, threads or sockets must go through a substitutable abstraction; one stray call reintroduces nondeterminism. It has to be designed in from the start.
+```
 
 ## What to carry forward
 

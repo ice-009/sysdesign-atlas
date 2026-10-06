@@ -8,6 +8,12 @@ prereqs: [message-queues, clocks, idempotency]
 unlocks: Designing correct aggregations over unbounded, late, out-of-order data.
 ---
 
+:::predict Guess first
+1. A phone records a click at 09:58 offline and sends it at 10:47. Which hour should that click count towards?
+2. If events can arrive hours late, when should a "clicks per 5 minutes" window publish its answer?
+3. A framework promises "exactly-once". Your job sends an email for every event. Can a customer get two emails?
+:::
+
 ## The shift from batch to stream
 
 A batch job has a luxury it never acknowledges: **the data is complete.** When you run yesterday's report, yesterday is over. Every record that will ever belong to that window has arrived. You can sort, join, aggregate, and know the answer is final.
@@ -229,6 +235,34 @@ You're computing "unique viewers per video per hour" for a video platform. Mobil
 
 *Lightweight Asynchronous Snapshots for Distributed Dataflows* (Carbone et al., 2015) is Flink's checkpointing mechanism, descended from Chandy–Lamport's *Distributed Snapshots* (1985).
 :::
+
+## Check yourself
+
+```recall
+Q: Event time versus processing time — which do business questions need?
+A: Event time — when it happened. Processing time (when your job saw it) is easy but gives different answers on replay and misplaces late events; it's only fine for questions about your own system.
+
+Q: What is a watermark?
+A: The system's assertion "I've probably seen every event up to time T" — a heuristic, not a fact — which decides when a window is complete enough to emit.
+
+Q: Name the three ways to handle data that arrives after the watermark.
+A: Drop it (dashboards), send it to a side output to measure and inspect, or allow lateness and emit a corrected result that supersedes the earlier one (billing).
+
+Q: What trade-off does the watermark delay control?
+A: Latency against completeness: a short delay is fast but misses late data, a long delay is complete but slow. The mature design emits an early result and then corrections, and consumers must handle retractions.
+
+Q: Why are sliding windows expensive?
+A: Each event belongs to size ÷ slide windows — a 1-hour window sliding every minute keeps 60× the state. Incremental aggregation over tumbling windows is usually cheaper.
+
+Q: What must a checkpoint keep consistent?
+A: Operator state, input offsets and output commit, all at the same cut. Restore state from 10:00 but resume input at 10:05 and you silently lose five minutes; resume at 09:55 and you double-count.
+
+Q: What does "exactly-once" actually mean in stream processing?
+A: Exactly-once effects on framework-managed state and transactional sinks — not delivery, which is impossible. Side effects your code performs directly, like HTTP calls or emails, repeat on replay unless idempotent.
+
+Q: Why use a temporal join for currency rates?
+A: Join each order to the rate in effect at the order's event time, not the current rate. Then replaying the job a month later gives the same answer; reproducibility on replay is the correctness test.
+```
 
 ## What to carry forward
 

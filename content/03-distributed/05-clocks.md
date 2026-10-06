@@ -7,6 +7,12 @@ tags: [clocks, ordering, causality, vector-clocks]
 prereqs: [consistency-models, networking]
 ---
 
+:::predict Guess first
+1. Two servers' clocks differ by a few milliseconds. Can "keep the write with the latest timestamp" throw away the write that really happened last?
+2. Should you measure how long a request took using the wall clock or a different clock?
+3. Google Spanner gets strong consistency across continents partly by deliberately waiting. Waiting for what?
+:::
+
 ## Why you can't trust a timestamp
 
 Ordering events by wall-clock time seems obvious and is quietly wrong.
@@ -158,3 +164,39 @@ Lamport's *Time, Clocks, and the Ordering of Events in a Distributed System* (CA
 
 *Spanner* (Corbett et al., OSDI 2012) is TrueTime — bounding clock uncertainty with GPS and atomic clocks and then *waiting out* the uncertainty. *Logical Physical Clocks* (Kulkarni et al., 2014) is the hybrid logical clock used by CockroachDB and others.
 :::
+
+## Check yourself
+
+```recall
+Q: How does clock skew make last-write-wins silently lose data?
+A: If server A's clock runs ahead, its earlier write gets a later timestamp than B's genuinely later write, so LWW keeps A's and discards B's — with no error anywhere.
+
+Q: Wall clock versus monotonic clock: what is each for?
+A: Wall clock: absolute time for display, and it can jump backwards. Monotonic clock: always increases, for measuring durations, timeouts and rate limits. A duration measured on the wall clock can come out negative.
+
+Q: When are two events concurrent in the happens-before sense?
+A: When neither could have caused the other — not in the same process in order, not linked by a message, and not transitively connected. That's exactly where conflicts live.
+
+Q: What can and can't a Lamport clock tell you?
+A: If A caused B, then L(A) < L(B). But a smaller number doesn't prove causation, so it can't detect concurrent events — fine for a deterministic tiebreak, useless for conflict detection.
+
+Q: How do vector clocks detect concurrent writes?
+A: One counter per node. V1 precedes V2 if every entry is ≤ and at least one is <. If neither vector dominates — say [1,2,0] and [0,0,1] — the events are concurrent and the store returns both as siblings.
+
+Q: Why have hybrid logical clocks become the default in new databases?
+A: An HLC is (physical time, logical counter): close to real time so it's meaningful, causally correct despite skew, bounded in size unlike vector clocks, and needs no special hardware.
+
+Q: How does Spanner's commit-wait give external consistency?
+A: TrueTime returns an uncertainty interval. A transaction takes the interval's latest time as its timestamp, then waits until even the earliest bound has passed it before acknowledging, so its timestamp is in the past everywhere.
+
+Q: What's the simplest correct way to order writes to one entity?
+A: A sequence number from a single ordering point — one partition or one owner for that entity.
+```
+
+## What to carry forward
+
+- Wall-clock timestamps lie: skew and backward jumps make last-write-wins silently lose data.
+- Measure durations with a monotonic clock, never the wall clock.
+- Lamport clocks give a consistent order; vector clocks detect concurrency; HLCs give causal order with physical meaning.
+- TrueTime makes uncertainty explicit and waits it out — paying milliseconds per commit for external consistency.
+- When you control the write path, a per-entity sequence number is the simplest correct order.
