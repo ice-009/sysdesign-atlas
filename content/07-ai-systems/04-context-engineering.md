@@ -8,6 +8,12 @@ prereqs: [kv-cache-management, retrieval-architecture]
 unlocks: Treating the context window as a budget to allocate rather than a box to fill.
 ---
 
+:::predict Guess first
+1. A prompt starts with the current time, then a 3,500-token fixed system prompt. How much of it can be reused from cache on the next request?
+2. You summarise turns 1–10 of a long conversation into one paragraph. What might that do to the cache?
+3. A 128K window is filled to 126K with history and documents. What happens when the model starts answering?
+:::
+
 ## The framing
 
 Everything a model knows about the current request arrives through the context window. Deciding what goes in it — and in what order — is a resource-allocation problem with three simultaneous constraints:
@@ -197,6 +203,34 @@ A coding agent: 200K context window. Per request it has a 6,000-token system pro
 
 *MemGPT: Towards LLMs as Operating Systems* (Packer et al., 2023) frames context management as virtual memory paging and is the clearest treatment of the hierarchy. Anthropic's prompt caching documentation is the practical reference for cache-aware ordering.
 :::
+
+## Check yourself
+
+```recall
+Q: Which four constraints compete for the context window?
+A: Capacity (effective is less than advertised), cost (every token billed every request), cache (only a prefix is reusable) and quality (irrelevant content degrades answers).
+
+Q: What is the rule for ordering a prompt?
+A: Order by rate of change, most stable first: system prompt and tools, then user profile, then append-only history, then per-turn documents, timestamp and question.
+
+Q: What is good ordering worth?
+A: Moving 3,500 static tokens ahead of anything variable saves ~350M prefilled tokens a day at 100,000 requests, and ~200 ms of TTFT each — with no quality change.
+
+Q: How do you compact history without wrecking the cache?
+A: Compaction rewrites the prefix, so compact rarely in large increments and keep each summary fixed once written. An append-only context is cacheable; a rewritten one isn't.
+
+Q: What are the four memory layers?
+A: Working memory (this turn), session memory (this conversation), long-term memory (extracted facts about the user) and shared knowledge (the RAG corpus).
+
+Q: What makes long-term memory hard?
+A: Contradictions (newer facts must supersede older ones per slot), decay, over-extraction noise, and user control — discrete, inspectable records with sources.
+
+Q: What privacy duties does memory create?
+A: Real deletion everywhere (index, caches, backups within retention), no cross-user leakage, no silent retention of sensitive data, and explainable memories. Design deletion before the write path.
+
+Q: How should the window be budgeted?
+A: Cap every category, reserve output space first, keep headroom, and make an over-cap category compact itself rather than steal from another — otherwise answers truncate.
+```
 
 ## What to carry forward
 

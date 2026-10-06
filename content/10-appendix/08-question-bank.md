@@ -1,10 +1,16 @@
 ---
 title: Practice Question Bank
-summary: 60+ prompts organized by the core difficulty each one tests, plus the follow-ups interviewers actually ask and a protocol for practicing alone.
+summary: 70+ prompts organized by the core difficulty each one tests, plus the follow-ups interviewers actually ask and a protocol for practicing alone.
 difficulty: Easy
 scope: HLD
 tags: [practice, questions, drills]
 ---
+
+:::predict Guess first
+1. Is reading a prompt and imagining your answer good practice for an interview?
+2. "Design a vaccine appointment scheduler" — which classic design problem does it secretly resemble?
+3. When practising alone, how could you simulate an interviewer's pressure?
+:::
 
 ## How to use this
 
@@ -67,11 +73,11 @@ Prompts marked ★ are the highest-frequency ones. If you only do ten, do those.
 
 - ★ Design a distributed key-value store → [worked solution](../05-case-studies/key-value-store.html)
 - ★ Design a distributed cache → [worked solution](../05-case-studies/distributed-cache.html)
-- Design Google Drive / Dropbox (file sync)
+- Design Google Drive / Dropbox (file sync) → [worked solution](../08-case-studies/file-sync.html)
 - Design S3 / a blob store
 - Design a distributed file system
 - Design a time-series database for metrics
-- Design a message queue from scratch
+- Design a message queue from scratch → [worked solution](../08-case-studies/distributed-log.html)
 - Design a configuration service (etcd-like)
 - Design a distributed counter at 1M increments/s
 
@@ -84,7 +90,7 @@ Prompts marked ★ are the highest-frequency ones. If you only do ten, do those.
 *Core difficulty: ingest volume, windowing, exactly-once, late data.*
 
 - ★ Design an ad click aggregator → [worked solution](../05-case-studies/ad-click-aggregator.html)
-- ★ Design a metrics & monitoring system
+- ★ Design a metrics & monitoring system → [worked solution](../08-case-studies/metrics-monitoring.html)
 - Design a logging/observability pipeline
 - Design a real-time analytics dashboard
 - Design a fraud detection pipeline
@@ -192,6 +198,23 @@ Prompts marked ★ are the highest-frequency ones. If you only do ten, do those.
 
 ---
 
+## AI systems
+
+*Core difficulty: GPU memory as the scarce resource, token economics, retrieval quality, and acting safely on model output.*
+
+- ★ Design an LLM inference service → [guided build](../09-builds/llm-inference-serving.html)
+- ★ Design a ChatGPT-style chat product → [guided build](../09-builds/ai-chat-platform.html)
+- ★ Design question answering over company documents (RAG) → [guided build](../09-builds/rag-system.html)
+- Design an AI agent platform that can take actions → [guided build](../09-builds/ai-agent-platform.html)
+- Design an AI code-completion service → [guided build](../09-builds/ai-code-assistant.html)
+- Design an evaluation platform for prompt and model changes → [guided build](../09-builds/eval-platform.html)
+- Design a phone-call voice agent → [guided build](../09-builds/voice-assistant.html)
+- Design a multi-tenant fine-tuning service → [guided build](../09-builds/fine-tuning-platform.html)
+
+**Follow-ups:** What limits how many users one GPU serves? How do you rate-limit when one request can be 20 tokens or 20,000? What does prefix caching change? How do you stop retrieval leaking documents a user can't see? What happens when a web page the agent reads contains instructions? How would you know a prompt change made answers worse?
+
+---
+
 ## Product-shaped prompts
 
 These wrap familiar difficulties in unfamiliar clothes. Good practice at recognizing the underlying problem.
@@ -258,3 +281,35 @@ If you have four weeks and can do five sessions a week:
 ```
 
 Week 4 matters most: **unfamiliar prompts, cold, timed.** That's the only condition that actually resembles the interview.
+
+## Check yourself
+
+```recall
+Q: What is the solo practice protocol?
+A: An unstudied prompt, a 45-minute timer, recorded and spoken continuously, self-interruptions with hostile questions at minutes 15, 30 and 40, then next-day review against the four signals and a logged gap.
+
+Q: Why doesn't reading prompts and imagining answers work?
+A: Recognition is nearly free to acquire and nearly worthless in the room; only generating a design out loud under time pressure resembles the interview.
+
+Q: What are the core difficulties the prompt families test?
+A: Fanout and hot keys; stateful connections; partitioning and consistency; ingest, windowing and exactly-once; correctness under contention; geospatial matching; bandwidth; index freshness; coordination; merge semantics; GPU memory and token economics.
+
+Q: What is the product-shaped prompt drill?
+A: Name the case study an unfamiliar prompt resembles before designing — vaccine appointments is ticket booking: limited inventory, extreme burst, no double-booking.
+
+Q: Name hostile questions to interrupt yourself with.
+A: What breaks first at 10×? Kill the primary — next 60 seconds? Can this double-charge? Why not one Postgres box? How would you know it's broken before a user does?
+
+Q: What do AI-system interviews probe?
+A: What limits users per GPU (KV cache), token-based rate limits, prefix caching, permission-aware retrieval, prompt injection through read content, and how you'd detect a quality regression.
+
+Q: What matters most in the 20-session plan?
+A: Week 4: unfamiliar prompts, cold and fully timed — the only condition that resembles the real interview.
+```
+
+## What to carry forward
+
+- Practise by generating designs out loud, timed, never by imagining.
+- Group prompts by core difficulty, and name the familiar problem inside an unfamiliar prompt.
+- Interrupt yourself with hostile questions on scale, failure, correctness, simplicity and operations.
+- Finish with cold, timed, unseen prompts.

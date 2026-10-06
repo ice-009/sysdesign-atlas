@@ -63,7 +63,7 @@ const CALLOUT_KINDS = new Set([
 /* Sections whose every topic must carry the learning layer. Grows as each
    section gets its pass; when every section is listed, the whole atlas is
    held to it. */
-const LEARNING_REQUIRED = new Set(['01-foundations', '02-building-blocks', '03-distributed', '04-data', '11-lld', '12-hld-bridge', '08-case-studies', '09-builds', '05-ai-foundations', '06-ai-infrastructure']);
+const LEARNING_REQUIRED = new Set(['01-foundations', '02-building-blocks', '03-distributed', '04-data', '11-lld', '12-hld-bridge', '08-case-studies', '09-builds', '05-ai-foundations', '06-ai-infrastructure', '07-ai-systems', '10-appendix']);
 const MIN_CARDS = 5;
 const MAX_CARDS = 8;
 

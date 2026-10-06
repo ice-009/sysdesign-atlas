@@ -8,6 +8,12 @@ prereqs: [stream-processing, lakehouse-and-batch]
 unlocks: The systems underneath fraud detection, ranking, pricing, and forecasting — which is most production ML.
 ---
 
+:::predict Guess first
+1. A fraud model scores brilliantly offline and poorly in production, with no errors anywhere. What might differ between training and serving?
+2. Training data joins each transaction to the customer's current lifetime value. What could go wrong?
+3. Chargebacks arrive 60 days after a transaction. How could you tell sooner that a fraud model is degrading?
+:::
+
 ## Why this isn't obsolete
 
 Language models get the attention. Meanwhile most production ML predictions are still gradient-boosted trees and small neural networks scoring tabular features: fraud decisions, ad ranking, credit scoring, demand forecasting, churn prediction, recommendation. They're cheaper, faster, more accurate on tabular data, and far easier to explain.
@@ -189,6 +195,34 @@ A payments company scoring every transaction for fraud: 5,000 TPS peak, p99 budg
 
 *Feature Stores for ML* (the Feast and Tecton documentation) covers point-in-time correctness clearly. *The ML Test Score* (Breck et al., IEEE Big Data 2017) is a practical readiness rubric worth running against any production ML system.
 :::
+
+## Check yourself
+
+```recall
+Q: Why is classical ML still most production prediction?
+A: Gradient-boosted trees and small nets on tabular features are cheaper, faster, more accurate on tabular data and easier to explain — fraud, ranking, credit, forecasting, churn.
+
+Q: What is training/serving skew?
+A: The same feature computed differently in training (e.g. a Spark job) and serving (a live service) — inclusive vs exclusive windows, snapshots vs live data, different null fills — so the model sees inputs it never trained on.
+
+Q: How do you eliminate skew?
+A: Design it out: define each feature once in a feature store and materialise it to both offline and online stores. Diagnose by comparing logged serving feature distributions with training.
+
+Q: What is point-in-time correctness?
+A: Joining each training example to feature values as they were at the event timestamp, not today's — otherwise label leakage teaches the model from the future and offline metrics lie.
+
+Q: Batch or online inference?
+A: Batch (scheduled, cheap, simple, stale) suits churn scores and forecasts; online (per request, millisecond SLAs) suits fraud and pricing. A batch base score adjusted by a few live features is a common hybrid.
+
+Q: What kinds of drift exist, and which signal comes first?
+A: Data drift (inputs change), concept drift (input–label relationship changes, seen only via lagging labels) and prediction drift — the output distribution shifting, available immediately with no labels.
+
+Q: Why do ML feedback loops narrow your data, and the fix?
+A: A fraud model never learns about transactions it blocked; a recommender only learns about what it shows. Deliberate exploration — letting a small share through, or randomising — keeps data representative at a known cost.
+
+Q: Why is model lineage a legal requirement?
+A: "Why was my loan declined?" must be answerable: which model version, data snapshot, feature definitions and values scored the application. Shadow-deploy before rollouts.
+```
 
 ## What to carry forward
 

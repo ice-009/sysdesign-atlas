@@ -8,6 +8,12 @@ prereqs: [vector-search, sharding, replication]
 unlocks: Operating vector retrieval as a real distributed system rather than a library call.
 ---
 
+:::predict Guess first
+1. You have 3 million vectors and already run Postgres. Do you need a separate vector database?
+2. A query must visit all 16 shards, each fast 99% of the time. How often is at least one of them slow?
+3. A document is saved in Postgres but the write to the vector store times out. What does a user experience?
+:::
+
 ## What a vector database adds
 
 [Vector search](vector-search.html) is an algorithm. A vector database is that algorithm plus everything a production system needs: durability, sharding, replication, filtering, transactions against metadata, backups, and multi-tenancy.
@@ -21,6 +27,7 @@ The first design decision is whether you need a separate one at all.
 | **Dedicated vector DB** (Qdrant, Weaviate, Milvus, Vespa) | >10M vectors, high QPS, complex filtering, or you need the operational features |
 | **Managed service** | You'd rather not operate an index rebuild at 3am |
 | **Search engine with vectors** (Elasticsearch, OpenSearch, Vespa) | You need hybrid lexical+dense and already run one |
+| **Object-storage-native** (turbopuffer, LanceDB, S3 Vectors) | Huge, mostly cold corpora — say thousands of tenants that each query rarely. Data lives in object storage at object-storage prices; hot namespaces are cached on SSD and in memory |
 
 :::goat Postgres is the right answer more often than the discourse suggests
 Under about 10 million vectors, `pgvector` with an HNSW index is genuinely competitive on latency, and it gives you things a dedicated vector database makes hard:
@@ -188,6 +195,34 @@ A document platform: 200M documents across 5,000 customers. Largest customer has
 
 *Manu: A Cloud Native Vector Database Management System* (Guo et al., VLDB 2022) covers the disaggregated-storage design. Vespa's documentation on hybrid retrieval is unusually good on the filtering and ranking interaction.
 :::
+
+## Check yourself
+
+```recall
+Q: When is Postgres with pgvector the right vector store?
+A: Under ~10M vectors when you already run Postgres: competitive HNSW latency, transactional consistency with metadata (no dual write), joins, and one system to operate.
+
+Q: Why does scatter-gather worsen the tail as you add shards?
+A: A query waits for the slowest shard: with 16 shards at 99% under target, only 0.99¹⁶ ≈ 85% of queries are; at 64 shards, 53%. Mitigate with hedged requests, partial results or avoiding scatter.
+
+Q: Why shard a vector index by tenant, and what is the catch?
+A: Tenant-scoped queries hit one shard, the filter becomes free and tenants are isolated. The catch is skew — give huge tenants dedicated shards and pack small ones.
+
+Q: How should vector indexes be replicated?
+A: The index is derived state: build it once as a versioned immutable artifact and copy it to replicas, like model weights, rather than rebuilding per replica.
+
+Q: How are vector index updates handled?
+A: LSM-style: an immutable base index, a small mutable delta index and a tombstone set; queries search both and drop tombstones; merge in the background and rebuild at ~10–20% tombstones.
+
+Q: How do you stop the document store and vector store diverging?
+A: An outbox row written in the same transaction as the document, consumed by an idempotent indexing worker, plus reconciliation jobs that compare the stores.
+
+Q: Why is filter correctness a security control?
+A: In a shared multi-tenant index the tenant filter is all that prevents cross-tenant leaks — and post-filtering discards data after it left the index. Test it, or partition sensitive tenants.
+
+Q: What is the vector-DB metric teams skip?
+A: Recall@k against a golden query set, run continuously — latency is visible but recall degrades silently.
+```
 
 ## What to carry forward
 

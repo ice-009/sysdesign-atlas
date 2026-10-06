@@ -8,6 +8,12 @@ prereqs: [embeddings, indexing, hardware-numbers]
 unlocks: Choosing and tuning the index underneath every retrieval system.
 ---
 
+:::predict Guess first
+1. Comparing a query against every one of 100 million vectors — roughly how long might that take on one CPU core?
+2. If a search returns 9 of the true 10 nearest results, will users usually notice?
+3. A query must match only one tenant's documents, about 0.2% of the corpus. Should you search first and filter afterwards?
+:::
+
 ## Why exact search doesn't work
 
 Finding the nearest vectors to a query is trivially correct by brute force: compute the distance to every vector, keep the top *k*.
@@ -131,6 +137,8 @@ The other major family, and the one that scales to memory-constrained deployment
 
 **IVF-PQ is the standard combination**: partition with IVF, compress with PQ, and optionally re-rank the top candidates with full-precision vectors to recover most of the lost recall.
 
+**RaBitQ** (Gao & Long, SIGMOD 2024) is the newer quantizer worth knowing. It applies a random rotation to each vector, then keeps about one bit per dimension — the same 32× saving as the PQ example — but with a proven bound on how wrong each distance estimate can be. That bound lets the search decide, candidate by candidate, whether the cheap estimate is good enough or the full vector has to be fetched, which gives PQ-level memory with steadier recall. Extended versions spend a few more bits per dimension for accuracy, and several vector databases adopted it in 2024–25.
+
 ## Choosing an index
 
 | Index | Memory | Build | Query | Recall | Best for |
@@ -143,6 +151,8 @@ The other major family, and the one that scales to memory-constrained deployment
 | **DiskANN** | Small RAM + SSD | Slow | Medium | 0.94–0.98 | Billion-scale on one machine |
 
 **DiskANN deserves a mention** because it changes the cost structure: keep compressed vectors in RAM for navigation and the full graph on SSD, fetching only the nodes actually visited. A billion vectors on one machine with a few hundred gigabytes of SSD — a completely different infrastructure bill from a distributed in-memory index.
+
+**Vector indexes on object storage** are the newest point on that curve. Amazon S3 Vectors (generally available December 2025, up to 2 billion vectors per index) stores and searches vectors directly in object storage: queries take around 100 ms on frequently used indexes and up to about a second otherwise, at a small fraction of the cost of keeping vectors in RAM. That suits large corpora queried occasionally — archives, long-term agent memory. Hot, latency-critical search still belongs in memory, and a common design tiers between the two.
 
 ## The filtering problem
 
@@ -215,6 +225,34 @@ The fixes: normalise and use cosine (usual answer), or use an index built for MI
 
 *Product Quantization for Nearest Neighbor Search* (Jégou, Douze & Schmid, TPAMI 2011) is PQ. *DiskANN* (Subramanya et al., NeurIPS 2019) is the SSD-based approach. *Accelerating Large-Scale Inference with Anisotropic Vector Quantization* (Guo et al., ICML 2020) is ScaNN. ANN-Benchmarks (Aumüller et al.) is the standard empirical comparison.
 :::
+
+## Check yourself
+
+```recall
+Q: When does brute-force vector search stop working?
+A: Around a million vectors at low QPS: 100M × 768 dims is ~77 GFLOPs per query — seconds on a core, hundreds of cores at 1,000 QPS.
+
+Q: What does approximate nearest-neighbour search trade?
+A: A few percent of recall (returning ~95–99% of the true top-k, measured as recall@k) for a 100–1,000× speedup — invisible since embeddings are approximate anyway.
+
+Q: How does HNSW search?
+A: A layered proximity graph like a skip list: start at the sparse top layer, greedily move toward the query, drop a layer, and keep an ef-sized candidate list at the dense bottom — about O(log N) hops.
+
+Q: Why is ef_search the important HNSW knob?
+A: It's set per query, unlike M and ef_construction — so you can trade recall for latency per use case and lower it under load as graceful degradation.
+
+Q: How do IVF and product quantization scale to billions?
+A: IVF clusters vectors and searches only the nprobe nearest lists (e.g. 0.8% of the data); PQ stores each sub-vector as a 1-byte centroid ID — 32× compression with table-lookup distances. Re-rank the top with full vectors.
+
+Q: What do RaBitQ, DiskANN and object-storage indexes change?
+A: RaBitQ: ~1 bit per dimension with proven error bounds. DiskANN: compressed vectors in RAM and the graph on SSD, a billion vectors on one machine. S3 Vectors: search from object storage at ~100 ms–1 s for a fraction of the cost.
+
+Q: How do you choose a filtering strategy?
+A: By selectivity: above ~10% post-filter with over-fetch; below ~1% pre-filter and brute-force; in between, filtered traversal. For a dominant filter like tenant ID, partition the index.
+
+Q: Name two operational traps in vector search.
+A: Inner-product search on unnormalised vectors breaks graph indexes (normalise or use ScaNN), and deletions degrade HNSW — use a base index plus a delta index, and budget double memory for rebuilds.
+```
 
 ## What to carry forward
 

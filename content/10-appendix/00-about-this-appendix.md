@@ -7,6 +7,12 @@ tags: [appendix, interview, orientation]
 unlocks: Using the interview material as a translation layer rather than a curriculum.
 ---
 
+:::predict Guess first
+1. Should interview preparation be the way you organise learning a subject, or something layered on top?
+2. What might go wrong if you practise only the eight most common interview questions?
+3. Which skills in interview prep transfer to everyday engineering work?
+:::
+
 ## Why this is an appendix
 
 Studying a subject and preparing for an interview about it are different activities, and organising the first around the second produces a specific kind of damage: you learn which answer is expected rather than why it's right, and the knowledge doesn't transfer to a problem nobody wrote a guide for.
@@ -47,3 +53,29 @@ Where a page makes a technical claim, the underlying material is linked, and the
 [Route D in the study plan](../00-orientation/study-plan.html) is the honest sprint: this appendix first, then eight case studies, backfilling concepts only when one exposes a gap, then two mock interviews with a real person.
 
 It is the least effective way to use this material and the correct choice under a real deadline. Come back to the rest afterwards — it's more interesting when nothing depends on it.
+
+## Check yourself
+
+```recall
+Q: Why is the interview material an appendix?
+A: Organising study around interviews teaches which answer is expected rather than why it's right; this section is a translation layer from understanding to a 45-minute conversation.
+
+Q: What is the failure mode of interview-only prep?
+A: Preparing only for the most common questions produces someone who can perform eight designs and can't reason about a ninth — exactly what good interviewers probe.
+
+Q: Which interview skills genuinely transfer?
+A: Communication: scoping an ambiguous problem, narrating a design while drawing, defending a choice under challenge and admitting uncertainty precisely.
+
+Q: How should you use the appendix?
+A: Read it early so practice is efficient, then set it down — re-reading it isn't studying. Technical claims link to the pages that explain why they're true.
+
+Q: What is the honest three-week sprint?
+A: Route D: the appendix first, then eight case studies, backfilling concepts only when one exposes a gap, then two mock interviews with a real person.
+```
+
+## What to carry forward
+
+- The appendix translates understanding into interview performance; it isn't the curriculum.
+- Read it early, then go back to studying.
+- Communication is the transferable skill hidden inside interview prep.
+- Under a real deadline, Route D is the right compromise.

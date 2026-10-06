@@ -8,6 +8,12 @@ prereqs: [decoding-strategies, idempotency]
 unlocks: A deterministic interface between a probabilistic model and the rest of your system.
 ---
 
+:::predict Guess first
+1. A model returns invalid JSON 2% of the time. In a 20-step agent, what fraction of runs survive formatting alone?
+2. If a schema forces every field to be filled, what does a model do when it doesn't know the answer?
+3. Should a "reasoning" field come before or after the "answer" field in a schema?
+:::
+
 ## The interface problem
 
 The moment a model's output feeds a program rather than a human, you need a contract. And you're asking a system that samples from a probability distribution to satisfy a schema exactly, every time.
@@ -198,6 +204,34 @@ An email triage system: classify incoming email, extract action items, and optio
 
 For the reasoning-order effect, *Chain-of-Thought Prompting Elicits Reasoning in Large Language Models* (Wei et al., NeurIPS 2022) is the underlying result; putting the reasoning field first is that finding applied to a schema.
 :::
+
+## Check yourself
+
+```recall
+Q: Why does a small parse-failure rate matter?
+A: It compounds: 2% per call leaves 0.98²⁰ ≈ 67% of 20-step runs succeeding on format alone; at 0.1% it's 98%. Driving it to zero beats any retry logic.
+
+Q: Why is constrained decoding's guarantee absolute?
+A: At each step, tokens that would break the grammar are masked to −∞ before choosing — invalid output isn't unlikely, it's unrepresentable. Precomputed masks make it nearly free.
+
+Q: What does constrained decoding not fix, and the remedy?
+A: Content: schema-valid output can be fabricated, and a forced schema makes the model guess. Put uncertainty in the schema — nullable fields, confidence, an "insufficient information" variant.
+
+Q: What makes a schema easy for a model?
+A: Descriptive field names, enums over free strings, a description per field including what to do when information is absent, shallow nesting, and dependency-ordered fields.
+
+Q: Why is field order a chain-of-thought lever?
+A: Models generate left to right: reasoning before answer yields analysis then conclusion; answer before reasoning yields a guess then a rationalisation.
+
+Q: What validation remains after constrained decoding?
+A: Semantic (does the ID exist, do totals add up) and business (is this action allowed for this user). Repair loops return specific, actionable errors and stop after 1–2 attempts.
+
+Q: How should idempotency keys for tool calls be built?
+A: Derived from content — hash(run ID, step index, tool name, arguments) — not a fresh UUID per attempt, so replays and retries produce the same key and execute once.
+
+Q: How do you stream structured output?
+A: Partial JSON parsing, field-by-field events, or splitting into a streamed prose call plus a separate constrained call — and put the fields the UI shows first first.
+```
 
 ## What to carry forward
 

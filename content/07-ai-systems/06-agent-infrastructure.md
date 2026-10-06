@@ -8,6 +8,12 @@ prereqs: [agent-architectures, job-scheduler, backpressure]
 unlocks: Running agents in production rather than in a notebook.
 ---
 
+:::predict Guess first
+1. An agent runs inside a web request handler. What happens to it when you deploy and the server restarts mid-run?
+2. Agents run code derived from user input. Is a Docker container enough isolation?
+3. A bug makes 1,000 agents each loop to the step limit at about $4 a run. How would you find out?
+:::
+
 ## The workload shape
 
 Agents break the assumptions a normal request handler is built on:
@@ -187,6 +193,34 @@ No canonical academic paper. The most useful sources are systems documentation: 
 
 Anthropic's "Building Effective Agents" and the engineering write-ups from teams running code-execution agents (E2B, Modal) are the closest thing to a practitioner literature.
 :::
+
+## Check yourself
+
+```recall
+Q: Why can't agents run inside ordinary request handlers?
+A: They run seconds to hours, accumulate state, may pause for approval, and cause side effects — so they need durable execution: accept, persist, return an ID, then stream or poll.
+
+Q: What is the replay rule for durable agents?
+A: Persist each step's result before advancing; on recovery read recorded results instead of re-executing, and record nondeterminism (time, IDs, model output) rather than recompute it.
+
+Q: Name three ways to build durable execution.
+A: A workflow engine (Temporal, Restate, DBOS), an explicit state machine on a job scheduler (often the pragmatic choice), or an event-sourced trajectory.
+
+Q: How should agent sandboxes be built?
+A: gVisor, Kata or Firecracker microVMs rather than plain containers; default-deny egress; read-only root plus scratch; resource and time limits; no credentials; destroyed after use; a warm pool hides boot time.
+
+Q: Why is the model API the usual bottleneck?
+A: It's a shared, rate-limited quota. Use a token-bucket budget with per-tenant fair queueing and backpressure — queue or shed, never retry blindly into a rate limit.
+
+Q: What is the best single agent health metric?
+A: The termination-reason distribution: a shift from "completed" to "hit iteration limit" reveals regressions immediately with no ground truth. Keep trajectories replayable in a viewer.
+
+Q: What cost controls do agent platforms need?
+A: A hard per-run ceiling that stops the run, per-user and per-tenant budgets at admission, a short-window global spend alarm, pre-run cost estimates and cheaper models for cheap steps.
+
+Q: What must propagate from parent to child runs?
+A: Budgets, deadlines and cancellation — plus depth and total-descendant limits, or "spawn an agent per file" becomes a fork bomb.
+```
 
 ## What to carry forward
 

@@ -8,6 +8,12 @@ prereqs: [decoding-strategies, idempotency]
 unlocks: Designing agents that finish, cost a bounded amount, and can be debugged.
 ---
 
+:::predict Guess first
+1. An agent loop is about twelve lines of code. Where do you think the hard parts are?
+2. Would one autonomous agent with every tool, or a fixed sequence of steps, be easier to run in production?
+3. An agent sent an email, then its process crashed. Is it safe to simply restart it from the beginning?
+:::
+
 ## What an agent actually is
 
 Strip away the framing and an agent is a loop:
@@ -204,6 +210,34 @@ A DevOps assistant: investigate alerts, query metrics and logs, read runbooks, a
 
 *Reflexion* (Shinn et al., NeurIPS 2023) is the self-critique pattern. Anthropic's "Building Effective Agents" (2024) is the best practitioner guide and argues for the constrained-pattern preference above; *τ-bench* (Yao et al., 2024) is a realistic agent benchmark with verifiable outcomes.
 :::
+
+## Check yourself
+
+```recall
+Q: What is an agent, architecturally?
+A: A loop — call the model, execute any tool call, append the result, repeat — that behaves like a distributed system with a nondeterministic scheduler. The hard parts are failures, loops, overflow, crashes, cost and side effects.
+
+Q: What makes a good tool definition?
+A: Say when to use it and when not to, keep the tool count modest (selection degrades past ~20), return actionable errors, keep results compact, and constrain the schema.
+
+Q: Why prefer the most constrained agent pattern?
+A: Chains and routers have predictable cost, are debuggable and testable, and encode what you know about the task. If you can write the workflow down, write it down.
+
+Q: When is multi-agent worth it?
+A: When subtasks are independent enough to run in parallel — a real latency win. Specialisation alone adds lossy handoffs, compounding errors and cost.
+
+Q: What termination limits does an agent need?
+A: Maximum iterations, tokens, wall-clock time and spend, an explicit finish tool, and no-progress detection — hashing recent (tool, arguments) pairs to catch repeats.
+
+Q: How do you make agent side effects safe to recover?
+A: Idempotency keys enforced in every mutating tool, a durable trajectory log written before each next step, and compensation or human approval for irreversible actions.
+
+Q: How should human approval work?
+A: By policy: auto-approve reads, notify for low-risk writes, require approval for external effects. The pause must be durable, show the effect clearly, allow edits and default to "don't" on timeout.
+
+Q: How should agents be evaluated?
+A: Task success on verifiable outcomes, trajectory efficiency, tool-selection accuracy, recovery rate and the cost p99, where runaway loops live.
+```
 
 ## What to carry forward
 

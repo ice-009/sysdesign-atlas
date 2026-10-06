@@ -8,6 +8,12 @@ prereqs: [vector-databases, search]
 unlocks: Building retrieval that actually finds the right context, and knowing when it doesn't.
 ---
 
+:::predict Guess first
+1. Small chunks match queries precisely; big chunks carry context. Must the chunk you search against be the same text you hand the model?
+2. A user searches for "error E-4471". Would meaning-based search, keyword search, or both find it best?
+3. A RAG answer is wrong. Without more measurement, can you tell whether retrieval or generation failed?
+:::
+
 ## The pipeline
 
 Retrieval-augmented generation is a search problem with a language model at the end. The model gets most of the attention; **retrieval quality sets the ceiling on the whole system.** If the right passage isn't in the context, no amount of prompting recovers it.
@@ -144,6 +150,7 @@ The user's question is often not the best search query.
 - **Decomposition.** "Compare our Q3 and Q4 margins" needs two retrievals, not one. Split, retrieve separately, combine.
 - **HyDE.** Generate a *hypothetical answer* to the question, embed that, and search with it. Answers look like documents; questions don't. Often a solid gain, at the cost of one extra model call.
 - **Expansion.** Add synonyms and related terms, mainly to help the lexical side.
+- **Agentic retrieval.** Give the model search as a tool and let it run several queries — read the results, refine, search again. That's the pattern behind the "deep research" products of 2025, and it handles multi-hop questions that one retrieval can't. It costs several times the latency and tokens, so route only hard questions to it and keep single-shot retrieval for the common ones.
 
 ## Assembling the context
 
@@ -215,6 +222,34 @@ An internal engineering wiki: 15,000 pages, ~2,000 words each, heavy on code blo
 
 *ColBERT* (Khattab & Zaharia, SIGIR 2020) is late interaction. *Precise Zero-Shot Dense Retrieval without Relevance Labels* (Gao et al., 2022) is HyDE. *Reciprocal Rank Fusion* (Cormack et al., SIGIR 2009) is the fusion method. Anthropic's "Contextual Retrieval" write-up (2024) documents the chunk-summary technique.
 :::
+
+## Check yourself
+
+```recall
+Q: What sets the ceiling on a RAG system?
+A: Retrieval quality: if the right passage isn't in the context, no prompt recovers it. If recall@10 is 0.6, the system's ceiling is 0.6.
+
+Q: Which chunking strategies work best?
+A: Structural splitting on headings, paragraphs and code blocks usually beats fixed size; recursive splitting is a good default; keep tables and code whole.
+
+Q: How do you decouple what you embed from what you return?
+A: Small-to-big (embed 200-token chunks, return the parent section), contextual retrieval (prefix each chunk with a document summary) and hypothetical questions (embed the questions a chunk answers).
+
+Q: Why reciprocal rank fusion for hybrid search?
+A: BM25 and cosine scores are on incomparable scales; RRF sums 1/(k + rank) per system, so ranks fuse with no calibration or drift.
+
+Q: Why is a reranker usually the best return on effort?
+A: A cross-encoder reads query and passage together — far more accurate than a bi-encoder — and reranking ~100 candidates to 10 lifts precision 10–30 points with no index change.
+
+Q: Name three query transformations.
+A: Rewrite multi-turn questions into standalone queries, decompose comparisons into separate retrievals, HyDE (search with a hypothetical answer), expansion, and agentic retrieval for multi-hop questions.
+
+Q: How should retrieved context be assembled?
+A: Deduplicate, put the strongest passages first and last, budget explicitly with room for the answer, attach source and date metadata, and say what to do when the answer isn't there.
+
+Q: How do you build a retrieval evaluation set quickly?
+A: Take ~200 real queries and label which chunks answer them, or bootstrap by generating a question per chunk and inverting the mapping; then measure recall@k and MRR separately from answer faithfulness.
+```
 
 ## What to carry forward
 

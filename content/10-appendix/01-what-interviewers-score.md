@@ -6,6 +6,12 @@ scope: Both
 tags: [interview, rubric, signal]
 ---
 
+:::predict Guess first
+1. Is a system design interview mainly a test of knowing the right architecture?
+2. An interviewer asks "what if the writes were much heavier?" Are they just curious?
+3. Is it better to admit "I'd be guessing past this point" or to answer confidently anyway?
+:::
+
 ## The thing nobody tells you
 
 Most candidates prepare as if system design were a knowledge test: learn enough architectures, recognize which one applies, reproduce it. Then they produce a technically reasonable design, get rejected, and conclude they needed to memorize more systems.
@@ -102,3 +108,39 @@ If navigation and tradeoffs are >50% of the score and neither is knowledge-based
 - Building depth in a few areas until you can survive three "why?"s in a row.
 
 Next: [The Study Plan](../00-orientation/study-plan.html) turns this into a schedule.
+
+## Check yourself
+
+```recall
+Q: What four signals do interviewers score, with rough weights?
+A: Problem navigation (~30%), technical depth (~30%), tradeoff reasoning (~25%) and communication (~15%). "Arrived at the correct architecture" isn't on the rubric.
+
+Q: What does problem navigation look like?
+A: In the first eight minutes: ask scale and read/write ratio, cut scope explicitly with an off-ramp, and allocate your own time. Make decisions with checkpoints instead of waiting to be led.
+
+Q: How do interviewers test technical depth?
+A: They push one component repeatedly to find your floor. Three substantive levels deep signals senior; two then "I'd have to look into it" signals mid-level. Be deep in 4–6 areas.
+
+Q: Why is bluffing fatal?
+A: Interviewers detect it reliably, and it makes every other claim suspect. Honest boundaries ("my model is X, I'd be guessing past that") score better.
+
+Q: What is the structure of strong tradeoff reasoning?
+A: The choice, the rejected alternative, the deciding constraint, the cost admitted, and the cost justified against the product requirement.
+
+Q: Name four communication habits that score.
+A: Draw before talking, narrate one request end to end, label arrows (sync/async, protocol, data), and keep a visible parking lot you return to.
+
+Q: What most often sinks otherwise-fine candidates?
+A: Designing before scoping, buzzword architecture, ignoring hints (they're rescues), over-engineering for the scale, bluffing, and never finishing — breadth with no depth.
+
+Q: What does the rubric imply for preparation?
+A: After ~10 case studies, reading more has diminishing returns. Practise timed from a blank page, out loud, and build depth until you survive three "why?"s.
+```
+
+## What to carry forward
+
+- Interviews test judgement through a technical medium; there is rarely one right design.
+- Navigation and tradeoffs outweigh architecture knowledge.
+- Find your depth in a few areas and be honest at the edges.
+- Every choice: alternative, constraint, cost, justification.
+- Practise generating designs out loud, not reading more of them.

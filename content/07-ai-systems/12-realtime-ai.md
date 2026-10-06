@@ -8,6 +8,12 @@ prereqs: [realtime, inference-engines, queueing-theory]
 unlocks: Building conversational systems that feel like conversation.
 ---
 
+:::predict Guess first
+1. In natural conversation, how long is the typical gap before someone replies — closer to 200 ms or 2 seconds?
+2. For a voice assistant, does total generation time matter, or only how fast the first audio arrives?
+3. Would a WebSocket over TCP or WebRTC over UDP suit live audio on a lossy mobile network better?
+:::
+
 ## The budget humans enforce
 
 Text chat tolerates a two-second wait. Speech does not. Human turn-taking has a gap distribution centred around 200 ms, and listeners register anything past roughly 500 ms as a hesitation — meaning something.
@@ -227,6 +233,34 @@ A phone support agent: answers calls, looks up account details, and can process 
 
 For turn-taking timing, the linguistics literature is the right source — Stivers et al., *Universals and cultural variation in turn-taking in conversation* (PNAS 2009) is where the ~200 ms gap figure comes from. The WebRTC specifications and the `libwebrtc` documentation cover echo cancellation and jitter buffering.
 :::
+
+## Check yourself
+
+```recall
+Q: What latency budget does speech impose?
+A: Human turn gaps centre near 200 ms; past ~500 ms it feels hesitant and past ~800 ms broken, so the whole pipeline must fit in roughly 500 ms.
+
+Q: Which metric matters most for voice, and why?
+A: Time to first audio: streaming every stage and overlapping them takes a 3.5 s sequential pipeline to ~630 ms, with the rest streaming behind playback. On the model side that means TTFT.
+
+Q: What are the endpointing options?
+A: A silence timer adds ~700 ms every turn and cuts off pauses; semantic endpointing (a small model judging completeness) takes 200–300 ms; speculative execution starts the LLM on partials and cancels if speech continues.
+
+Q: Why WebRTC rather than WebSockets for voice?
+A: UDP avoids TCP head-of-line blocking where a late audio packet is useless, and WebRTC brings echo cancellation, adaptive jitter buffering and packet-loss concealment.
+
+Q: What must happen when a user interrupts?
+A: Detect real speech (with echo cancellation), stop playback, cancel generation and queued TTS, truncate history to the audio actually played (with an "interrupted" marker), then listen.
+
+Q: Cascaded or speech-to-speech?
+A: Cascaded STT → LLM → TTS is debuggable and gives transcripts for tools and moderation but loses tone and adds latency. Speech-to-speech keeps prosody with lower latency but is harder to control; hybrids run a parallel transcript.
+
+Q: How is voice capacity planned?
+A: By concurrent sessions, with STT, LLM and TTS scaling on audio minutes, tokens and characters respectively, in a small-batch latency lane — optimising latency variance over the mean.
+
+Q: How are audio underruns prevented?
+A: Hold a small output buffer (~200 ms) before playback starts, trading a little initial latency for robustness — a gap mid-word is far more jarring than a slightly later start.
+```
 
 ## What to carry forward
 

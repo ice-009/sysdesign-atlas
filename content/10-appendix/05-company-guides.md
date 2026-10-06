@@ -6,6 +6,12 @@ scope: Both
 tags: [google, meta, amazon, netflix, uber, companies]
 ---
 
+:::predict Guess first
+1. Would a payments company and a ride-sharing company stress the same parts of a system design?
+2. At a 50,000-user startup, how would a multi-region, cell-based design be received?
+3. How much of your preparation should be company-specific?
+:::
+
 :::note A caveat worth reading
 Interview processes change, and individual interviewers vary far more than company policy does. Treat these as *tendencies* — useful for prioritizing preparation, not as guarantees. The [framework](framework.html) works everywhere; these are adjustments to emphasis.
 :::
@@ -128,3 +134,35 @@ Company-specific preparation is worth maybe 10% of your effort. The [framework](
 :::tip Two days before the loop
 Read the relevant guide above, re-read [Common Mistakes](common-mistakes.html), and skim the [Cheat Sheet](cheat-sheet.html). Then stop. Marginal knowledge acquired the night before is worth far less than being rested and fluent.
 :::
+
+## Check yourself
+
+```recall
+Q: What does Google tend to emphasise?
+A: Fundamentals and distributed-systems depth: why rather than what, consensus and consistency precisely defined, careful estimation, and abstract systems prompts.
+
+Q: What does Meta tend to emphasise?
+A: Scale, product intuition and pragmatic tradeoffs: fast high-level designs, feeds and fanout, real-time delivery, hot keys, and arguments from user impact under rapid challenge.
+
+Q: What does Amazon tend to emphasise?
+A: Ownership and operations: failure handling, idempotency, cost, deployment, monitoring and on-call, service contracts, and working backwards from the customer.
+
+Q: What do Netflix and ride-sharing companies emphasise?
+A: Netflix: resilience, graceful degradation, CDNs and chaos engineering. Uber-style: geospatial indexing, high-frequency location updates, matching and state machines with money.
+
+Q: What do payments companies emphasise?
+A: Correctness: double-entry ledgers, idempotency, sagas across providers, reconciliation, auditability and API design — lead with the data model.
+
+Q: How do startups invert the usual emphasis?
+A: They want evidence you won't over-engineer: one Postgres, one cache, one queue, and the point at which you'd need more.
+
+Q: What travels to every company?
+A: Drive and manage the clock, quantify and use numbers, justify against alternatives, go deep somewhere, and name cost and failure modes — about 90% of the value.
+```
+
+## What to carry forward
+
+- Treat company guides as tendencies; interviewers vary more than policy.
+- Shift emphasis per company: depth, product speed, operations, resilience, geospatial or correctness.
+- Startups reward the small version of every design.
+- Company-specific prep is ~10% of the effort; the framework and fluency are the rest.

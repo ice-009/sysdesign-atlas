@@ -8,6 +8,12 @@ prereqs: [ai-observability, lakehouse-and-batch]
 unlocks: Knowing whether a change made your system better, rather than believing it did.
 ---
 
+:::predict Guess first
+1. Someone tries ten prompts and feels the new version is better. How confident should they be?
+2. A model judges answers on a 1–5 scale. Would asking "which of these two is better?" give more reliable results?
+3. One system scores 78% and another 74% on 100 test cases. Is the first one better?
+:::
+
 ## Why this is infrastructure
 
 Software has a clean feedback loop: write a test, it passes or fails, you know. AI systems have no such thing. Outputs are open-ended, correctness is often a judgment call, and the same input can produce different outputs.
@@ -205,6 +211,34 @@ A support assistant answering from a knowledge base, with escalation to a human.
 
 *G-Eval* (Liu et al., EMNLP 2023) is the chain-of-thought judging approach. *RAGAS* (Es et al., 2023) is the RAG-specific metric set. For statistical practice, *The Practical Guide to Statistical Power* material in A/B testing literature transfers directly.
 :::
+
+## Check yourself
+
+```recall
+Q: Why is evaluation infrastructure, not an afterthought?
+A: AI outputs are open-ended and nondeterministic, so without evals teams ship on vibes — and routine questions (better prompt? safe model upgrade? cheaper model enough?) are unanswerable by inspection.
+
+Q: Name the evaluation layers.
+A: Deterministic assertions (cheap, every commit), a golden set (every PR), an LLM judge (scaled scoring), human review (ground truth and calibration) and online A/B tests (the real answer).
+
+Q: Where should golden cases come from?
+A: Production failures first (every bug becomes a test), then stratified real traffic, constructed edge cases, and reviewed synthetic cases. Keep cases that discriminate; check per-category scores.
+
+Q: Pointwise, pairwise or reference judging?
+A: Pointwise 1–5 scores drift and cluster around 4. Pairwise "A or B?" is far more consistent and answers "did my change help?". Reference-based checking for key facts is most reliable when references exist.
+
+Q: What judge biases must you control?
+A: Position (run both orders), verbosity (control length, check correlation), self-preference (use a different model family) and style over substance (require grounding in the rubric).
+
+Q: When can a judge be trusted?
+A: After measuring agreement with ~100–200 human labels: above ~80% (kappa > 0.6) for comparisons; 60–80% as a noisy signal only; below 60% it measures something else. Recalibrate on changes.
+
+Q: How many cases do you need?
+A: Roughly n ≈ 16σ²/δ²: around p = 0.75, ~1,200 cases to detect 5 points, ~300 for 10, ~7,500 for 2. Pair comparisons and report the minimum detectable effect.
+
+Q: What makes an eval CI gate usable?
+A: Fast tiers (assertions, a small golden set, a judge comparison with win rate ≥ 45%), cost and latency checks, caching by (input, model, prompt version), and showing regressed cases as diffs.
+```
 
 ## What to carry forward
 

@@ -6,6 +6,12 @@ scope: HLD
 tags: [framework, interview, structure]
 ---
 
+:::predict Guess first
+1. Should you start drawing boxes as soon as you hear the question?
+2. Is it worth computing CPU requirements in an interview if they won't change the design?
+3. You notice halfway through that your shard key is wrong. Is admitting it a bad sign?
+:::
+
 ## Why structure wins
 
 The difference between candidates who pass and candidates who "knew the material" is usually not knowledge — it's **navigation**. A structured candidate reaches a complete design with two genuine deep dives. An unstructured one produces a sprawling diagram, runs out of time, and never demonstrates depth anywhere.
@@ -213,3 +219,39 @@ Say the threshold out loud: *"At this scale one Postgres primary handles it. I'd
 ## The one-line summary
 
 **Drive the conversation, quantify your assumptions, justify against alternatives, go deep somewhere, and name what your design costs.** Every element of the [rubric](../10-appendix/what-interviewers-score.html) is covered by that sentence.
+
+## Check yourself
+
+```recall
+Q: Give the 45-minute interview framework.
+A: Clarify and restate (0–2), requirements with a scope cut (2–8), estimation that changes decisions (8–13), API and data model (13–17), high-level design (17–27), deep dives (27–40), wrap-up (40–45).
+
+Q: What is the highest-value sentence in the first ten minutes?
+A: An explicit scope cut with an off-ramp: "I'll treat search, DMs and ads as out of scope and focus on feed generation — sound right?"
+
+Q: How should non-functional requirements be gathered?
+A: Ask only the two or three that matter (scale, read:write ratio, latency, consistency per operation, availability, retention) and state numeric assumptions for the rest.
+
+Q: What is the shape of a good design statement?
+A: Choice, reason, named cost, mitigation — e.g. shard on user_id (high cardinality, in most queries, co-located), global queries become scatter-gather, handled by a separate index.
+
+Q: How should each deep dive be structured?
+A: State the problem with a number, give 2–3 real approaches, recommend one naming the deciding constraint, name its cost, and handle the edge case that breaks it.
+
+Q: What belongs in the wrap-up?
+A: The bottleneck at 10×, a failure walk-through (kill one box), what you'd cut for v1, and what you'd monitor.
+
+Q: How do you match solution to scale?
+A: Under 10K users one server and database; under 1M add LB, replica and cache; under 10M CDN, queues, maybe shard; under 100M sharding and multi-AZ; beyond, multi-region and cells. Say your threshold aloud.
+
+Q: Name the four recovery moves.
+A: Stuck: reason aloud. Mistake: correct it plainly. Out of time: prioritise aloud. Challenged: take it seriously and reconsider rather than defend reflexively.
+```
+
+## What to carry forward
+
+- Announce a plan; drive the time yourself.
+- Cut scope explicitly and quantify assumptions.
+- Estimate only what changes a decision, and state the conclusion.
+- Spend most of the time in two or three structured deep dives.
+- Match the solution to the scale, and close deliberately.

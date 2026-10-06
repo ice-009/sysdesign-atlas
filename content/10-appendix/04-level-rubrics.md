@@ -6,6 +6,12 @@ scope: Both
 tags: [levels, rubric, seniority]
 ---
 
+:::predict Guess first
+1. Can the same design be a strong hire for a mid-level role and a no-hire for a staff role?
+2. What do you think most separates a senior answer from a mid-level one — more technologies, or something else?
+3. If you interview for staff and perform at senior level, what usually happens?
+:::
+
 ## Why levels matter
 
 The same design, presented two different ways, can be a strong hire at L4 and a no-hire at L6. Interviewers aren't scoring the architecture — they're scoring **the level of engineering judgment the architecture reveals**.
@@ -116,3 +122,38 @@ Worth stating plainly, because candidates waste preparation here:
 If you're interviewing for L6 and perform at L5, many companies will offer L5 rather than reject. That means the downside of aiming high is usually small — but it also means the *specific* L6 behaviours are what you need to demonstrate, and they are largely non-technical: requirement interrogation, rollout planning, cost, and organizational impact.
 
 If you have those instincts from real work, **make them audible.** Interviewers cannot score what you don't say.
+
+## Check yourself
+
+```recall
+Q: How do L4, L5 and L6 differ in one line each?
+A: L4 solves a well-defined problem correctly; L5 defines the problem, solves it and knows the cost; L6 sees the system in its organisational and operational context and makes long-lived decisions.
+
+Q: What does a strong L4 look like, and its ceiling?
+A: A clean, correct design with clear communication and one area of real depth — but designing what was asked without questioning requirements or volunteering weaknesses.
+
+Q: What is the clearest L5 tell?
+A: Unprompted tradeoff articulation — "Cassandra: write-heavy, known partition key, a 200 ms stale like count is harmless; if I needed read-your-writes I'd reconsider."
+
+Q: What else is expected at L5?
+A: Driving the interview, volunteering weaknesses, quantifying, explicit failure handling, knowing what not to build, and depth in several areas.
+
+Q: What is the clearest L6 tell?
+A: Changing the problem rather than just the solution — questioning a product assumption or moving a boundary to turn a hard requirement into an easier one.
+
+Q: What else is expected at L6?
+A: Migration and rollout as part of the design, blast-radius thinking, cost as a constraint, team boundaries, operability and actively removing complexity.
+
+Q: What is the cheapest level-up?
+A: Saying the alternative you rejected — eight extra words that turn a statement into a demonstration of judgement.
+
+Q: What doesn't move you up a level?
+A: Knowing more technologies, more boxes in the diagram, reciting papers, or being fast and then having nothing to add.
+```
+
+## What to carry forward
+
+- Levels are scored on the judgement your design reveals, not the design itself.
+- L5: justify against alternatives, name weaknesses first, quantify.
+- L6: question requirements, plan rollout and rollback, weigh cost, blast radius and teams.
+- Make real-work instincts audible — interviewers can't score what you don't say.

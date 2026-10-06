@@ -6,6 +6,12 @@ scope: Both
 tags: [mistakes, interview, pitfalls]
 ---
 
+:::predict Guess first
+1. What do you think is the most common reason strong engineers fail design interviews — lack of knowledge, or something else?
+2. Naming Kubernetes, Kafka, Redis and Cassandra in the first minute — does that impress an interviewer?
+3. Is thinking silently for ninety seconds a safe way to avoid saying something wrong?
+:::
+
 ## 1. Designing before scoping
 
 **The mistake:** drawing boxes in minute two.
@@ -131,3 +137,39 @@ If you fix only three things, fix these:
 ```
 
 Everything else on this page is a variation on those three.
+
+## Check yourself
+
+```recall
+Q: What is the "passive candidate" mistake, and the fix?
+A: Waiting to be told what to do next. Make decisions with checkpoints ("I'll assume 100M DAU, read-heavy — sound right?"), announce a time plan and pick your own deep dives.
+
+Q: How do you avoid buzzword architecture?
+A: Describe the function first, then name the technology with its reason and the rejected alternative — e.g. a durable buffer between a spiky writer and slow consumer, so Kafka, instead of a direct call.
+
+Q: How do you avoid over-engineering?
+A: Match the solution to the scale and state the threshold: one Postgres primary handles 10K QPS; shard when sustained writes near 30K/s or the working set leaves RAM.
+
+Q: What does an interviewer's "what if writes were heavier?" mean?
+A: A rescue, not curiosity. Follow it immediately and visibly by reconsidering the part of the design it breaks.
+
+Q: What is estimation theatre?
+A: Precise numbers that never change a decision. Estimate only what matters, say so, and end each calculation with its conclusion.
+
+Q: Why is "the system is eventually consistent" a mistake?
+A: Consistency is chosen per operation: payments and inventory need linearizability, counters and feeds can be eventual, a user's own posts get read-your-writes.
+
+Q: Name three senior differentiators most candidates skip.
+A: Failure analysis (kill each box), operational reality (staged rollout, monitoring, migrations — most outages come from change) and cost where it's material.
+
+Q: If you fix only three things, which?
+A: Drive the conversation (navigation ≈ 30%), justify against alternatives (tradeoffs ≈ 25%) and go deep somewhere (depth ≈ 30%).
+```
+
+## What to carry forward
+
+- Scope before designing; drive rather than wait.
+- Function first, technology second, with a reason.
+- Match complexity to scale and follow every hint.
+- Be honest at your boundary; go deep instead of wide.
+- Talk while thinking, label arrows, discuss failure, and finish deliberately.

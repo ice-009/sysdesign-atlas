@@ -8,6 +8,12 @@ prereqs: [embeddings, ml-platform, vector-search]
 unlocks: The architecture behind every feed, search result page, and "recommended for you".
 ---
 
+:::predict Guess first
+1. Scoring 100 million items at 1 ms each for one user — how long would that take?
+2. If a system optimises purely for clicks, what kind of content do you think rises to the top?
+3. A brand-new creator uploads their first video. With no engagement history, how would it ever be recommended?
+:::
+
 ## The constraint that shapes everything
 
 Score 100 million items for one user in 100 milliseconds. A good ranking model takes ~1 ms per item. The arithmetic doesn't work — by five orders of magnitude.
@@ -154,6 +160,12 @@ The top 100 are individually good. That doesn't make a good *slate*.
 
 **Exploration is mandatory, and it costs.** A system that only shows what it already believes is good never learns whether anything else was better, and its data narrows. Allocate a percentage of impressions to exploration — epsilon-greedy is fine, Thompson sampling is better — and treat the cost as the price of not degrading over time. The [feedback loop](ml-platform.html) hazard is the same one classical ML systems face, here at much higher volume.
 
+## Generative recommenders
+
+Since 2024, large platforms have been testing a different shape. Treat each user's history as a sequence of actions and train a transformer to predict the next one, the way a language model predicts the next token. Meta's HSTU work (ICML 2024) scaled such "sequential transducers" to over a trillion parameters and found that recommendation quality kept improving with compute — a scaling law, like language models. Google's TIGER (2023) gives every item a **semantic ID**, a short sequence of codes learned from its content, so a model can *generate* candidate items directly instead of looking them up.
+
+The funnel doesn't disappear. These models usually slot in as a stronger retrieval or ranking stage, and they inherit every concern on this page — cold start, position bias, the choice of objective — while adding the serving cost of a large sequence model at feed scale.
+
 ## The infrastructure
 
 ```diagram
@@ -191,6 +203,34 @@ A short-video feed: 50M videos, 10M daily users, 30-second p99 session start, 20
 
 *Sampling-Bias-Corrected Neural Modeling for Large Corpus Item Recommendations* (Yi et al., RecSys 2019) is the two-tower model with in-batch negative correction. *Recommending What Video to Watch Next: A Multitask Ranking System* (Zhao et al., RecSys 2019) covers multi-task objectives and position bias.
 :::
+
+## Check yourself
+
+```recall
+Q: Why do recommenders use a funnel?
+A: Scoring 100M items at 1 ms each takes ~28 hours. Candidate generation (~1,000 by ANN), ranking (~100 with a rich model) and re-ranking (~10) fit in ~45 ms.
+
+Q: What does candidate generation optimise, and how?
+A: Recall — an item never retrieved can't be recovered. Run several retrievers in parallel (two-tower ANN, collaborative filtering, content, trending, recency, follow graph) and merge.
+
+Q: Why does the two-tower model have its shape?
+A: User and item towers meet only in a final dot product, so all item vectors can be computed offline into an ANN index — at the cost of never learning user–item interactions.
+
+Q: What carries most of the ranking signal?
+A: Cross features — the user's past engagement with this creator or topic, user–item similarity, follows who engaged — which two-tower retrieval can't express.
+
+Q: What is multi-task ranking, and who sets the weights?
+A: One model predicts click, long dwell, like, share and report; the final score is a weighted sum. The weights are a product decision that shapes the product's character.
+
+Q: Why does optimising CTR degrade a product?
+A: It rewards clickbait and outrage, raising short-term clicks while 30-day retention falls. Weight deep engagement and negative signals, and measure long-term outcomes in holdouts.
+
+Q: What does re-ranking handle?
+A: Diversity (MMR), business rules, position bias (position as a feature set to a constant at serving, or inverse-propensity weighting) and whole-slate quality.
+
+Q: What dominates online latency, and how is skew prevented?
+A: Fetching hundreds of features for ~1,000 candidates — batch multi-gets often outweigh the model. Log features as they were at scoring time to build training data without skew.
+```
 
 ## What to carry forward
 

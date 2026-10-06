@@ -6,6 +6,12 @@ scope: HLD
 tags: [mock, transcript, practice]
 ---
 
+:::predict Guess first
+1. In the first two minutes of "design Instagram", what would an interviewer most like to hear?
+2. Asked "how did you pick 10,000 followers as the threshold?", should the candidate defend the number?
+3. If the Redis feed cache fails, what should a well-designed feed do?
+:::
+
 :::note How to read this
 The transcript runs down the page; the boxed notes are what the interviewer was thinking and writing down. Read it once straight through, then re-read only the notes — they're the actual curriculum here.
 :::
@@ -235,7 +241,7 @@ What made this work, in order of weight:
 2. Every number produced a decision
 3. Volunteered the design's weakness before I found it
 4. Didn't bluff on the threshold question — and turned the admission into a better answer
-5. Went past the question repeatedly (hysteresis, cold start, hysteresis wasn't asked for)
+5. Went past the question repeatedly — hysteresis and cold-start recovery, neither of which I asked for
 :::
 
 ---
@@ -252,3 +258,36 @@ The candidate did not know anything you don't. The transcript contains no exotic
 - **Going one step past every question.**
 
 Run this same transcript in your head for a different prompt. If you can produce those six behaviours consistently, the technical content largely takes care of itself.
+
+## Check yourself
+
+```recall
+Q: What made the mock's opening strong?
+A: Restating the problem, cutting scope explicitly with a reason (upload and feed in; DMs, stories, reels, search out) and announcing a time plan with an invitation to redirect.
+
+Q: Which clarifying question shaped the whole design?
+A: Whether celebrity accounts exist — the fanout number (100M writes from one post) becomes the design driver.
+
+Q: How did the candidate use estimation?
+A: Every number ended in a decision: 250:1 read ratio → push work to writes; 160 TB/day → object storage; 18 TB/year metadata → routine sharding; 200K feed writes/s → tractable fanout.
+
+Q: How did the candidate handle "how did you pick 10,000?"
+A: Without bluffing: it's a tunable knob set from the real follower distribution, configurable at runtime — then hysteresis (promote at 10K, demote at 8K) for boundary accounts.
+
+Q: Why was the Redis-failure answer L6-flavoured?
+A: The fallback was an existing path (pull), plus a circuit breaker so a cache outage doesn't cascade into the database, degradation by feature priority, and gradual cold-start recovery.
+
+Q: What did the candidate say to close?
+A: Bottleneck at 10× (partition fanout workers by follower ID), ship pull-only first and measure, and monitor consumer lag in time, feed p99 by path and Redis hit rate.
+
+Q: Name the six behaviours that made the mock a strong hire.
+A: Scoping out loud early, numbers ending in conclusions, alternatives before recommendations, self-critique before challenge, honesty on the unanswerable question, and going one step past each question.
+```
+
+## What to carry forward
+
+- Scope and plan in the first two minutes.
+- Find the constraint that drives the design and compute it.
+- Volunteer the weakness, then resolve it with named alternatives.
+- Turn "I don't know" into an honest, operational answer.
+- Design fallbacks that reuse existing paths, and close with bottleneck, v1 cut and monitoring.

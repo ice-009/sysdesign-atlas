@@ -6,6 +6,12 @@ scope: HLD
 tags: [reference, numbers, cheatsheet]
 ---
 
+:::predict Guess first
+1. Which is faster: one round trip inside a datacenter, or reading 1 MB from memory?
+2. 100 million daily users each doing 10 actions — roughly how many queries per second is that?
+3. Five services in a chain, each 99.9% available. Is the whole chain still 99.9%?
+:::
+
 ## Latency numbers
 
 | Operation | Time |
@@ -245,3 +251,39 @@ Plus: bounded queues everywhere, bulkheads per dependency, load shedding by prio
   ]
 }
 ```
+
+## Check yourself
+
+```recall
+Q: Recite the key latency numbers.
+A: L1 1 ns, memory 100 ns, 1 MB from memory 10 µs, SSD random read 100 µs, same-datacenter round trip 500 µs, HDD seek 5 ms, US–Europe ~100 ms.
+
+Q: What are the estimation shortcuts?
+A: A day ≈ 10⁵ s, a year ≈ 3 × 10⁷ s; QPS = DAU × actions ÷ 10⁵; peak ≈ 3× average (10× for events). 100M DAU × 10 actions ≈ 10,000 QPS.
+
+Q: Give rough single-machine capacities.
+A: RAM 64–512 GB, SSD 0.5–2 GB/s, 10 Gbps NIC ≈ 1.2 GB/s, Postgres 10–50K writes/s, Redis ~100K ops/s per core, web server 5–20K QPS, 100K–1M WebSockets per node.
+
+Q: How do availability numbers compose?
+A: Serial dependencies multiply (0.999⁵ ≈ 99.5%); parallel redundancy adds nines (1 − 0.01³ = 99.9999%); availability = MTBF ÷ (MTBF + MTTR), so cutting MTTR is usually cheapest.
+
+Q: What is the default database and when do you revisit it?
+A: Postgres — revisit past ~30K writes/s or when the working set outgrows RAM. Wide-column for write-heavy time-ordered data, columnar for big scans, object storage for binaries.
+
+Q: What are the cache-problem fixes?
+A: Stampede: coalescing, early refresh, TTL jitter. Missing keys: cache negatives or a Bloom filter. Mass expiry: jitter and warm-up. Hot key: replicate with suffixes plus a local cache.
+
+Q: What four things does every remote call need?
+A: A timeout with deadline propagation, retries with backoff and jitter at one layer with a budget, a circuit breaker with fallback, and an idempotency key for mutations.
+
+Q: How do you pick a shard key?
+A: High cardinality, even distribution, present in most queries, keeps co-read data together — conversation_id for chat, user_id for posts, tenant_id for SaaS — with ~1,024 pre-split virtual shards.
+```
+
+## What to carry forward
+
+- Know the latency ladder and the 10⁵-seconds-per-day shortcut.
+- Serial dependencies multiply failure; redundancy adds nines.
+- Default to Postgres, cache-aside with delete-on-write, consistency chosen per operation.
+- Every remote call: timeout, retry with jitter, breaker, idempotency key.
+- Use the scoring phrases, and run the 60-second reset before the interview.
