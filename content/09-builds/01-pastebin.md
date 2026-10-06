@@ -9,6 +9,12 @@ tags: [level-1, storage, cache]
 unlocks: The basic shape of every design — API, schema, cache, and the arithmetic that justifies each.
 ---
 
+:::predict Guess first
+1. Pastes never change after they're created. Why does that make caching unusually easy?
+2. Paste bodies now total 500 GB inside database columns. What problems might that cause besides disk space?
+3. Deleting 40 million expired rows every night locks the table. How could deleting a whole month be instant?
+:::
+
 ## The product
 
 A user pastes text, gets a short URL, shares it. Anyone with the URL reads the text. Optionally the paste expires, or is private.
@@ -208,3 +214,33 @@ Ninety seconds, and it covers storage, caching, IDs, expiry, and the hot-key cas
 ## Next
 
 [Build an Image Host](image-host.html) — same shape, but now the bytes are large and the write path has to do work.
+
+## Check yourself
+
+```recall
+Q: How far does Phase 1 Pastebin go?
+A: One Postgres box with a read replica handles ~1,000 writes/s and tens of thousands of reads/s — most products' entire lifetime. Name when you'd revisit (~30,000 writes/s, or the table outgrowing the buffer pool).
+
+Q: Why a database sequence for paste IDs?
+A: One database means one sequence; Snowflake solves a sharding problem you don't have. Base62 makes it short — 8 characters give 218 trillion codes.
+
+Q: What makes Pastebin's cache trivial?
+A: Content is immutable, so a cached copy can never be stale — long TTLs, no invalidation — and a CDN can absorb a viral paste.
+
+Q: Why move paste bodies to object storage?
+A: 500 GB of TEXT makes backups take hours and fills the buffer pool with bodies, evicting index pages and slowing unrelated queries. The database keeps pointers; object storage keeps bytes; small pastes stay inline.
+
+Q: How do you expire hundreds of millions of pastes?
+A: Lazy expiry (treat expired as absent on read) for immediate correctness, plus partitioning by expiry month so cleanup is dropping a partition — instant, no locks. Batched deletes suffice at smaller scale.
+
+Q: How do you present Pastebin in ninety seconds?
+A: Read-heavy, immutable, so very cacheable; one Postgres plus Redis, bodies in object storage once large; sequence IDs; lazy expiry with partition drops; the CDN absorbs viral pastes.
+```
+
+## What to carry forward
+
+- Start with one service and one database, and say when you'd change.
+- Immutability removes cache invalidation entirely.
+- Databases hold metadata and pointers; object storage holds bytes.
+- Lazy expiry plus partition drops beats bulk deletes.
+- Warm-up questions are graded on scoping and compression.

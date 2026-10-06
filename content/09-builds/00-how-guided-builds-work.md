@@ -8,6 +8,12 @@ tags: [orientation, guide]
 unlocks: Knowing which build to start with and how to use the readiness checks.
 ---
 
+:::predict Guess first
+1. An interviewer asks you to design Instagram. Is it better to draw the final architecture straight away, or to start with something simpler?
+2. What should trigger moving from one version of a design to the next — a feeling, or something measurable?
+3. Should you read a build whose prerequisites you haven't studied?
+:::
+
 ## The difference from the case studies
 
 The [Case Studies](../case-studies/url-shortener.html) track presents finished designs in interview format — requirements, estimation, API, high-level design, deep dives. That is the finished artifact — the design as you would present it.
@@ -97,3 +103,32 @@ Level 5 covers systems that didn't exist in most interview prep two years ago. T
 Two things to keep in mind: this domain moves faster than any other in this atlas, so treat specific figures (model sizes, throughput numbers, hardware specs) as illustrative of the *shape* of the problem rather than current fact. And the architectural principles — batching to amortize fixed costs, caching to avoid recomputation, queueing to smooth load — are the same ones from Level 1. That's the point.
 
 Start with [Pastebin](pastebin.html) if you're new, or jump to [LLM Inference Serving](llm-inference-serving.html) if you want the hardest thing here.
+
+## Check yourself
+
+```recall
+Q: How do guided builds differ from case studies?
+A: Case studies present the finished design in interview format; builds construct it in phases — the naive version that works, then each fix triggered by the number that broke the previous phase.
+
+Q: What skill do builds train?
+A: Matching a solution to a scale: "here's the simple version, and here's the number at which it stops working" sounds like an engineer, not someone reciting a diagram.
+
+Q: Name the five levels of the build ladder.
+A: 1 Foundations (Pastebin, Image Host), 2 Scale (Instagram, Twitter), 3 Real-time and media (WhatsApp, Netflix), 4 Hard constraints (Uber, Docs, Stripe), 5 AI platforms.
+
+Q: What is the decision log?
+A: Every significant choice with its rejected alternative and the constraint that decided it — the part to rehearse for interviews.
+
+Q: How should you use a build for interview prep?
+A: Do it cold first: sketch your own phases for 20 minutes, then read and compare. The gap is your curriculum.
+
+Q: How do the AI builds relate to the classic ones?
+A: They reuse the same principles — batching, caching, queueing, sharding — with GPUs as the scarce resource instead of database connections. Treat their specific figures as illustrative of shape.
+```
+
+## What to carry forward
+
+- Builds grow a system in phases, each triggered by a concrete number.
+- Matching the solution to the scale is the skill being graded.
+- Rehearse the decision log: choice, rejected alternative, deciding constraint.
+- Sketch first, read second; stop at the phase your real scale needs.

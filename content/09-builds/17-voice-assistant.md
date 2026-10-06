@@ -9,6 +9,12 @@ tags: [level-5, ai, voice, realtime, latency]
 unlocks: Building for a latency budget set by human physiology rather than by an SLA document.
 ---
 
+:::predict Guess first
+1. A voice assistant waits for silence, transcribes, generates the full reply, then speaks it. Roughly how long might the caller wait — and how long will they tolerate?
+2. Could you make the assistant feel much faster without making speech recognition, the model or speech synthesis any faster?
+3. The caller interrupts halfway through the assistant's second sentence. What should the conversation history say the assistant said?
+:::
+
 ## The product
 
 A voice agent that answers phone calls, holds a conversation, looks things up, and takes actions. Thousands of concurrent calls.
@@ -201,6 +207,8 @@ Voice load has a shape unlike text serving.
 
 **Prefix caching is worth a lot here.** The system prompt plus retrieved account context can be several thousand tokens, and TTFT scales with prompt length. Cache-affinity routing on the call ID turns most turns into a cache hit and takes a large chunk out of the budget.
 
+**Cascaded or speech-to-speech?** Since late 2024, speech-to-speech models — one model that hears audio and speaks audio, such as those behind OpenAI's Realtime API — skip the STT and TTS hops and pick up tone of voice that a transcript loses. The trade-offs are less control: tool calls and moderation are harder to inspect, and there's no natural transcript to audit. Many production agents stay cascaded, or use a hybrid — a speech model for the conversation with a text transcript running beside it for tools and records. Whichever you pick, the rest of this page still applies: streaming, endpointing, barge-in truncation and fillers.
+
 ## The decision log
 
 | Decision | Rejected | Because |
@@ -237,3 +245,39 @@ Phases 5 and 6. Ship Phases 1–4: a streamed, overlapped pipeline with semantic
 ## Next
 
 [Build a Pretraining Cluster](pretraining-run.html) — the opposite extreme, where a job runs for weeks and nobody is waiting on a 500 ms budget.
+
+## Check yourself
+
+```recall
+Q: What latency budget does a voice assistant have, and why?
+A: About 500 ms. Human turn gaps are ~200 ms, and past ~800 ms callers interrupt, repeat themselves and hang up — it stops being a conversation.
+
+Q: How does streaming cut 3.5 s to ~630 ms with no faster component?
+A: Streaming STT partials, starting the LLM on a stable transcript, and synthesising and playing the first sentence while the rest generates. The caller waits for the first fragment, not the whole answer.
+
+Q: Which model metric matters for voice, and what follows?
+A: Time to first token only — so a small-batch latency lane separate from bulk traffic, short prompts, and prefix caching via call-ID affinity.
+
+Q: Silence timer versus semantic endpointing versus speculative start?
+A: A timer adds its full wait every turn and cuts off pauses. A small model judging whether the utterance is complete is faster and more accurate. Starting the LLM on partials and cancelling if speech continues hides endpointing almost entirely.
+
+Q: What are the barge-in steps?
+A: Detect real speech (with echo cancellation), stop playback within ~100 ms, cancel generation, drain queued audio, truncate history to what actually played, and resume listening.
+
+Q: Why truncate history to the audio that played?
+A: Otherwise the model believes it said sentences the caller never heard, references them, and the conversation silently desynchronises.
+
+Q: How do you handle a slow tool call?
+A: Start it early from the model's first tokens, speak a matching filler ("let me pull that up") while it runs, cap it at ~2 s, and confirm slow irreversible actions out loud.
+
+Q: How is voice capacity planned?
+A: By concurrent sessions, not requests a second: STT scales with audio minutes, the LLM needs low TTFT, TTS with output characters, media with sessions. Variance matters more than the mean, so over-provision rather than queue.
+```
+
+## What to carry forward
+
+- Human physiology sets the budget: about 500 ms end to end.
+- Hide latency by streaming and overlapping stages; play the first sentence early.
+- Semantic endpointing and speculative starts remove the silence wait.
+- Barge-in must truncate history to the audio that actually played.
+- Fill tool waits with speech; provision for sessions and low TTFT variance.

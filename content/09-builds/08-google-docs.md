@@ -9,6 +9,12 @@ tags: [level-4, collaboration, crdt, realtime]
 unlocks: Conflict-free concurrent mutation and the OT vs CRDT decision.
 ---
 
+:::predict Guess first
+1. Two people insert text at the same moment, using character positions. Will both screens end up showing the same document?
+2. If two servers both believe they own the same document, what happens to its history?
+3. Which part of a document editor is hardest: plain text, or bold and italic formatting over ranges?
+:::
+
 ## The product
 
 Several people type in the same document simultaneously. Everyone converges on identical text. Cursors are visible. History is preserved. Offline edits merge on reconnect.
@@ -134,3 +140,36 @@ Rich text, offline editing, version history UI, comments, suggestions. Ship plai
 ## Next
 
 [Build Stripe](stripe.html) — the build where correctness beats every other property.
+
+## Check yourself
+
+```recall
+Q: Why is collaborative editing an algorithm problem?
+A: A position index only means something relative to one document state; concurrent inserts applied in different orders produce different documents. Locking defeats the purpose and last-write-wins discards work.
+
+Q: OT in one line, and its main cost?
+A: Transform each incoming edit against the edits it hadn't seen so it lands where intended. Small operations, but the transformation functions are hard to get right and usually need a central server to order operations.
+
+Q: CRDTs in one line, and their main cost?
+A: Give each character a unique, densely orderable ID so operations commute and replicas converge by construction, even offline. The cost is per-character metadata and tombstones.
+
+Q: Why route each document to one owner?
+A: A single process per document (by hash of doc ID) is a natural serialisation point: ordering becomes trivial with no distributed coordination.
+
+Q: What persistence does a collaborative editor need?
+A: An append-only op log in server order (history, undo, replay) plus periodic snapshots, with operations durable before acknowledgement so a new owner can recover.
+
+Q: How do you prevent split brain between document owners?
+A: Fencing tokens: each ownership grant carries an increasing epoch and storage rejects writes from a stale one.
+
+Q: Why cut rich text from v1?
+A: Formatting applies to ranges, and ranges shift under concurrent edits — much harder than character inserts for both OT and CRDTs.
+```
+
+## What to carry forward
+
+- Show the five-character divergence example first.
+- With a server present, use it as the ordering point; choose a CRDT for offline or peer-to-peer.
+- One owner per document, local-first typing.
+- Op log plus snapshots, persisted before acknowledgement.
+- Cursors are ephemeral; fencing tokens stop split brain.

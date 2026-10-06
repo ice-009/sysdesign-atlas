@@ -9,6 +9,12 @@ tags: [level-5, ai, evaluation, testing]
 unlocks: Turning "it feels better" into a number you can gate a deploy on.
 ---
 
+:::predict Guess first
+1. A prompt change moves a test score from 74% to 78% on 150 cases. Is that proof it helped?
+2. Many good answers exist to "summarise this ticket". How could you score answers automatically when exact match won't work?
+3. An evaluation run takes eight minutes and costs real money. How often will developers run it?
+:::
+
 ## The product
 
 An internal platform where anyone shipping an AI change — a prompt edit, a model upgrade, a retrieval tweak — can find out whether it helped, in minutes, before it reaches users.
@@ -83,6 +89,8 @@ Design decisions that matter here:
 :::
 
 **Idempotent, resumable runs.** A run of 4,500 model calls will have failures. Persist per-case results as they complete, key tasks by `(run_id, case_id, system)`, and make a retry pick up where it stopped. This is the [job scheduler](../08-case-studies/job-scheduler.html) pattern applied to evaluation.
+
+**For agents, score the outcome, not the transcript.** Run each case in a fresh sandbox and check the end state — did the test pass, was the record created, is the file correct? A checkable outcome beats a judged transcript whenever you can get one, and agent benchmarks such as SWE-bench work exactly this way. Run each case a few times too: agents are less deterministic than single calls, so report the pass rate across attempts.
 
 **Survives to:** a few teams, hundreds of runs a week.
 
@@ -224,3 +232,39 @@ Everything past Phase 2. A hundred curated cases, a pairwise judge, results cach
 ## Next
 
 [Build a Fine-Tuning Platform](fine-tuning-platform.html) — where the evaluation harness becomes the thing that decides whether a training run was worth it.
+
+## Check yourself
+
+```recall
+Q: Why is the eval platform arguably the most valuable AI build?
+A: Every other AI system degrades silently; this is the one that notices, turning "it feels better" into a number you can gate a deploy on.
+
+Q: Why judge pairwise rather than pointwise?
+A: "Which is better, A or B?" is far more consistent than 1–5 scores and answers the real question. Run both orderings to cancel position bias.
+
+Q: What makes evals fast enough to run on every push?
+A: Caching on (input, component version, prompt version): the baseline comes from main and only the changed component re-runs — about 8 minutes down to 90 seconds.
+
+Q: What are a confidence interval and the minimum detectable effect?
+A: The plausible range of the true result, and the smallest change the suite can distinguish from luck. At 150 cases a 4-point gain is noise when the MDE is ~12 points.
+
+Q: Name three reporting rules.
+A: Paired comparison on the same cases, the MDE next to every result, a per-category breakdown sorted worst-first — and show the regressed cases' diffs, not just scores.
+
+Q: What makes a CI eval gate adoptable?
+A: Under five minutes, deterministic (temperature 0, pinned models), cost-capped with cost shown in the PR, and skippable with a recorded reason so it isn't disabled outright.
+
+Q: How do production failures become eval cases?
+A: Thumbs-down, escalations, tool failures and safety flags feed a human triage queue that confirms the failure, writes the expected output and assigns a category.
+
+Q: How do you know the judge can be trusted?
+A: Calibrate monthly against blind human labels: kappa above ~0.6 can gate, 0.4–0.6 is advisory, below 0.4 means the rubric is broken. Check for length bias too.
+```
+
+## What to carry forward
+
+- Start with a script and a spreadsheet; add a pairwise judge when outputs are open-ended.
+- Cache by component version so evals run on every push.
+- Report confidence intervals, the MDE and per-category diffs — never a bare delta.
+- Feed triaged production failures back into the golden set.
+- Calibrate the judge against humans before letting it gate anything.

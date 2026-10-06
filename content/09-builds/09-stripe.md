@@ -9,6 +9,12 @@ tags: [level-4, money, ledger, correctness]
 unlocks: Designing for correctness first, and modelling money properly.
 ---
 
+:::predict Guess first
+1. 10 million charges a day is how many per second? Is that the hard part?
+2. A charge request times out. Is it safe to send it again?
+3. In a checkout with several steps, where in the sequence should the card charge go?
+:::
+
 ## The product
 
 A merchant charges a customer's card. Money moves. Refunds work. Every movement is auditable years later.
@@ -148,3 +154,36 @@ Multi-currency, payouts, subscriptions, disputes, fraud scoring. Ship: charge a 
 ## Next
 
 Level 5: [Build an LLM Inference Platform](llm-inference-serving.html) — the same engineering principles with GPUs as the scarce resource.
+
+## Check yourself
+
+```recall
+Q: Why is Stripe "not a scale problem"?
+A: 10 million transactions a day is ~100 TPS — one tuned Postgres. The hard part is correctness and auditability; saying so early redirects the interview.
+
+Q: What does a double-entry ledger buy?
+A: Immutable entries summing to zero per transaction, derived balances, corrections as reversing entries, and a continuously checkable invariant — so bugs become detectable.
+
+Q: How is charge idempotency gated?
+A: Insert the key with a request hash under a unique constraint in a transaction: a completed duplicate replays the stored response verbatim, in-progress returns 409, a different body returns 422.
+
+Q: Why can't you tell whether a timed-out charge happened?
+A: It's the two generals problem — a lost reply is indistinguishable from a lost request. Query the provider by your idempotency key before retrying, then reconcile.
+
+Q: What is the pivot in a payment saga?
+A: The irreversible card charge, placed after reversible steps. Before it, compensate; after it, roll forward — confirm the order or issue a recorded refund.
+
+Q: How do inbound and outbound webhooks differ?
+A: Inbound: dedupe by provider event ID, log before acting, poll for stuck payments. Outbound: publish through an outbox, retry with backoff, sign payloads, offer replay.
+
+Q: Why is reconciliation part of the design?
+A: Comparing the ledger daily against the provider's settlement report, plus internal invariant checks, catches the edge cases every distributed system produces — before auditors do.
+```
+
+## What to carry forward
+
+- Diagnose correctness, not scale.
+- Lead with an immutable double-entry ledger in integer minor units.
+- Idempotency gated by a unique constraint, replaying stored responses.
+- Timeouts are unknowable: query, never blind-retry.
+- Charge last, roll forward after the pivot, reconcile daily.

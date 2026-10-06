@@ -9,6 +9,12 @@ tags: [level-3, media, cdn, pipeline]
 unlocks: Designing for bandwidth as the primary constraint, and async processing pipelines.
 ---
 
+:::predict Guess first
+1. Netflix has about 20,000 titles; YouTube receives hundreds of hours of video every minute. How might that difference change the design?
+2. A big new series launches Friday at midnight. How could you avoid a rush of cache misses at launch?
+3. 33 million people save their playback position every 30 seconds. Does that data need a transactional database?
+:::
+
 ## The product
 
 Browse a catalogue, press play, watch without buffering, resume where you left off, on any device and any connection.
@@ -161,3 +167,36 @@ Multiple renditions (ship 720p only), 4K, offline download, per-title encoding, 
 ## Next
 
 [Build Uber](uber.html) — Level 4, where a million moving objects need matching in real time.
+
+## Check yourself
+
+```recall
+Q: What one number decides Netflix's architecture?
+A: ~33 million concurrent viewers × 5 Mbps ≈ 165 Tbps — impossible from an origin fleet, so the CDN is the architecture and everything else feeds it.
+
+Q: Why is the catalogue size the key clarifying question?
+A: A curated catalogue is tiny (hundreds of terabytes), so it can be fully pre-transcoded and pre-positioned at the edge before anyone watches — impossible for user-generated content.
+
+Q: How is ingest made fast and cheap?
+A: Split the master at keyframes and encode chunk × rendition in parallel as idempotent tasks keyed by (title, rendition, chunk) on preemptible workers; per-title bitrate ladders cut delivery bandwidth.
+
+Q: Why does adaptive bitrate make 165 Tbps cacheable?
+A: Segments are static files identical for every viewer and the client picks each next quality itself, so the server holds no session state and every byte is a cache hit.
+
+Q: What is pre-positioning?
+A: Pushing a known upcoming release to edge caches before it launches, so the week's biggest traffic event is served entirely from cache.
+
+Q: Data plane versus control plane at Netflix?
+A: The data plane moves video — enormous, almost no logic. The control plane — catalogue, entitlement, watch progress, recommendations — is small and mostly cached.
+
+Q: How is watch progress stored?
+A: In a key-value store with last-write-wins: ~1.1 million writes a second where losing 30 seconds of position is invisible — no transactions needed.
+```
+
+## What to carry forward
+
+- Compute bandwidth first; 165 Tbps makes the CDN the design.
+- Ask curated or user-generated — it decides pre-transcoding and pre-positioning.
+- Chunk-parallel, idempotent encoding on preemptible workers; per-title ladders.
+- Client-side ABR keeps segments static; pre-position hot releases.
+- A small control plane: precomputed recommendations, cheap progress writes.

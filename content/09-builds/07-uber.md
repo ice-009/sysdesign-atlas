@@ -9,6 +9,12 @@ tags: [level-4, geospatial, realtime, matching]
 unlocks: Handling high-frequency ephemeral writes and spatial matching.
 ---
 
+:::predict Guess first
+1. Position data is worthless after 4 seconds; trip records must never be lost. Should they live in the same store?
+2. The geo index returns 20 nearby drivers. Should you call the routing service for all of them, or for every driver in the city?
+3. The ride has happened but payment fails. Should the trip be rolled back?
+:::
+
 ## The product
 
 A rider requests a ride. The system finds a nearby driver, both watch each other move on a map, the trip completes, payment settles.
@@ -134,3 +140,36 @@ Pooling, surge, scheduled rides, multiple vehicle classes. Ship: request → mat
 ## Next
 
 [Build Google Docs](google-docs.html) — where the hard problem is an algorithm, not an architecture.
+
+## Check yourself
+
+```recall
+Q: What split defines the Uber build?
+A: Ephemeral, enormous position data (~1.25 million writes a second, worthless after seconds) in an in-memory geo index, versus durable, tiny trip data in Postgres.
+
+Q: Why do locations never touch a durable database?
+A: A 4-second-old position is stale, so durability buys nothing, and a disk-backed store would collapse under 1.25 million writes a second. History goes to Kafka.
+
+Q: Name three ways to cut location writes.
+A: Adaptive update frequency, skipping the index write when a driver hasn't left their cell, and batching from the connection tier.
+
+Q: What is retrieve-then-rank in matching?
+A: The geo index cheaply narrows millions of drivers to ~20 by straight-line distance; the expensive routing service computes real ETAs only for those 20.
+
+Q: How is double assignment prevented?
+A: UPDATE drivers SET status = 'ASSIGNED' WHERE driver_id = ? AND status = 'AVAILABLE' — check and change in one step — plus a 15-second offer TTL as the compensation.
+
+Q: What rules govern the trip state machine?
+A: Transitions conditional on the current state (duplicates are no-ops), durable before acknowledgement, a timeout on every waiting state, and forward recovery after the ride.
+
+Q: How is live tracking kept cheap?
+A: One pub/sub channel per active trip with two subscribers — fanout scales with trips, not drivers — and the client interpolates between 4-second updates.
+```
+
+## What to carry forward
+
+- Separate ephemeral positions (memory, sharded by city) from durable trips (SQL).
+- Match in two stages: cheap spatial filter, expensive ETA rank on a shortlist.
+- A conditional update with an offer TTL replaces distributed locks.
+- Trip transitions are conditional, durable and timed; recover forwards after the ride.
+- Cut pooling from v1 — it's a much harder routing problem.

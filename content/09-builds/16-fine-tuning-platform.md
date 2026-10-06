@@ -9,6 +9,12 @@ tags: [level-5, ai, fine-tuning, lora, multi-tenant]
 unlocks: The economics that make per-customer models possible at all.
 ---
 
+:::predict Guess first
+1. 500 customers each want their own fine-tuned 70B model. If each is a full copy, how many 80 GB GPUs do you need just to hold the weights?
+2. Requests for different customers' models arrive at once. Can they share one batch on the GPU?
+3. A customer's fine-tuned model gets better at their task. Could it have got worse at anything else?
+:::
+
 ## The product
 
 Customers upload a dataset, get a fine-tuned model, and call it through the same API as the base model. You run the training and the serving.
@@ -249,3 +255,39 @@ Phases 4–6. Ship: dataset validation, LoRA training on a fixed rank, automatic
 ## Next
 
 [Build a Pretraining Cluster](pretraining-run.html) — the same problems at the scale where the hardware itself becomes the design constraint.
+
+## Check yourself
+
+```recall
+Q: What one fact makes a fine-tuning platform possible?
+A: LoRA adapters (~50 MB) sit beside a shared, untouched base model, so 500 customers need ~95 GB instead of ~35,000 GB — two GPUs instead of ~438.
+
+Q: Why must adapters be served in one batch, not swapped?
+A: Swapping per request is a memory copy and a scheduler stall and destroys batching. Batched multi-adapter kernels apply each row's own adapter (h = Wx + B_iA_i x) in one forward pass.
+
+Q: How are adapters cached and routed?
+A: Hot adapters in GPU memory, recent in host memory, the rest in object storage (a miss is a sub-millisecond copy); a fixed platform-wide rank simplifies kernels; route by adapter affinity.
+
+Q: What should dataset validation check before queueing?
+A: Structure, rendering under the base model's chat template (the most common failure), size, duplicates and label consistency, PII and safety, and train–eval leakage — with specific, line-level errors.
+
+Q: Why report general benchmarks after fine-tuning?
+A: Catastrophic forgetting is the default: task accuracy rises while reasoning and instruction-following drop. Report both and offer mitigations — lower rank, fewer epochs, mixed general data.
+
+Q: What does the training scheduler add for tenants?
+A: Tiered fair queues, per-tenant concurrency caps, gang scheduling, preemption with checkpoints, spot capacity for the free tier, and cost estimates and ceilings before admission.
+
+Q: Why must adapters be immutable and versioned?
+A: A retrain is a new version, so customers can compare, split traffic, roll back, and answer "which model produced this output" for support and compliance.
+
+Q: What is the sharpest multi-tenant security edge?
+A: Resolve the adapter from the authenticated tenant's namespace, never from the model ID in the request — otherwise any customer can call any other's model. Key prefix caches by tenant too.
+```
+
+## What to carry forward
+
+- LoRA plus a shared base is the whole business case.
+- Batch many adapters in one forward pass; never swap per request.
+- Validate data aggressively — most fine-tunes fail on data, especially chat templates.
+- Evaluate automatically and report forgetting alongside gains.
+- Immutable versions, fair GPU scheduling, adapters resolved from tenant identity.

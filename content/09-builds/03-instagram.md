@@ -9,6 +9,12 @@ tags: [level-2, feed, media, social]
 unlocks: Combining a media pipeline with a social graph, and the fanout decision.
 ---
 
+:::predict Guess first
+1. Feeds are read about 250 times for every post. Should the expensive work happen when posting or when reading?
+2. Building a feed by querying all 200 accounts a user follows on every load — what goes wrong at 750,000 loads a second?
+3. An account hovers right at the 10,000-follower threshold. What could go wrong if the push/pull switch is a single number?
+:::
+
 ## The product
 
 Post a photo. Follow people. See a feed of photos from people you follow. Like and comment.
@@ -165,3 +171,36 @@ Stories, reels, DMs, explore, search, ads. Ship: upload, follow, chronological f
 ## Next
 
 [Build Twitter](twitter.html) — same fanout problem, but with real-time delivery and a much harder ranking layer.
+
+## Check yourself
+
+```recall
+Q: What number shapes Instagram's architecture?
+A: A ~250:1 read-to-write ratio: do the expensive work once at write time rather than 250 times at read time.
+
+Q: What ships in Phase 1, and how is it sharded?
+A: Posts and profile pages without a feed: presigned uploads, metadata in Postgres sharded by user_id so a profile is a single-shard read, and follows indexed in both directions.
+
+Q: Why does the naive pull feed die?
+A: A 200-way scatter-gather across shards at 750,000 QPS: latency is bounded by the slowest shard and cost scales with follow count — expensive work on the most frequent operation.
+
+Q: How does fanout-on-write make reads cheap?
+A: On post, async workers ZADD the post ID into each follower's Redis sorted set; a feed read is one ZREVRANGE. Trim to ~800 items and keep feeds only for users active in 30 days (~640 GB, not 3.2 TB).
+
+Q: What refinements does the celebrity threshold need?
+A: Evaluate it at post time against current follower count, with hysteresis (promote at 10K, demote at 8K) so boundary accounts don't flip each post.
+
+Q: What is hydration, and how is it kept fast?
+A: Turning feed post IDs into renderable posts — media URL, author, counts, "did I like it" — with one batched multi-get across services, hard-caching profiles.
+
+Q: Why ship pull-only first?
+A: It's simpler, has no celebrity problem, and lets you measure the real follower distribution before committing to a push threshold.
+```
+
+## What to carry forward
+
+- Let the read:write ratio decide where work happens.
+- Shard posts by user; index follows both ways.
+- Precompute feeds for active users, trimmed; fan out asynchronously.
+- Hybrid push/pull with a hysteresis threshold handles celebrities.
+- Batch hydration and serve counts from stream aggregation.

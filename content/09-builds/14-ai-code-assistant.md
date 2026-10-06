@@ -9,6 +9,12 @@ tags: [level-5, ai, latency, developer-tools]
 unlocks: Serving model output inside a latency budget where slow equals useless.
 ---
 
+:::predict Guess first
+1. A suggestion arrives after the developer has already typed the next few characters. Is a late suggestion still somewhat useful?
+2. Each keystroke makes the in-flight request out of date. What should happen to that request on the server?
+3. When the inference fleet is overloaded, is it better to queue completion requests or return nothing?
+:::
+
 ## The product
 
 A developer types. Grey text appears ahead of the cursor suggesting the rest of the line or block. Tab accepts it.
@@ -140,6 +146,10 @@ Source code is among the most sensitive data a company has.
 - **Scan for and filter secrets** in both directions: don't send an API key sitting in the context, and don't suggest one memorized from training data.
 - **Retention limits.** Prompt logs containing proprietary code are a liability; keep them briefly and encrypted, or not at all.
 
+## Phase 7 — Beyond completion: agents in the editor
+
+Since 2025 the same products also run **coding agents**. Given a task — "fix this failing test" — an agent reads files, edits several of them, runs the tests in a sandbox and iterates. That's a different workload beside inline completion: minutes rather than milliseconds, large models rather than small fast ones, and all the [agent platform](ai-agent-platform.html) concerns — bounded loops, sandboxed execution, a person reviewing changes before they land. The two paths share context selection and privacy rules but little else, so they're built as separate services. Measure the agent path by tasks completed and changes kept, just as acceptance rate measures completion.
+
 ## The decision log
 
 | Decision | Rejected | Because |
@@ -171,10 +181,46 @@ Cross-file retrieval, fill-in-the-middle, edge deployment, self-hosting. Ship: c
 >
 > And I'd measure acceptance rate and cost per *accepted* suggestion rather than availability and cost per request, because most requests never produce a useful outcome."
 
-## You've finished the ladder
+## The ladder so far
 
-That's Level 1 to Level 5 — from a single Postgres table to GPU scheduling.
+That's Level 1 to Level 5 — from a single Postgres table to GPU scheduling. The four builds after this one — evals, fine-tuning, voice and pretraining — go deeper into the AI stack.
 
 Notice what carried through: **batching** to amortize a fixed cost appeared in the image pipeline and again in continuous batching. **Caching** went from Redis rows to KV blocks. **Queueing and shedding** protected a database in Level 1 and a GPU fleet in Level 5. **Retrieve-then-rerank** showed up in search, feeds, driver matching, and RAG.
 
 The systems changed. The engineering didn't. That's the actual takeaway — and it's why the [fundamentals](../fundamentals/scalability-basics.html) are worth more than any individual architecture.
+
+## Check yourself
+
+```recall
+Q: What constraint makes the code assistant its own build?
+A: Latency: p50 under ~200 ms and p99 under ~500 ms end to end, because a suggestion arriving after the developer has typed past it is worthless — so small models and short outputs.
+
+Q: Describe the request pattern.
+A: Fire after a ~30–50 ms pause and cancel the in-flight request on every keystroke; most requests are abandoned. A local cache keyed by file, position and prefix serves repeats instantly.
+
+Q: Why must cancellation reach the GPU here?
+A: Abandoned generations otherwise keep burning tokens and holding KV cache slots that live requests need.
+
+Q: How is context chosen within a few thousand tokens?
+A: In priority order: text before and after the cursor, imports and type definitions, recently edited files, visible symbol definitions, then similar code. Recency beats similarity and costs nothing.
+
+Q: What is fill-in-the-middle?
+A: A model trained to take a prefix and a suffix and generate the span between, so it sees the closing brace, the next function and the expected return type.
+
+Q: Why shed rather than queue, and why terminate at the edge?
+A: A missing suggestion is invisible while a late one disrupts, so fail fast under load. A cross-region round trip alone eats a large share of the budget, so edge presence is required.
+
+Q: Which metrics matter?
+A: Acceptance rate, retention of accepted code after ~5 minutes, show rate, latency, and cost per accepted suggestion — not uptime or cost per request.
+
+Q: Name three privacy requirements.
+A: Be explicit and configurable about what leaves the machine, never train on user code without opt-in consent, offer self-hosting, filter secrets both ways, and keep prompt logs briefly or not at all.
+```
+
+## What to carry forward
+
+- Slow equals useless: the budget picks a small model and short outputs.
+- Fire, cancel, repeat — and cancel all the way to the GPU.
+- Context by priority and recency, with fill-in-the-middle.
+- Terminate at the edge; shed instead of queuing.
+- Measure acceptance and cost per accepted suggestion; agents are a separate path.

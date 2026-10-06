@@ -9,6 +9,12 @@ tags: [level-1, media, async]
 unlocks: The upload-process-serve pipeline that every media system reuses.
 ---
 
+:::predict Guess first
+1. Should a 3 MB photo upload pass through your API servers on its way to storage?
+2. A user's upload finished. Should they wait while the thumbnail and other sizes are generated?
+3. If an image URL never changes what it points to, how long can a CDN cache it?
+:::
+
 ## The product
 
 Upload an image, get a URL. The image is served fast, worldwide, at whatever size the page needs.
@@ -156,3 +162,36 @@ Multiple formats, on-the-fly resizing, tiering, and a CDN. Ship: presigned uploa
 ## Next
 
 [Build Instagram](instagram.html) — the same media pipeline, now with a social graph and a feed on top.
+
+## Check yourself
+
+```recall
+Q: What is the media-system pattern the image host introduces?
+A: The write path does work asynchronously; the read path does nothing at all.
+
+Q: Why use presigned uploads?
+A: The client uploads directly to object storage with a short-lived, size- and type-capped signed URL, so the app tier never holds bytes or a thread for a slow upload.
+
+Q: Why must the server verify the upload before writing metadata?
+A: A client can claim a file it never uploaded or point at someone else's key. Check existence, size, content type and ideally a committed checksum — a real vulnerability class.
+
+Q: How are derivatives generated?
+A: An upload event goes to a queue; idempotent workers (keyed by image, size, version) validate, strip EXIF (GPS leaks), resize, re-encode and scan, then mark the image ready. The user sees "processing" meanwhile.
+
+Q: Why content-hash URLs?
+A: A URL whose content never changes can be cached for a year as immutable with no invalidation; a re-upload simply gets a new URL.
+
+Q: Why is storage tiering a design constraint here?
+A: At ~1.5 PB a year, moving older images to infrequent-access and archive tiers decides whether the product is affordable. Keep originals for future re-encoding.
+
+Q: What does on-the-fly resizing trade, and what must you guard?
+A: Storage for compute and a slow first request per variant. An open width parameter is a denial-of-service vector — allow-list sizes or sign the parameters.
+```
+
+## What to carry forward
+
+- Keep bytes off the app tier with presigned uploads, and verify before trusting.
+- Generate derivatives asynchronously with idempotent workers.
+- Immutable content-hash URLs make the read path pure CDN.
+- Lifecycle tiering from day one at petabyte scale.
+- Resize on demand only when sizes are many and unpredictable — and guard the parameters.

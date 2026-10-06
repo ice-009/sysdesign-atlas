@@ -9,6 +9,12 @@ tags: [level-2, feed, realtime, streaming]
 unlocks: Fanout under heavy writes, trending detection, and how ranking reshapes a feed.
 ---
 
+:::predict Guess first
+1. Should a retweet copy the original post's text, or point to it?
+2. For live timeline updates, should the server push the new posts themselves, or just a note that new posts exist?
+3. A word is always popular — say "the". Is it trending?
+:::
+
 ## The product
 
 Post short text. Follow accounts. See a timeline. Retweet, reply, like. Discover what's trending.
@@ -165,3 +171,36 @@ DMs, spaces, lists, bookmarks, ads, ranking. Ship: post, follow, chronological t
 ## Next
 
 [Build WhatsApp](whatsapp.html) — where connections become stateful and losing a message is unacceptable.
+
+## Check yourself
+
+```recall
+Q: What three things make Twitter different from Instagram?
+A: Much heavier writes (~1.6 million feed writes a second), near-instant delivery expectations, and trending as a real-time analytics system beside the feed.
+
+Q: Why do retweets store a pointer, and what does it cost?
+A: Edits and deletes must propagate, and copying text into millions of retweets multiplies storage. The cost is a hydration hop — batch it and cache originals hard.
+
+Q: Why bound thread depth?
+A: Rendering a thread walks parent pointers recursively; fetch to a fixed depth (say 5) and lazy-load the rest, or one pathological thread becomes a latency cliff.
+
+Q: How is real-time delivery designed?
+A: Push a tiny "new posts available" notification over SSE, not the posts. One read path stays authoritative, fanout is cheap, and a dropped message self-corrects on refresh.
+
+Q: How is trending computed?
+A: A stream processor counts terms per region and window in a count-min sketch (kilobytes, may over-count slightly), ranking by velocity against each term's own baseline rather than raw volume.
+
+Q: How do you resist manufactured trends?
+A: Require a minimum count of distinct accounts, weight by account age and reputation, and detect suspiciously synchronised posting.
+
+Q: How does ranking change the feed architecture?
+A: You need a good candidate pool, not every post materialised in order — retrieve ~500 candidates, score with precomputed features, return 20. Ranking relaxes fanout rather than complicating it.
+```
+
+## What to carry forward
+
+- Same hybrid fanout as Instagram, at about 8× the write volume.
+- Retweets are pointers; bound thread walks.
+- Live updates push notifications, not content — one read path.
+- Trending is a separate streaming system ranked by velocity.
+- Ask early whether the feed is ranked — it changes the architecture most.

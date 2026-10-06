@@ -9,6 +9,12 @@ tags: [level-3, realtime, messaging, stateful]
 unlocks: Managing millions of persistent connections and guaranteeing delivery.
 ---
 
+:::predict Guess first
+1. 100 million phones hold open connections. What resource will limit how many servers you need — CPU, memory, or network?
+2. Deploying new business logic restarts every server holding a socket. How could you avoid dropping 100 million connections?
+3. You restart 200 gateway servers one after another. What might the reconnecting clients do to the servers still running?
+:::
+
 ## The product
 
 Send a message to a person or group. It arrives in under a second if they're online, and waits for them if they aren't. You see sent / delivered / read. History persists across devices.
@@ -158,3 +164,36 @@ End-to-end encryption means only the sender's and recipient's own devices hold t
 ## Next
 
 [Build Netflix](netflix.html) — where the read path is measured in terabits and the CDN *is* the architecture.
+
+## Check yourself
+
+```recall
+Q: What makes WhatsApp structurally different from earlier builds?
+A: Servers aren't interchangeable: each user's socket lives on one machine, and routing to it is the central problem.
+
+Q: What sizes the gateway fleet?
+A: Memory: ~100 million connections × ~50 KB ≈ 5 TB of connection state — at ~1 million connections a node, 100 nodes minimum and 200+ in practice.
+
+Q: Why split gateways from chat services?
+A: Stateful gateways hold sockets with no business logic and deploy rarely; stateless services hold logic and deploy freely — otherwise every deploy drops every connection.
+
+Q: How do messages reach the right socket?
+A: A Redis session registry maps user to device and gateway, refreshed by heartbeat; groups use pub/sub. Stale entries are normal — a gateway replies "not mine" and you fall back to offline delivery.
+
+Q: What three mechanisms make "never lose a message" true?
+A: Persist before acknowledging the sender, reconnect sync from the client's highest-seen message ID per conversation, and dedup on a client-generated message ID.
+
+Q: How do groups avoid write amplification?
+A: Write the message once to the conversation partition; each member tracks a read cursor. Online members get a push, others pull on reconnect; large groups drop per-member receipts.
+
+Q: Name three operational must-haves for connection fleets.
+A: Drain gateways in jittered batches on deploy, jittered exponential backoff on client reconnects, heartbeats to clear half-open connections, and bounded per-connection send buffers.
+```
+
+## What to carry forward
+
+- Stateful connections: split dumb gateways from stateless logic.
+- Shard messages by conversation, not user.
+- Persist first, sync on reconnect, dedupe on client IDs.
+- Write group messages once; each reader keeps a cursor.
+- Deploys and reconnect storms are where connection systems break.

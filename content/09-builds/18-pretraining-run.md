@@ -9,6 +9,12 @@ tags: [level-6, ai, training, hpc, reliability]
 unlocks: Every idea in this atlas, composed into one system at the largest scale it appears.
 ---
 
+:::predict Guess first
+1. Training compute is roughly 6 × parameters × tokens. Would a 200B model on 12 trillion tokens finish in 60 days on 4,000 GPUs at 40% utilisation?
+2. With 500 machines that each fail about once every 50,000 hours, how often does something in the cluster fail?
+3. One GPU out of 4,000 runs 20% slower but reports no errors. How much does it slow the whole job?
+:::
+
 ## The task
 
 Train a 200-billion-parameter model on 12 trillion tokens. You have 4,000 GPUs for approximately 60 days.
@@ -41,7 +47,8 @@ Before allocating anything, the compute budget and the model/data split.
      · reach 50% MFU               → 83 days   (still short)
      · reduce to 8T tokens         → 69 days
      · 6,000 GPUs                  → 69 days
-     · 150B params, 10T tokens     → 58 days   ✓
+     · 150B params, 9T tokens      → 59 days   ✓
+       (6 × 150e9 × 9e12 = 8.1e24 → 5.1e6 s)
 
    The last one is also closer to compute-optimal for
    this budget. Chinchilla scaling suggests roughly
@@ -54,6 +61,8 @@ Before allocating anything, the compute budget and the model/data split.
 :::
 
 **The estimate comes first, and it changes the model.** Skipping this is how runs get started that cannot finish.
+
+A fifth lever has become common since 2024: doing most of the matrix maths in **FP8** instead of BF16 — DeepSeek-V3 was trained this way. It raises effective throughput substantially, but it needs careful per-block scaling to stay numerically stable, so treat it as a choice you plan and validate on a small run, not a rescue for a schedule that doesn't fit.
 
 ## Phase 1 — The parallelism layout
 
@@ -120,7 +129,7 @@ The [training data pipeline](../06-ai-infrastructure/training-data-pipelines.htm
 ```diagram
    REQUIRED BEFORE THE RUN BEGINS
 
-   · 10T tokens, filtered, deduplicated, decontaminated
+   · 9T tokens, filtered, deduplicated, decontaminated
    · pre-packed into fixed-length sequences, in shards
      (~500 MB each, uint32 token IDs, mmap-able)
    · a deterministic, resumable shard assignment:
@@ -135,7 +144,7 @@ The [training data pipeline](../06-ai-infrastructure/training-data-pipelines.htm
    · prefetch several batches ahead, pinned memory
    · never stall the GPU — a loader stall shows up as
      mysteriously low MFU and takes days to diagnose
-   · stream from object storage; staging 10T tokens
+   · stream from object storage; staging 9T tokens
      to local disk on 500 nodes is not worth it
 ```
 
@@ -168,7 +177,7 @@ A **checkpoint** is a full snapshot of the run, written to storage so a crash co
      500 nodes, node MTBF ~50,000 h
      cluster MTBF = 50,000/500 = 100 hours
      → a failure roughly every 4 days
-     → over 58 days: ~14 failures
+     → over 59 days: ~14 failures
 
    OPTIMAL INTERVAL (Young's formula)
      √(2 × 12 s × 360,000 s)  ≈  2,939 s  ≈  49 minutes
@@ -269,7 +278,7 @@ The daily human look at the loss curve is not replaceable. Published logbooks fr
 
 | Decision | Rejected | Because |
 |---|---|---|
-| 150B × 10T over 200B × 12T | The original spec | 200B doesn't finish in 60 days at achievable MFU |
+| 150B × 9T over 200B × 12T | The original spec | 200B doesn't finish in 60 days at achievable MFU |
 | TP 8 × PP 10 × DP 50 | ZeRO-3 across all 4,000 | ZeRO-3's all-gathers are network-bound at this scale |
 | TP within the node only | TP across nodes | 2 all-reduces per layer; ~18× slower over InfiniBand |
 | Interleaved 1F1B | Naive pipeline schedule | Halves the bubble from 10% to ~5% |
@@ -291,7 +300,7 @@ There is no viable minimum version of a 60-day 4,000-GPU run. Without automatic 
 
 ## Explaining the design
 
-> "The first thing is the compute estimate, because it changes the model. At `6PD` FLOPs, 200B parameters on 12T tokens is 1.4e25, which at 40% MFU on 4,000 GPUs is 104 days — the run as specified doesn't fit the budget. So I'd resize to roughly 150B on 10T, which finishes in 58 days and is also a better serving trade.
+> "The first thing is the compute estimate, because it changes the model. At `6PD` FLOPs, 200B parameters on 12T tokens is 1.4e25, which at 40% MFU on 4,000 GPUs is 104 days — the run as specified doesn't fit the budget. So I'd resize to roughly 150B on 9T, which finishes in about 59 days and is also a better serving trade.
 >
 > The parallelism layout comes from matching communication frequency to link speed: tensor parallel 8 inside the node because it all-reduces twice per layer and needs NVLink; pipeline across 10 nodes because it only communicates at stage boundaries; data parallel 50 for the rest, since gradient sync happens once per step and overlaps with backward. ZeRO-1 inside the data-parallel groups shards optimizer state for free.
 >
@@ -304,3 +313,39 @@ There is no viable minimum version of a 60-day 4,000-GPU run. Without automatic 
 ## Where to go from here
 
 This is the last build. If the arithmetic above felt tractable — the memory budget, the bubble fraction, the checkpoint interval, the failure rate — then the material has done its job. Every number came from a page in this atlas, and the whole thing is [queueing theory](../01-foundations/queueing-theory.html), [failure arithmetic](../01-foundations/availability-slas.html), [checkpointing](../04-data/wal-and-durability.html), and [caching](../02-building-blocks/caching.html), with unusually large constants.
+
+## Check yourself
+
+```recall
+Q: Why does the compute estimate come first?
+A: C ≈ 6PD: 200B × 12T = 1.44e25 FLOPs, ~104 days on 4,000 GPUs at 40% MFU — the spec can't finish, so the model changes (e.g. 150B on 9T in ~59 days, also cheaper to serve).
+
+Q: How are tensor, pipeline and data parallelism laid out?
+A: Match communication frequency to link speed: tensor parallel 8 inside a node over NVLink (2 all-reduces per layer), pipeline 10 across nodes (one hand-off per stage), data parallel 50 for the rest (one overlappable sync per step), with ZeRO-1 sharding optimizer state.
+
+Q: What must a resumable data loader guarantee?
+A: Rank r at step s reads exactly the same data after a resume — otherwise data is silently replayed or skipped and the model trains on the wrong distribution.
+
+Q: What goes into a checkpoint, and how big is it?
+A: Weights plus optimizer state — Adam momentum, variance and FP32 master weights — about 2.1 TB for 150B parameters. Sharded async writes pause training only ~12 s.
+
+Q: How do you pick the checkpoint interval?
+A: Young's formula: √(2 × checkpoint cost × MTBF). With a 12 s pause and a 100-hour cluster MTBF that's ~49 minutes, putting failure cost near 0.5% of the run.
+
+Q: What must automatic recovery do?
+A: Detect (NCCL timeout, heartbeat), cordon the node, pull a warm spare after pre-flight health checks, rebuild process groups, restore and reposition the loader, verify loss continuity, and keep the global batch constant.
+
+Q: Name the three silent failures that cost most.
+A: Stragglers (one slow GPU slows all 4,000 — watch the step-time distribution), silent data corruption (gradient-norm outliers, self-test kernels), and loss spikes that don't recover (roll back and skip the batches).
+
+Q: What is the honest "v1" of a pretraining run?
+A: Nothing can be cut from the machinery — cut the scale instead: a few-day 7B run on 64 GPUs with every mechanism in place, to find mistakes cheaply.
+```
+
+## What to carry forward
+
+- Estimate compute first; it decides the model size and token count.
+- Lay out parallelism by communication frequency versus link speed.
+- Data must be fixed, deterministic and resumable before day one.
+- Size checkpoints and intervals from the failure rate; recover automatically.
+- Hunt silent failures, review the loss daily, and rehearse on a small run.

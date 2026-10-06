@@ -9,6 +9,12 @@ tags: [level-5, ai, retrieval, vector-search]
 unlocks: Making a model answer accurately over private or fresh data.
 ---
 
+:::predict Guess first
+1. A RAG system gives a confident wrong answer. Is the model more likely to blame, or the passages it was given?
+2. A user searches for "error code E4032". Would meaning-based vector search or old-fashioned keyword search find it more reliably?
+3. Retrieval returns 100 passages, but a user may only read some of them. Should permissions be checked before or after the answer is generated?
+:::
+
 ## The product
 
 Ask a question about your company's documents, your codebase, or a knowledge base. Get an answer grounded in the actual content, with citations.
@@ -89,6 +95,8 @@ Retrieval then becomes geometry: find the points nearest the question's point.
 ```
 
 **Quantization** is the lever: storing vectors at reduced precision cuts memory several-fold with modest recall loss. Standard practice at scale — and a good detail to mention, since it's the difference between "fits in memory" and "doesn't."
+
+Newer schemes go further. Binary and **RaBitQ**-style quantization (SIGMOD 2024) store about one bit per dimension — 32× smaller than 4-byte floats — then re-score the shortlist with full-precision vectors to keep recall high. And for a huge corpus that's queried rarely, vector indexes on object storage (Amazon S3 Vectors, generally available since December 2025) trade higher query latency for a small fraction of the cost of keeping everything in RAM.
 
 **Metadata filtering is where people get burned.** "Search only documents this user can access" sounds trivial and isn't: filtering *after* retrieval can leave you with nothing (all top-100 results were inaccessible), while filtering *during* graph traversal degrades the index's connectivity assumptions. Use an index that supports native filtered search, and treat permissions as a first-class part of the query rather than a post-filter.
 
@@ -230,3 +238,39 @@ Reranking, hybrid search, contextual prefixes, incremental updates. Ship: fixed 
 ## Next
 
 [Build an AI Agent Platform](ai-agent-platform.html) — where the model stops answering and starts acting.
+
+## Check yourself
+
+```recall
+Q: Why is retrieval quality "the whole game" in RAG?
+A: A perfect model given the wrong passages produces a confident wrong answer; most RAG systems that "don't work" have a retrieval problem.
+
+Q: What makes good chunks?
+A: 300–800 tokens split on semantic boundaries (headings, paragraphs, functions, whole tables) with ~10–15% overlap, and a contextual prefix of document and section title before embedding.
+
+Q: How big is a vector index, and how do you shrink it?
+A: 80 million chunks × 1024 dims × 4 bytes ≈ 320 GB, ~480 GB with HNSW overhead. Shard, or quantize — down to about 1 bit per dimension with full-precision re-scoring of the shortlist.
+
+Q: Why must permissions be applied at retrieval time?
+A: Post-filtering can empty the results, and ignoring access control lets the model fluently summarise documents the user may not read. Filter with the requesting user's permissions inside the query.
+
+Q: Why hybrid retrieval, and how are results fused?
+A: Vector search misses exact identifiers; BM25 misses paraphrase. Run both and merge with reciprocal rank fusion, which combines by rank because the scores aren't comparable.
+
+Q: What does reranking add?
+A: A cross-encoder reads query and passage together — far more accurate but too slow for millions — so it reorders the ~100 retrieved candidates down to ~8. Usually the biggest quality gain for the least change.
+
+Q: How should citations and "not found" be handled?
+A: The model cites chunk IDs that application code maps to real sources (models fabricate URLs), and it's told to decline when the context lacks the answer — or isn't called below a relevance threshold.
+
+Q: How do you tell whether a failure is retrieval or generation?
+A: Measure recall@k and MRR for retrieval, faithfulness and relevance for answers, on a labelled set re-run every change. Poor recall@50 means no prompt change will help.
+```
+
+## What to carry forward
+
+- Treat RAG as a retrieval problem first.
+- Chunk semantically with context prefixes; that sets the ceiling.
+- Hybrid retrieval plus a cross-encoder rerank; permissions inside the query.
+- Cite by chunk ID, decline when unsupported, order strong passages at the edges.
+- The index is derived via CDC; re-embed by alias flip; evaluate every change.

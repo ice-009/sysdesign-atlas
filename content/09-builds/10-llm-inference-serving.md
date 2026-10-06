@@ -9,6 +9,12 @@ tags: [level-5, ai, gpu, inference]
 unlocks: The foundation under every AI product — how tokens are actually served.
 ---
 
+:::predict Guess first
+1. Generating one token for one user reads every weight of the model from GPU memory. What does that suggest about serving users one at a time?
+2. What do you think limits how many conversations one GPU can serve at once — its arithmetic speed, or its memory?
+3. In a batch of requests, one generates 500 tokens and the others 20. What happens to the short ones' slots if the batch waits for the longest?
+:::
+
 ## The product
 
 An API that takes a prompt and streams back generated text. Thousands of concurrent users, each expecting the first token quickly and the rest smoothly.
@@ -79,6 +85,8 @@ The number of concurrent requests a GPU can serve is set by how much KV cache fi
 Saying this early reframes the entire conversation, and it's the single highest-value observation in this build. The reflex is to reach for "add more GPUs" without first establishing what is actually scarce.
 :::
 
+Modern models shrink the per-token figure, though never enough to change the conclusion. **Grouped-query attention** lets several query heads share one set of keys and values — Llama 3 70B keeps 8 KV heads instead of 64, cutting the cache about 8×, to roughly 320 KB per token. **Multi-head latent attention** (DeepSeek-V2 and V3) compresses keys and values into a small latent vector. Context windows grew even faster than these savings, so memory is still the constraint.
+
 ## Phase 3 — Continuous batching
 
 The naive batching strategy is *static*: collect N requests, run them together, return when all finish.
@@ -114,6 +122,8 @@ The naive batching strategy is *static*: collect N requests, run them together, 
 This is a scheduling change, not a model change, and it typically multiplies throughput several times over. It's the single most important technique in LLM serving.
 
 **Prefill and decode interfere**, which is the subtlety worth naming. A newly admitted request needs a prefill pass — compute-heavy, and it stalls the decode steps of everyone already streaming. Serving systems handle this by chunking long prefills into pieces interleaved with decode steps, so admitting a request with a huge prompt doesn't visibly stutter everyone else's stream. If asked "what happens when someone submits a 100K-token prompt?", that's the answer.
+
+At large scale the standard fix since 2025 goes further: **disaggregate** them. Run prefill on one pool of GPUs and decode on another, and ship each request's KV cache between them over a fast interconnect. Each pool is then sized and tuned for its own bottleneck — compute for prefill, memory bandwidth for decode — and a burst of long prompts no longer slows anyone's stream. Open-source stacks such as NVIDIA Dynamo and llm-d are built around this split. For a single small deployment, chunked prefill on shared GPUs is still simpler.
 
 ## Phase 4 — Memory management
 
@@ -167,6 +177,7 @@ A model too large for one GPU must be split.
 Rule of thumb: tensor parallelism inside a node where the interconnect is fast, pipeline parallelism across nodes where it isn't. Both add latency, so use the smallest split the model actually requires.
 
 **Speculative decoding** is the other big lever. Since decode is memory-bandwidth-bound, verifying several tokens costs barely more than generating one. So: have a small fast model draft *k* tokens, then have the large model verify them all in a single pass. Accepted drafts are free; rejected ones cost one wasted pass. When the draft model is decent, this cuts latency substantially with no change in output distribution.
+Newer variants such as **EAGLE-3** (2025) drop the separate model: a small draft head reads the large model's own internal features, which makes drafts accurate enough that most are accepted.
 
 ## Phase 6 — Serving architecture
 
@@ -253,3 +264,39 @@ Speculative decoding, multi-node parallelism, prefix caching, priority lanes. Sh
 ## Next
 
 [Build a Claude-style Chat Platform](ai-chat-platform.html) — the product layer on top of this.
+
+## Check yourself
+
+```recall
+Q: Prefill versus decode?
+A: Prefill processes the whole prompt in parallel and is compute-bound; decode produces one token per forward pass and is memory-bandwidth-bound, reading every weight per token — so batching is mandatory.
+
+Q: What is the KV cache, and why does it make memory the constraint?
+A: Stored attention keys and values for every past token, so each new token costs O(1) instead of re-processing everything. It grows with every token of every concurrent request, so concurrency is set by how much fits beside the weights.
+
+Q: What is continuous batching?
+A: Scheduling per decode iteration: after every step, evict requests that finished and admit waiting ones, so the batch stays full despite wildly varying output lengths. Usually a several-fold throughput gain.
+
+Q: Why chunk prefill, and what is disaggregation?
+A: A huge prompt's prefill would stall everyone's decode, so long prefills are split and interleaved. At scale, prefill and decode run on separate GPU pools with the KV cache shipped between them.
+
+Q: What do paged KV cache and prefix caching buy?
+A: Fixed-size blocks remove reservation waste and fragmentation and let identical prefixes share physical blocks; prefix caching reuses a cached prompt prefix, so each chat turn after the first is mostly a cache hit.
+
+Q: Tensor parallel versus pipeline parallel?
+A: Tensor parallel splits each layer across GPUs and communicates every layer — use within a node over NVLink. Pipeline parallel splits layers into stages and communicates only at boundaries — use across nodes, accepting bubbles.
+
+Q: How does speculative decoding work?
+A: A cheap drafter proposes k tokens and the large model verifies them in one pass — nearly free because decode is bandwidth-bound. Accepted drafts are free, and the output distribution is unchanged.
+
+Q: Which serving metrics matter, and what is the central tension?
+A: TTFT (queueing plus prefill), TPOT (streaming smoothness), throughput (cost) and goodput (tokens meeting the SLA). Bigger batches raise throughput but worsen TTFT.
+```
+
+## What to carry forward
+
+- Decode is memory-bandwidth-bound, so batch — you are scheduling memory, not compute.
+- Continuous batching keeps the batch full; chunked or disaggregated prefill protects streams.
+- Paged KV blocks enable prefix sharing; conversations are mostly cache hits.
+- Rate-limit on tokens, route by cache affinity, stream over SSE.
+- GPUs scale in minutes: keep warm capacity and shed load rather than queue forever.

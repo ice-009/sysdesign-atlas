@@ -9,6 +9,12 @@ tags: [level-5, ai, chat, streaming]
 unlocks: Building a complete AI product on top of model inference.
 ---
 
+:::predict Guess first
+1. A model remembers nothing between calls. How does a chat assistant "remember" earlier turns of a conversation?
+2. A user's phone loses signal halfway through a streamed reply. Should the reply be lost?
+3. A user presses "stop" on a long answer and the app simply closes the connection. Is the GPU still generating?
+:::
+
 ## The product
 
 A user types a message. An assistant streams a reply. The conversation continues with memory of what came before. It works across devices, handles files, and can't be trivially abused.
@@ -188,3 +194,39 @@ Attachments, summarization, multi-model routing, resumable streams. Ship: conver
 ## Next
 
 [Build a RAG System](rag-system.html) — grounding the model in data it was never trained on.
+
+## Check yourself
+
+```recall
+Q: Where does most of a chat platform's difficulty live?
+A: In the token path: ~6 million output tokens a second at peak is a huge GPU fleet, so anything that cuts tokens generated or recomputed is load-bearing. Conversation storage (~1 TB/day of text) is easy.
+
+Q: How is conversation data modelled?
+A: Messages sharded by conversation_id (whole history from one partition), with token_count stored at write time for context assembly and billing, and titles generated asynchronously.
+
+Q: What must a turn's context budget always include?
+A: The system prompt, history, the current input and reserved room to generate — fill the window with history and the model has no space to answer.
+
+Q: What is the recommended context strategy?
+A: Hybrid: recent turns verbatim, the middle summarised, and the system prompt and first user message always kept. Retrieval over history suits very long conversations.
+
+Q: Why is context management the main cost lever?
+A: Input tokens are re-sent every turn, so 50K tokens of history costs ~50× a 1K history for the same answer — and append-only conversations make the history a cached prefix.
+
+Q: Name three streaming rules.
+A: Persist the final message server-side so a disconnect can't lose it, make streams resumable by message ID, and propagate cancellation to the inference layer so a stopped reply frees its GPU slot.
+
+Q: How is output moderated while streaming?
+A: Buffer a small window before emitting, classify on the fly and be able to halt mid-stream — a little latency buys the ability to stop, since streamed tokens can't be unshown.
+
+Q: What is the degradation ladder under saturation?
+A: Queue briefly, route to a smaller model, cap output length, shed free-tier traffic first, then a clear error — never an infinite spinner. Never blind-retry a stream that failed midway.
+```
+
+## What to carry forward
+
+- The model is one component; the engineering is around it.
+- Context management is both the quality problem and the main cost lever — always reserve answer room.
+- Stream over SSE; persist server-side, resume by ID, propagate cancellation.
+- Moderate input before the model and output during streaming.
+- Degrade gracefully, rate-limit on tokens, track cost per conversation.
