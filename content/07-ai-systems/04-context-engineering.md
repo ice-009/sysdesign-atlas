@@ -86,7 +86,7 @@ From [KV cache management](../06-ai-infrastructure/kv-cache-management.html): a 
 ```
 :::
 
-The rule: **order by rate of change, most stable first.** It's the same principle as ordering Docker layers to maximise build cache reuse, and just as easy to get wrong.
+The rule: **order by rate of change, most stable first.** Anything that rewrites the start of a prompt — including an [LLM gateway](llm-gateways.html) injecting per-request metadata — silently destroys this. It's the same principle as ordering Docker layers to maximise build cache reuse, and just as easy to get wrong.
 
 ## Managing conversation history
 

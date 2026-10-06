@@ -63,7 +63,8 @@ The principles that matter, in order of impact:
 2. **Fewer tools, better described.** Past roughly 20 tools, selection accuracy degrades noticeably. Group related operations behind one tool with a mode parameter, or use a two-stage approach: retrieve relevant tools, then present only those.
 3. **Return errors the model can act on.** `{"error": "customer_not_found", "hint": "try search_customer_by_name"}` lets it recover. `500 Internal Server Error` produces a retry loop.
 4. **Make results compact.** A tool returning 8,000 tokens of JSON consumes the context budget and buries the signal. Summarise or paginate at the tool boundary.
-5. **Constrain the schema.** [Constrained decoding](../05-ai-foundations/decoding-strategies.html) makes malformed tool calls impossible rather than rare.
+5. **Standardise the interface where it helps.** Tools served over [MCP](agent-protocols.html) can be shared across agents, with the same contract rules applying.
+6. **Constrain the schema.** [Constrained decoding](../05-ai-foundations/decoding-strategies.html) makes malformed tool calls impossible rather than rare.
 
 ## Patterns
 

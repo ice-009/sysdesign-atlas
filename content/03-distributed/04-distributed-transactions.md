@@ -58,6 +58,8 @@ The promise is the key: after voting yes, a participant **must** be able to comm
 
 **3PC** adds a third phase to stop that blocking, at the cost of another round trip — and it's still unsafe when the network splits, so it's rarely used. The fix that actually works, used by systems like Spanner and CockroachDB: make the coordinator itself a small replicated cluster agreeing by consensus, so it cannot simply vanish mid-decision. A crashed machine no longer strands anyone, because its peers know what was decided. That's the fix that makes 2PC viable, and it's worth naming.
 
+There is also an optimistic alternative to locking participants for the whole round trip: run the transaction against a snapshot without locks and check for conflicts only at commit, aborting the loser. Amazon Aurora DSQL takes this approach across Regions — see [multi-region](multi-region.html#global-consensus-spanner-style) for how its commit path works.
+
 :::interview When 2PC is acceptable
 "2PC is reasonable inside a single trust and latency domain — cross-shard transactions in one database cluster, where the coordinator is itself replicated by consensus so it can't block indefinitely. It's a poor fit across independently-operated services over the internet, where the coordinator is a single point of failure and locks are held across unbounded latency."
 :::

@@ -127,6 +127,8 @@ Open-source orchestration layers above the engines — NVIDIA Dynamo, and the Ku
 
 The trade is a KV transfer per request — hundreds of megabytes for a long prompt — and more moving parts. For one node or modest traffic, chunked prefill on shared GPUs is still the simpler answer.
 
+Reasoning models push the mix further toward decode — thousands of output tokens per request — which changes the pool ratio, admission and timeouts; see [serving reasoning models](serving-reasoning-models.html).
+
 ## The scheduler's decisions
 
 Every iteration, the scheduler must decide:

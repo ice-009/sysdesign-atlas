@@ -96,6 +96,21 @@ Synchronous replication across regions via Paxos/Raft. Strong consistency everyw
 
 Note the mitigation these systems use: place all replicas of a shard in *nearby* regions (e.g. three US regions) so the quorum round trip is 30 ms, not 200 ms — you get regional fault tolerance without paying the global latency.
 
+**Amazon Aurora DSQL** (generally available May 2025) is a newer take on the same goal, and a useful contrast because it avoids locks entirely. It's a serverless, Postgres-compatible distributed SQL database whose multi-Region clusters are active–active with strong consistency: two peered Regional endpoints present one logical database, and a third *witness* Region holds only the log, so there's a majority without a full third copy.
+
+```diagram
+   read:    served from a snapshot (MVCC), no locks, no coordination
+   write:   buffered inside the transaction
+   COMMIT:  "adjudicators" check whether anything you read was changed
+            by a transaction that committed first
+              no conflict → append to the JOURNAL (the ordered, replicated
+                            log), durable across AZs — and across
+                            Regions for a multi-Region cluster
+              conflict    → abort; the client retries the transaction
+```
+
+Two consequences worth naming. The cross-Region round trip is paid **once per transaction, at commit**, not once per statement, which is what makes strong consistency across Regions tolerable. And because it uses [optimistic concurrency](distributed-transactions.html) rather than locking, contention shows up as aborted commits that must be retried — the same contract as serializable snapshot isolation in a single database. Snapshot timestamps depend on closely synchronised clocks (AWS's precision time service), echoing Spanner's reliance on bounded clock uncertainty; see [clocks](clocks.html).
+
 ## Data strategy
 
 Classify your data — this is the analysis that produces a good design:
@@ -141,6 +156,8 @@ Instead of one large system per region, run many independent **cells**, each a c
 - **Testable failure.** Killing a cell in production is a survivable experiment.
 
 **Costs:** the routing layer becomes critical (keep it dumb, static, and highly cached); cross-cell operations are awkward; per-cell overhead means lower utilization; and any truly global data must live outside the cells.
+
+[Cells & shuffle sharding](cells-and-shuffle-sharding.html) goes deeper: sizing cells, keeping the router boring, migrating customers between cells, and shuffle sharding to contain a single toxic customer.
 
 :::goat Bring up cells unprompted
 It is rarely proposed, and it is what operational maturity actually looks like: rather than one large deployment per region, partition into cells of about 100K users each. That bounds the blast radius of any failure or bad deploy to a few percent of users, gives me a known scaling unit, and lets me do staged rollouts cell by cell. The tradeoff is a routing layer I need to keep extremely simple and highly available, plus lower per-cell utilization."

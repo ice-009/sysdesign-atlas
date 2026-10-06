@@ -78,7 +78,7 @@ How most large outages actually happen. The pattern is a feedback loop:
       back to step 2, faster each time
 ```
 
-The system doesn't degrade gracefully — it collapses in seconds, and it often *stays* collapsed after the original trigger is gone, because the retry load alone is now enough to keep it down.
+The system doesn't degrade gracefully — it collapses in seconds, and it often *stays* collapsed after the original trigger is gone, because the retry load alone is now enough to keep it down. That self-sustaining state has a name — a [metastable failure](../03-distributed/metastable-failures.html) — and it accounts for a surprising share of major cloud outages.
 
 **Containment patterns:**
 
@@ -145,7 +145,7 @@ Run any design through these questions. In an interview, volunteering two or thr
 
 - **What happens when each component dies?** Walk the diagram, kill each box, describe the behavior.
 - **Is any component a single point of failure?** Including the "boring" ones — the config service, the DNS entry, the certificate, the single Redis holding your locks.
-- **What's the blast radius?** Does one bad shard take down one shard's users or everyone? [Cell-based architecture](../03-distributed/multi-region.html) exists to bound this.
+- **What's the blast radius?** Does one bad shard take down one shard's users or everyone? [Cell-based architecture and shuffle sharding](../03-distributed/cells-and-shuffle-sharding.html) exist to bound this.
 - **Can it self-heal, or does it need a human?** Humans take 15+ minutes at 3am. That's your RTO floor if a human is in the loop.
 - **What's the behavior under overload?** "It gets slow" is a wrong answer. "It sheds load at the edge and serves the remaining 80% at normal latency" is right.
 - **Does it degrade gracefully?** Can you serve stale cache, disable a non-essential feature, or return partial results instead of failing entirely?

@@ -114,6 +114,8 @@ Retries interact badly with overload and deserve explicit attention, because the
 - **Never retry on 4xx.** A bad request stays bad. Retry only on timeouts, 5xx, and connection failures.
 - **Don't retry when the circuit is open.** The breaker already knows.
 
+Get these wrong and an overload can outlive its cause: retries, cold caches and recovery backlogs keep the system pinned above capacity after the trigger has passed. That's a [metastable failure](metastable-failures.html), and designing so the system climbs back out on its own is the subject of that page.
+
 ## Putting it together
 
 The layered defense, and reciting this structure answers most "what happens under load?" questions completely:

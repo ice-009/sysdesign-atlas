@@ -148,6 +148,8 @@ The three contenders — **Iceberg**, **Delta Lake**, **Hudi** — differ less t
 
 The formats are also converging. Databricks bought Tabular — the company founded by Iceberg's creators — in 2024; Delta can publish Iceberg metadata for the same files (UniForm); Iceberg's v3 spec (2025) adopted Delta-style deletion vectors and a semi-structured `variant` type; and the clouds now sell managed Iceberg tables outright. Amazon S3 Tables (December 2024) runs compaction and snapshot expiry for you, which removes the most common way a lakehouse rots.
 
+The same shape — immutable files plus one atomically swapped pointer — now sits under whole databases, queues and search engines that keep nothing on local disk; see [databases on object storage](databases-on-object-storage.html).
+
 :::goat Time travel is not a novelty feature
 Reproducibility is the reason it matters. "Retrain the model on exactly the data we had on 1 August" is impossible on a mutable table and trivial with snapshots.
 

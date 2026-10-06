@@ -13,7 +13,7 @@ export default async function Home() {
   const features = [
     ['A real prerequisite graph', 'Every topic declares what it assumes. Nothing arrives before the idea it depends on.'],
     ['Derivations, not assertions', 'Where a number is claimed, the arithmetic behind it is shown so you can check it.'],
-    ['A full AI systems track', '34 topics: transformer mechanics, GPUs and interconnects, distributed training, inference serving, retrieval, agents, evaluation.'],
+    ['A full AI systems track', `${stats.aiTopics} topics: transformer mechanics, GPUs and interconnects, distributed training, inference serving, retrieval, agents, evaluation.`],
     ['Built up, not just presented', 'Guided builds construct each system in phases, with the concrete number that broke the previous one.'],
     ['Primary sources throughout', 'Papers cited on the page, so you can go read Dynamo, Raft, PagedAttention, and ZeRO yourself.'],
     ['Everything unlocked', 'No tiers, no paywall, no upsell. Every topic, free, forever.'],

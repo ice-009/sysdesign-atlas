@@ -123,7 +123,7 @@ export default function SearchPalette() {
                 value={q}
                 onChange={(e) => setQ(e.target.value)}
                 onKeyDown={onKeyDown}
-                placeholder="Search 66 topics — try “sharding”, “raft”, “uber”…"
+                placeholder={`Search ${index.length} topics — try “sharding”, “raft”, “uber”…`}
                 className="w-full bg-transparent py-4 text-[16px] outline-none"
                 style={{ color: 'var(--text)' }}
                 spellCheck={false}

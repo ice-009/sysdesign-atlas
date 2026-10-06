@@ -210,6 +210,9 @@ Prompts marked ★ are the highest-frequency ones. If you only do ten, do those.
 - Design an evaluation platform for prompt and model changes → [guided build](../09-builds/eval-platform.html)
 - Design a phone-call voice agent → [guided build](../09-builds/voice-assistant.html)
 - Design a multi-tenant fine-tuning service → [guided build](../09-builds/fine-tuning-platform.html)
+- Design an LLM gateway for a company using several model providers → [topic](../07-ai-systems/llm-gateways.html)
+- Design serving for a reasoning model whose answers take minutes → [topic](../06-ai-infrastructure/serving-reasoning-models.html)
+- Design a platform that lets agents use third-party tools safely (MCP) → [topic](../07-ai-systems/agent-protocols.html)
 
 **Follow-ups:** What limits how many users one GPU serves? How do you rate-limit when one request can be 20 tokens or 20,000? What does prefix caching change? How do you stop retrieval leaking documents a user can't see? What happens when a web page the agent reads contains instructions? How would you know a prompt change made answers worse?
 

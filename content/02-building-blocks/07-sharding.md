@@ -62,7 +62,7 @@ Keep an explicit map from key (or key range) to shard.
 
 ### Geographic / tenant partitioning
 
-Shard by region (data residency, latency) or by customer (isolation, noisy-neighbor control). Common in B2B SaaS, where "one shard per large tenant, shared shards for small ones" is a standard and defensible pattern.
+Shard by region (data residency, latency) or by customer (isolation, noisy-neighbor control). Common in B2B SaaS, where "one shard per large tenant, shared shards for small ones" is a standard and defensible pattern. Taken further, this becomes [cells and shuffle sharding](../03-distributed/cells-and-shuffle-sharding.html): independent stacks per group of customers, and random combinations of servers per customer so one toxic tenant can't take down its neighbours.
 
 ## Choosing the partition key
 

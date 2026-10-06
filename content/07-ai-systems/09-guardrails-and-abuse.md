@@ -84,7 +84,7 @@ Concretely, this means the tools carry the authorisation, not the prompt:
 That last one is underused and effective: once an agent has read a web page, it can no longer send email, full stop. Nothing has to detect an attack — the capability simply isn't there any more once the risk exists.
 :::
 
-Research has been making that idea systematic. The **dual-LLM pattern** (Simon Willison, 2023) and Google DeepMind's **CaMeL** (2025) split the work between two models: a privileged one plans from the user's trusted request alone, and a quarantined one reads untrusted content but can't call tools. Values extracted from untrusted content carry labels saying where they came from, and a policy checks those labels before any tool may use them. That gives protection by construction rather than by detection, at the cost of some flexibility.
+Research has been making that idea systematic. The **dual-LLM pattern** (Simon Willison, 2023) and Google DeepMind's **CaMeL** (2025) split the work between two models: a privileged one plans from the user's trusted request alone, and a quarantined one reads untrusted content but can't call tools. Values extracted from untrusted content carry labels saying where they came from, and a policy checks those labels before any tool may use them. That gives protection by construction rather than by detection, at the cost of some flexibility. The same problems arrive in new forms when tools come from third-party servers — see the security section of [agent protocols](agent-protocols.html).
 
 ## The defence layers
 

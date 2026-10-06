@@ -180,6 +180,8 @@ A large fraction of the cache expires or disappears at once — a mass TTL expir
 "If the Redis cluster restarts empty and we send it full production traffic, the database sees 100% of reads and dies — and then it dies *again* every time we try to recover, because the cache is still cold. I'd ramp traffic gradually and pre-warm the top keys from an offline job." Recovery being its own overload event is a genuinely production-flavored observation.
 :::
 
+A cold cache that can't refill because the database it protects is drowning is one of the classic [metastable failures](../03-distributed/metastable-failures.html) — an outage that keeps going after its trigger is gone.
+
 ## What not to cache
 
 Volunteering this is a good signal, because it shows you see the cost side:

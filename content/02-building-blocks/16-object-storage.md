@@ -56,6 +56,8 @@ A flat key-value store for immutable blobs, addressed by key, accessed over HTTP
 - **Strong read-after-write consistency** for new objects in modern implementations (this was famously eventual for years — worth knowing, since older material still says otherwise).
 - **Object-level operations only** — replace the whole object; you can't edit a byte in place.
 
+Strong consistency plus conditional writes ("create only if absent", "replace only if unchanged") turned object storage into something you can build a database on, not just next to — see [databases on object storage](../04-data/databases-on-object-storage.html).
+
 ## Upload: use presigned URLs
 
 A **presigned URL** is a link your server generates that grants permission to upload (or download) one specific file, for a short window. The client uploads straight to the storage service using it, so the bytes never pass through your servers — but you still control who gets a link.

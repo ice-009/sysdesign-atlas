@@ -15,7 +15,7 @@ unlocks: A specific next page to open, instead of a table of contents to stare a
 
 ## Pick the one that matches your goal
 
-There are 159 topics here. Reading them front to back is a valid plan and a slow one. These four routes exist because "learn system design" usually means one of four different things.
+There are more than 160 topics here. Reading them front to back is a valid plan and a slow one. These four routes exist because "learn system design" usually means one of four different things.
 
 | Route | For | Rough time |
 |---|---|---|

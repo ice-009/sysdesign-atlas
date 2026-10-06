@@ -119,6 +119,8 @@ Most of these are covered elsewhere. The one worth flagging here: **routing to t
    measure the escalation rate.
 ```
 
+Routing, budgets and attribution usually live together in an [LLM gateway](../07-ai-systems/llm-gateways.html) in front of every model call.
+
 ## API versus self-hosting
 
 The decision that gets made on vibes and should be made on arithmetic.
@@ -195,7 +197,7 @@ A chat request costs a bounded, predictable amount. An [agent](../07-ai-systems/
 The consequences: a per-request cost ceiling is mandatory, not optional; token budgets must be enforced in the agent loop itself; and a runaway loop needs a circuit breaker. Several companies have discovered this through a five-figure bill from a single stuck agent.
 :::
 
-**Reasoning models move cost to the output side.** A model that thinks before answering can generate 5,000–50,000 hidden reasoning tokens on a hard question, billed as output — the most expensive token type — and served by the bandwidth-bound decode phase. Most such models expose a reasoning-effort or thinking-budget setting: use a low budget for routine traffic and a high one only where accuracy pays for it, and track reasoning tokens as their own line in cost attribution.
+**Reasoning models move cost to the output side.** A model that thinks before answering can generate 5,000–50,000 hidden reasoning tokens on a hard question, billed as output — the most expensive token type — and served by the bandwidth-bound decode phase. Most such models expose a reasoning-effort or thinking-budget setting: use a low budget for routine traffic and a high one only where accuracy pays for it, and track reasoning tokens as their own line in cost attribution. [Serving reasoning models](serving-reasoning-models.html) covers the infrastructure side.
 
 ## Pricing a product on top
 

@@ -165,6 +165,8 @@ Netflix's engineering posts on Zuul — particularly the move from blocking to n
 The Envoy documentation on circuit breaking, outlier detection, and rate limiting is effectively a reference manual for what a gateway should do. For the underlying control theory, Netflix's `concurrency-limits` library and its README explain the Little's-Law-derived adaptive limiter.
 :::
 
+The same pattern now sits in front of model providers too. An LLM gateway adds the parts ordinary gateways don't know about — limits counted in tokens rather than requests, routing between models, fallback across providers, and caching that respects prompt prefixes. See [LLM gateways](../07-ai-systems/llm-gateways.html).
+
 ## Check yourself
 
 ```recall

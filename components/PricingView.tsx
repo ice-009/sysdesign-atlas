@@ -7,6 +7,7 @@ import Reveal from './Reveal';
 import { PLAN_LIST, formatPrice, type PlanId } from '@/lib/plans';
 import { subscribe } from '@/app/actions/billing';
 import { IconCheck, IconArrow } from './Icons';
+import { useTopicIndex } from './TopicIndexProvider';
 
 export default function PricingView({
   currentPlan,
@@ -15,6 +16,9 @@ export default function PricingView({
   currentPlan: PlanId;
   signedIn: boolean;
 }) {
+  const index = useTopicIndex();
+  const topicCount = index.length;
+  const caseStudyCount = index.filter((r) => r.u.startsWith('/learn/case-studies/')).length;
   const [interval, setInterval] = useState<'monthly' | 'yearly'>('monthly');
   const [pending, start] = useTransition();
   const [busy, setBusy] = useState<PlanId | null>(null);
@@ -45,7 +49,7 @@ export default function PricingView({
             style={{ color: 'var(--text-soft)' }}
           >
             <strong style={{ color: 'var(--text)' }}>
-              All 66 topics and 16 case studies are free, permanently.
+              All {topicCount} topics and {caseStudyCount} case studies are free, permanently.
             </strong>{' '}
             Paid plans add study tooling on top — they never lock the curriculum.
           </p>

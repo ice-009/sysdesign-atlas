@@ -27,7 +27,7 @@ The first design decision is whether you need a separate one at all.
 | **Dedicated vector DB** (Qdrant, Weaviate, Milvus, Vespa) | >10M vectors, high QPS, complex filtering, or you need the operational features |
 | **Managed service** | You'd rather not operate an index rebuild at 3am |
 | **Search engine with vectors** (Elasticsearch, OpenSearch, Vespa) | You need hybrid lexical+dense and already run one |
-| **Object-storage-native** (turbopuffer, LanceDB, S3 Vectors) | Huge, mostly cold corpora — say thousands of tenants that each query rarely. Data lives in object storage at object-storage prices; hot namespaces are cached on SSD and in memory |
+| **Object-storage-native** (turbopuffer, LanceDB, S3 Vectors) | Huge, mostly cold corpora — say thousands of tenants that each query rarely. Data lives in object storage at object-storage prices; hot namespaces are cached on SSD and in memory — see [databases on object storage](../04-data/databases-on-object-storage.html) |
 
 :::goat Postgres is the right answer more often than the discourse suggests
 Under about 10 million vectors, `pgvector` with an HNSW index is genuinely competitive on latency, and it gives you things a dedicated vector database makes hard:

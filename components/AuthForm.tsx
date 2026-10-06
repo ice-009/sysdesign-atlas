@@ -7,6 +7,7 @@ import { signIn } from 'next-auth/react';
 import { motion } from 'motion/react';
 import { signUpAction } from '@/app/actions/auth';
 import { IconArrow } from './Icons';
+import { useTopicIndex } from './TopicIndexProvider';
 
 const field =
   'w-full rounded-xl border px-3.5 py-2.5 text-[15px] outline-none transition-colors focus:border-[var(--accent)]';
@@ -18,6 +19,7 @@ export default function AuthForm({
   mode: 'signin' | 'signup';
   oauth: string[];
 }) {
+  const topicCount = useTopicIndex().length;
   const isSignup = mode === 'signup';
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
@@ -78,7 +80,7 @@ export default function AuthForm({
           </h1>
           <p className="mt-2 text-[14.5px]" style={{ color: 'var(--text-soft)' }}>
             {isSignup
-              ? 'Track progress, rate confidence, and keep notes across all 81 topics. Free — there is no paid tier for the curriculum.'
+              ? `Track progress, rate confidence, and keep notes across all ${topicCount} topics. Free — there is no paid tier for the curriculum.`
               : 'Pick up exactly where you left off.'}
           </p>
 

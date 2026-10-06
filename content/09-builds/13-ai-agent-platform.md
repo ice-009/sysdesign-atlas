@@ -67,7 +67,7 @@ Simple to state and it needs hard bounds on every axis, because an agent that mi
 
 **Design tools to be narrow.** `execute_sql(query)` is dangerous and hard for the model to use correctly. `get_orders_for_customer(customer_id, status)` is safe, unambiguous, and easier for the model to call right. Narrow tools also fail more informatively, which shortens the loop.
 
-Increasingly, tools reach agents through the **Model Context Protocol (MCP)** — an open standard, introduced in late 2024, in which a tool server describes its tools with exactly these kinds of schemas and agents call them over JSON-RPC. It makes tools reusable across agents, but it doesn't change the rules above: an MCP server is one more untrusted boundary, in both directions, so arguments are still validated and results are still treated as data.
+Increasingly, tools reach agents through the **Model Context Protocol (MCP)** — an open standard, introduced in late 2024, in which a tool server describes its tools with exactly these kinds of schemas and agents call them over JSON-RPC. It makes tools reusable across agents, but it doesn't change the rules above: an MCP server is one more untrusted boundary, in both directions, so arguments are still validated and results are still treated as data. [Agent protocols](../07-ai-systems/agent-protocols.html) covers MCP and agent-to-agent A2A in depth.
 
 ## Phase 3 — Permissions, and the confused deputy
 
